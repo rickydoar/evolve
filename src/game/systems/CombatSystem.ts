@@ -1397,7 +1397,7 @@ function applyCardEffects(
         const from = effect.echoFrom;
         const to = effect.echoTo;
         if (!from || !to || from === to) break;
-        const duration = effect.duration ?? 99;
+        const duration = effect.duration ?? 1;
         addStatus(state.player, {
           id: uid('echo'),
           name: `${card.name} Echo`,
@@ -1410,7 +1410,7 @@ function applyCardEffects(
         const fromLabel = from === 'attack' ? 'deal damage' : from === 'heal' ? 'heal' : 'gain Block';
         const toLabel = to === 'attack' ? 'deal damage' : to === 'heal' ? 'heal' : 'gain Block';
         state.log.push({
-          text: `Echo: whenever you ${fromLabel}, also ${toLabel} ${value}.`,
+          text: `Echo: this turn, whenever you ${fromLabel}, also ${toLabel} ${value}.`,
           color: '#a78bfa',
         });
         break;

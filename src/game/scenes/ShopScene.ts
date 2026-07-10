@@ -121,9 +121,9 @@ export class ShopScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.contentRoot.add(hint);
 
-    const CARD_W = 150;
-    const CARD_H = 220;
-    const spacing = 168;
+    const CARD_W = 172;
+    const CARD_H = 252;
+    const spacing = 196;
     const startX = width / 2 - ((this.stock.length - 1) * spacing) / 2;
 
     this.stock.forEach((id, i) => {
@@ -145,53 +145,53 @@ export class ShopScene extends Phaser.Scene {
 
       if (this.textures.exists(card.art)) {
         container.add(
-          this.add.image(0, -48, card.art).setDisplaySize(120, 96).setAlpha(sold ? 0.4 : 1),
+          this.add.image(0, -54, card.art).setDisplaySize(136, 108).setAlpha(sold ? 0.4 : 1),
         );
       }
 
       // Energy cost gem
-      container.add(this.add.circle(-CARD_W / 2 + 16, -CARD_H / 2 + 16, 14, 0x1d4ed8));
+      container.add(this.add.circle(-CARD_W / 2 + 18, -CARD_H / 2 + 18, 15, 0x1d4ed8));
       container.add(
         this.add
-          .text(-CARD_W / 2 + 16, -CARD_H / 2 + 16, String(card.cost), {
+          .text(-CARD_W / 2 + 18, -CARD_H / 2 + 18, String(card.cost), {
             fontFamily: 'Georgia, serif',
-            fontSize: '16px',
+            fontSize: '17px',
             color: '#fff',
             fontStyle: 'bold',
           })
           .setOrigin(0.5),
       );
 
-      container.add(
-        fitCardText(this, 0, 18, card.name, CARD_W - 16, 24, {
-          color: sold ? '#64748b' : '#e8f5e9',
-          fontSize: 15,
-          minFontSize: 11,
-          fontStyle: 'bold',
-          lineSpacing: 0,
-        }),
-      );
+      const nameTop = 14;
+      const nameText = fitCardText(this, 0, nameTop, card.name, CARD_W - 18, 36, {
+        color: sold ? '#64748b' : '#e8f5e9',
+        fontSize: 15,
+        minFontSize: 11,
+        fontStyle: 'bold',
+        lineSpacing: 1,
+      });
+      container.add(nameText);
 
-      container.add(
-        this.add
-          .text(0, 44, `${FORM_LABELS[card.form]} · ${card.rarity}`, {
-            fontFamily: 'Georgia, serif',
-            fontSize: '10px',
-            color: sold
-              ? '#64748b'
-              : RARITY_COLORS[card.rarity],
-          })
-          .setOrigin(0.5),
-      );
+      const metaY = nameTop + nameText.height + 3;
+      const meta = this.add
+        .text(0, metaY, `${FORM_LABELS[card.form]} · ${card.rarity}`, {
+          fontFamily: 'Georgia, serif',
+          fontSize: '11px',
+          color: sold
+            ? '#64748b'
+            : RARITY_COLORS[card.rarity],
+        })
+        .setOrigin(0.5, 0);
+      container.add(meta);
 
-      const descTop = 60;
-      const descMaxH = CARD_H / 2 - descTop - 8;
+      const descTop = metaY + meta.height + 3;
+      const descMaxH = Math.max(40, CARD_H / 2 - descTop - 8);
       container.add(
-        fitCardText(this, 0, descTop, description, CARD_W - 16, descMaxH, {
+        fitCardText(this, 0, descTop, description, CARD_W - 18, descMaxH, {
           color: sold ? '#64748b' : '#cbd5e1',
-          fontSize: 11,
-          minFontSize: 9,
-          lineSpacing: 1,
+          fontSize: 12,
+          minFontSize: 10,
+          lineSpacing: 2,
         }),
       );
 
