@@ -56,8 +56,36 @@ export class BootScene extends Phaser.Scene {
     this.load.image('card-ironbark', '/assets/cards/ironbark.png');
     this.load.image('card-tranquility', '/assets/cards/tranquility.png');
 
+    // Priest cards
+    this.load.image('card-smite', '/assets/cards/smite.png');
+    this.load.image('card-penance', '/assets/cards/penance.png');
+    this.load.image('card-power-word-shield', '/assets/cards/power-word-shield.png');
+    this.load.image('card-power-word-radiance', '/assets/cards/power-word-radiance.png');
+    this.load.image('card-pain-suppression', '/assets/cards/pain-suppression.png');
+    this.load.image('card-power-infusion', '/assets/cards/power-infusion.png');
+    this.load.image('card-archangel', '/assets/cards/archangel.png');
+    this.load.image('card-mind-blast', '/assets/cards/mind-blast.png');
+    this.load.image('card-shadow-word-pain', '/assets/cards/shadow-word-pain.png');
+    this.load.image('card-mind-flay', '/assets/cards/mind-flay.png');
+    this.load.image('card-vampiric-touch', '/assets/cards/vampiric-touch.png');
+    this.load.image('card-shadow-word-death', '/assets/cards/shadow-word-death.png');
+    this.load.image('card-psychic-scream', '/assets/cards/psychic-scream.png');
+    this.load.image('card-void-eruption', '/assets/cards/void-eruption.png');
+    this.load.image('card-shadowfiend', '/assets/cards/shadowfiend.png');
+    this.load.image('card-dispersion', '/assets/cards/dispersion.png');
+    this.load.image('card-flash-heal', '/assets/cards/flash-heal.png');
+    this.load.image('card-renew', '/assets/cards/renew.png');
+    this.load.image('card-holy-fire', '/assets/cards/holy-fire.png');
+    this.load.image('card-holy-nova', '/assets/cards/holy-nova.png');
+    this.load.image('card-prayer-of-healing', '/assets/cards/prayer-of-healing.png');
+    this.load.image('card-holy-word-serenity', '/assets/cards/holy-word-serenity.png');
+    this.load.image('card-guardian-spirit', '/assets/cards/guardian-spirit.png');
+    this.load.image('card-divine-hymn', '/assets/cards/divine-hymn.png');
+    this.load.image('card-purify', '/assets/cards/purify.png');
+
     // Hero & enemies
     this.load.image('hero-druid', '/assets/hero/hero-druid.png');
+    this.load.image('hero-priest', '/assets/hero/hero-priest.png');
     this.load.image('enemy-wolf', '/assets/enemies/enemy-wolf.png');
     this.load.image('enemy-spider', '/assets/enemies/enemy-spider.png');
     this.load.image('enemy-treant', '/assets/enemies/enemy-treant.png');

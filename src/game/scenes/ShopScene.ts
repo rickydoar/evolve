@@ -59,7 +59,7 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.stock = randomRewards(5);
+    this.stock = randomRewards(5, run.classId);
     this.contentRoot = this.add.container(0, 0);
 
     this.refreshGold();
@@ -92,7 +92,7 @@ export class ShopScene extends Phaser.Scene {
     if (run.gold < cost) return;
     run.gold -= cost;
     run.shopRerollCount += 1;
-    this.stock = randomRewards(5);
+    this.stock = randomRewards(5, run.classId);
     this.purchased = new Set();
     this.refreshGold();
     this.renderBrowse();

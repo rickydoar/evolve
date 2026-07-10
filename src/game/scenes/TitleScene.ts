@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import { CLASS_ORDER, getClass } from '../data/classes';
 import { createRun } from '../data/run';
+import type { ClassId } from '../data/types';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
 
@@ -25,9 +27,9 @@ export class TitleScene extends Phaser.Scene {
     }
 
     this.add
-      .text(width / 2, 140, 'EVOLVE', {
+      .text(width / 2, 72, 'EVOLVE', {
         fontFamily: 'Georgia, "Palatino Linotype", serif',
-        fontSize: '84px',
+        fontSize: '72px',
         color: '#e8f5e9',
         stroke: '#1b4332',
         strokeThickness: 6,
@@ -35,45 +37,97 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 220, 'A Druid Roguelite', {
+      .text(width / 2, 140, 'A Class Roguelite', {
         fontFamily: 'Georgia, serif',
-        fontSize: '24px',
+        fontSize: '22px',
         color: '#a8e6cf',
       })
       .setOrigin(0.5);
 
-    if (this.textures.exists('hero-druid')) {
-      this.add
-        .image(width / 2, 380, 'hero-druid')
-        .setDisplaySize(220, 220)
-        .setAlpha(0.95);
-    }
-
     this.add
-      .text(width / 2, 520, 'Choose your path through the corrupted grove.\nBear · Cat · Boomkin · Tree', {
+      .text(width / 2, 178, 'Choose your champion', {
         fontFamily: 'Georgia, serif',
         fontSize: '16px',
         color: '#9aa5b1',
-        align: 'center',
-        lineSpacing: 6,
       })
       .setOrigin(0.5);
 
-    const btn = this.add
-      .text(width / 2, 600, '▶  Begin as Druid', {
+    const cardW = 340;
+    const gap = 48;
+    const totalW = CLASS_ORDER.length * cardW + (CLASS_ORDER.length - 1) * gap;
+    const startX = (width - totalW) / 2;
+
+    CLASS_ORDER.forEach((classId, i) => {
+      this.drawClassCard(classId, startX + i * (cardW + gap), 210, cardW);
+    });
+  }
+
+  private drawClassCard(classId: ClassId, x: number, y: number, w: number): void {
+    const cls = getClass(classId);
+    const h = 420;
+    const accent = classId === 'priest' ? 0xf0c75e : 0x4ade80;
+    const accentHex = `#${accent.toString(16).padStart(6, '0')}`;
+
+    const g = this.add.graphics();
+    g.fillStyle(0x0e1612, 0.92);
+    g.fillRoundedRect(x, y, w, h, 12);
+    g.lineStyle(2, accent, 0.7);
+    g.strokeRoundedRect(x, y, w, h, 12);
+
+    g.fillStyle(accent, 0.12);
+    g.fillRect(x + 2, y + 2, w - 4, 48);
+
+    this.add
+      .text(x + w / 2, y + 26, cls.name, {
         fontFamily: 'Georgia, serif',
-        fontSize: '28px',
+        fontSize: '26px',
+        color: accentHex,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
+
+    if (this.textures.exists(cls.heroArt)) {
+      this.add
+        .image(x + w / 2, y + 170, cls.heroArt)
+        .setDisplaySize(180, 180)
+        .setAlpha(0.95);
+    } else {
+      this.add.circle(x + w / 2, y + 170, 70, accent, 0.35);
+    }
+
+    this.add
+      .text(x + w / 2, y + 280, cls.subtitle, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
+        color: '#c8d6cc',
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(x + w / 2, y + 308, cls.blurb, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '13px',
+        color: '#7a8a80',
+      })
+      .setOrigin(0.5);
+
+    const btnColor = classId === 'priest' ? '#f0c75e' : '#4ade80';
+    const btnHover = classId === 'priest' ? '#f5d98a' : '#86efac';
+    const btn = this.add
+      .text(x + w / 2, y + 370, `▶  Begin as ${cls.name}`, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '20px',
         color: '#0b1210',
-        backgroundColor: '#4ade80',
-        padding: { x: 28, y: 14 },
+        backgroundColor: btnColor,
+        padding: { x: 18, y: 12 },
       })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#86efac' }));
-    btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#4ade80' }));
+    btn.on('pointerover', () => btn.setStyle({ backgroundColor: btnHover }));
+    btn.on('pointerout', () => btn.setStyle({ backgroundColor: btnColor }));
     btn.on('pointerdown', () => {
-      GameRegistry.run = createRun();
+      GameRegistry.run = createRun(classId);
       GameRegistry.combat = null;
       GameRegistry.pendingNodeId = null;
       this.scene.start('Map');

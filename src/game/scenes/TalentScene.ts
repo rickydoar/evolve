@@ -8,9 +8,9 @@ import {
   TALENT_TREE_BLURBS,
   TALENT_TREE_COLORS,
   TALENT_TREE_LABELS,
-  TALENT_TREES,
   TALENTS,
   TALENTS_BY_TREE,
+  talentTreesForRun,
   talentUnlockHint,
   treePointsSpent,
 } from '../data/talents';
@@ -82,11 +82,12 @@ export class TalentScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const trees = talentTreesForRun(run.classId);
     const panelGap = 36;
-    const totalW = TALENT_TREES.length * TREE_PANEL_W + (TALENT_TREES.length - 1) * panelGap;
+    const totalW = trees.length * TREE_PANEL_W + (trees.length - 1) * panelGap;
     const startX = (width - totalW) / 2;
 
-    TALENT_TREES.forEach((tree, i) => {
+    trees.forEach((tree, i) => {
       this.drawTreePanel(tree, startX + i * (TREE_PANEL_W + panelGap), 104);
     });
 

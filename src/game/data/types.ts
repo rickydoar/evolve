@@ -1,6 +1,22 @@
-export type Form = 'bear' | 'cat' | 'boomkin' | 'tree';
+export type ClassId = 'druid' | 'priest';
 
-export type TalentTree = 'feral' | 'resto' | 'balance';
+/** Druid forms + Priest schools (used for card borders / talent matching). */
+export type Form =
+  | 'bear'
+  | 'cat'
+  | 'boomkin'
+  | 'tree'
+  | 'holy'
+  | 'shadow'
+  | 'discipline';
+
+export type TalentTree =
+  | 'feral'
+  | 'resto'
+  | 'balance'
+  | 'holy'
+  | 'shadow'
+  | 'discipline';
 
 export type TargetType = 'enemy' | 'allEnemies' | 'self' | 'none';
 
@@ -50,7 +66,7 @@ export interface TalentModifier {
   damageBonus?: number;
   healBonus?: number;
   blockBonus?: number;
-  /** Permanent spell power granted at combat start (per rank). Boomkin spells only. */
+  /** Permanent spell power granted at combat start (per rank). Caster spells only. */
   spellPowerBonus?: number;
   /** Multiplicative heal bonus as percent (e.g. 20 = +20%). */
   healPct?: number;
@@ -133,8 +149,21 @@ export interface MapNode {
   cleared: boolean;
 }
 
+export interface ClassDef {
+  id: ClassId;
+  name: string;
+  subtitle: string;
+  blurb: string;
+  heroArt: string;
+  maxHp: number;
+  startingGold: number;
+  starterDeck: string[];
+  rewardPool: string[];
+  talentTrees: TalentTree[];
+}
+
 export interface RunState {
-  classId: 'druid';
+  classId: ClassId;
   hp: number;
   maxHp: number;
   gold: number;
