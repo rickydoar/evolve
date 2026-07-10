@@ -1332,7 +1332,8 @@ function effectDescription(effect: CardEffect, card: CardDef, talents: Record<st
           : effect.echoTo === 'block'
             ? `gain ${value} Block`
             : `deal ${value} damage to a random enemy`;
-      return `Whenever you ${from}, also ${to}.`;
+      const scope = (effect.duration ?? 1) <= 1 ? 'this turn' : 'this combat';
+      return `Whenever you ${from} ${scope}, also ${to}.`;
     }
     case 'discardRandom':
       return `Discard ${value} card${value === 1 ? '' : 's'}.`;

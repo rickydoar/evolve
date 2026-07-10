@@ -72,10 +72,10 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     name: 'Barkskin',
     form: 'bear',
     cost: 1,
-    description: 'Gain 10 Block. Whenever you gain Block this combat, also Heal 4.',
+    description: 'Gain 10 Block. Whenever you gain Block this turn, also Heal 4.',
     target: 'self',
     effects: [
-      { kind: 'echo', value: 4, echoFrom: 'block', echoTo: 'heal', duration: 99 },
+      { kind: 'echo', value: 4, echoFrom: 'block', echoTo: 'heal', duration: 1 },
       { kind: 'block', value: 10 },
     ],
     art: 'card-barkskin',
@@ -341,10 +341,10 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     form: 'boomkin',
     cost: 1,
     description:
-      'Deal 5 damage + 9 over 3 turns. Whenever you deal damage this combat, gain 2 Block.',
+      'Deal 5 damage + 9 over 3 turns. Whenever you deal damage this turn, gain 2 Block.',
     target: 'enemy',
     effects: [
-      { kind: 'echo', value: 2, echoFrom: 'attack', echoTo: 'block', duration: 99 },
+      { kind: 'echo', value: 2, echoFrom: 'attack', echoTo: 'block', duration: 1 },
       { kind: 'damage', value: 5 },
       { kind: 'damageOverTime', value: 9, duration: 3 },
     ],
@@ -459,10 +459,10 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     name: 'Rejuvenation',
     form: 'tree',
     cost: 1,
-    description: 'Heal 24 over 5 turns. Whenever you Heal this combat, gain 3 Block.',
+    description: 'Heal 24 over 5 turns. Whenever you Heal this turn, gain 3 Block.',
     target: 'self',
     effects: [
-      { kind: 'echo', value: 3, echoFrom: 'heal', echoTo: 'block', duration: 99 },
+      { kind: 'echo', value: 3, echoFrom: 'heal', echoTo: 'block', duration: 1 },
       { kind: 'healOverTime', value: 24, duration: 5 },
     ],
     art: 'card-rejuvenation',
@@ -488,10 +488,10 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     form: 'tree',
     cost: 1,
     description:
-      'Gain 8 Block. Heal 5. Whenever you gain Block this combat, deal 2 to a random enemy.',
+      'Gain 8 Block. Heal 5. Whenever you gain Block this turn, deal 2 to a random enemy.',
     target: 'self',
     effects: [
-      { kind: 'echo', value: 2, echoFrom: 'block', echoTo: 'attack', duration: 99 },
+      { kind: 'echo', value: 2, echoFrom: 'block', echoTo: 'attack', duration: 1 },
       { kind: 'block', value: 8 },
       { kind: 'heal', value: 5 },
     ],

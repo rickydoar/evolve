@@ -1397,7 +1397,8 @@ function applyCardEffects(
         const from = effect.echoFrom;
         const to = effect.echoTo;
         if (!from || !to || from === to) break;
-        const duration = effect.duration ?? 99;
+        // Default echo duration is 1 turn (expires at start of next player turn).
+        const duration = effect.duration ?? 1;
         addStatus(state.player, {
           id: uid('echo'),
           name: `${card.name} Echo`,
