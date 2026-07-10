@@ -1,5 +1,10 @@
-import { PRIEST_CARDS, PRIEST_REWARD_POOL, PRIEST_STARTER_DECK } from './priestCards';
-import type { CardDef, ClassId } from './types';
+import {
+  PRIEST_CARDS,
+  PRIEST_REWARD_POOL,
+  PRIEST_STARTER_BY_SPEC,
+  PRIEST_STARTER_DECK,
+} from './priestCards';
+import type { CardDef, ClassId, OpeningSpec } from './types';
 
 /** Gold cost to purchase a card by rarity (shop + extra reward picks). */
 export const CARD_BUY_COST: Record<CardDef['rarity'], number> = {
@@ -9,14 +14,37 @@ export const CARD_BUY_COST: Record<CardDef['rarity'], number> = {
   legendary: 120,
 };
 
-/** Gold cost to remove one card from the deck. */
-export const CARD_REMOVE_COST = 50;
+/** First card removal cost; each later removal costs +CARD_REMOVE_COST_STEP. */
+export const CARD_REMOVE_BASE_COST = 20;
+export const CARD_REMOVE_COST_STEP = 10;
+
+/** @deprecated Prefer cardRemoveCost(run.cardsRemoved). Kept for call-site migration. */
+export const CARD_REMOVE_COST = CARD_REMOVE_BASE_COST;
+
+export function cardRemoveCost(cardsRemoved: number): number {
+  return CARD_REMOVE_BASE_COST + Math.max(0, cardsRemoved) * CARD_REMOVE_COST_STEP;
+}
 
 /** Base card-offer reroll cost; each reroll costs +1g until a fight resets the counter. */
 export const SHOP_REROLL_BASE_COST = 1;
 
 export function shopRerollCost(rerollCount: number): number {
   return SHOP_REROLL_BASE_COST + Math.max(0, rerollCount);
+}
+
+/** Skip-card consolations — make passing on a free pick feel worthwhile. */
+export const SKIP_GOLD_REWARD = 20;
+export const SKIP_HEAL_REWARD = 10;
+export const POTION_HEAL_AMOUNT = 22;
+
+/** Floor-scaled rarity weights for reward/shop offers (relative weights). */
+export type RarityWeights = Record<CardDef['rarity'], number>;
+
+export function rarityWeightsForFloor(floor: number): RarityWeights {
+  if (floor <= 2) return { common: 72, rare: 22, epic: 5, legendary: 1 };
+  if (floor <= 5) return { common: 55, rare: 30, epic: 12, legendary: 3 };
+  if (floor <= 8) return { common: 40, rare: 35, epic: 18, legendary: 7 };
+  return { common: 28, rare: 34, epic: 26, legendary: 12 };
 }
 
 export const DRUID_CARDS: Record<string, CardDef> = {
@@ -439,24 +467,47 @@ export const DRUID_CARDS: Record<string, CardDef> = {
   },
 };
 
-export const STARTER_DECK: string[] = [
+/** Lean shared core — every Druid opens with these, then swaps in a form package. */
+export const DRUID_STARTER_CORE: string[] = [
   'swipe',
-  'swipe',
-  'maul',
-  'barkskin',
   'claw',
-  'claw',
-  'rip',
-  'shred',
   'wrath',
-  'starfire',
-  'hurricane',
-  'starsurge',
+  'rejuvenation',
+  'barkskin',
+  'healing_touch',
   'moonfire',
   'decurse',
-  'rejuvenation',
-  'healing_touch',
 ];
+
+/**
+ * Form packages (5 cards) swapped onto the core at run start.
+ * Specialization starts at minute one — not after two removes.
+ */
+export const DRUID_SPEC_PACKAGE: Record<'bear' | 'cat' | 'boomkin' | 'tree', string[]> = {
+  bear: ['swipe', 'maul', 'thrash', 'mangle', 'ironfur'],
+  cat: ['claw', 'shred', 'rip', 'rake', 'ferocious_bite'],
+  boomkin: ['wrath', 'starfire', 'starsurge', 'sunfire', 'hurricane'],
+  tree: ['rejuvenation', 'healing_touch', 'wild_growth', 'lifebloom', 'swiftmend'],
+};
+
+/** Cards removed from the core when a form package is applied (keeps deck lean). */
+export const DRUID_SPEC_TRIM: Record<'bear' | 'cat' | 'boomkin' | 'tree', string[]> = {
+  bear: ['moonfire', 'decurse', 'wrath', 'claw'],
+  cat: ['moonfire', 'decurse', 'wrath', 'healing_touch'],
+  boomkin: ['decurse', 'claw', 'barkskin', 'healing_touch'],
+  tree: ['moonfire', 'claw', 'wrath', 'barkskin'],
+};
+
+export function buildDruidStarter(spec: OpeningSpec): string[] {
+  const form: 'bear' | 'cat' | 'boomkin' | 'tree' =
+    spec === 'cat' || spec === 'boomkin' || spec === 'tree' ? spec : 'bear';
+  const trim = new Set(DRUID_SPEC_TRIM[form]);
+  const core = DRUID_STARTER_CORE.filter((id) => !trim.has(id));
+  return [...core, ...DRUID_SPEC_PACKAGE[form]];
+}
+
+/** Fallback / legacy flat starter (Bear-leaning). Prefer buildDruidStarter. */
+export const STARTER_DECK: string[] = buildDruidStarter('bear');
 
 export const REWARD_POOL: string[] = [
   'barkskin',
@@ -499,6 +550,13 @@ export const CARDS: Record<string, CardDef> = {
   ...PRIEST_CARDS,
 };
 
+export function buildStarterDeck(classId: ClassId, spec: OpeningSpec): string[] {
+  if (classId === 'priest') {
+    return [...(PRIEST_STARTER_BY_SPEC[spec] ?? PRIEST_STARTER_BY_SPEC.holy)];
+  }
+  return buildDruidStarter(spec);
+}
+
 export const STARTER_DECKS: Record<ClassId, string[]> = {
   druid: STARTER_DECK,
   priest: PRIEST_STARTER_DECK,
@@ -527,6 +585,16 @@ export const FORM_LABELS: Record<string, string> = {
   holy: 'Holy',
   shadow: 'Shadow',
   discipline: 'Discipline',
+};
+
+export const SPEC_BLURBS: Record<OpeningSpec, string> = {
+  bear: 'Tank & AoE — Swipe, Maul, Ironfur',
+  cat: 'Single-target claws — Rip, Shred, Bite',
+  boomkin: 'Big spells — Wrath, Starfire, Starsurge',
+  tree: 'Healing grove — Rejuv, Lifebloom, Swiftmend',
+  holy: 'Direct heals — Flash Heal, Renew, Nova',
+  shadow: 'DoTs & void — Pain, Mind Blast, Death',
+  discipline: 'Shields & atonement — Smite, Penance, Shield',
 };
 
 export const RARITY_LABELS: Record<CardDef['rarity'], string> = {

@@ -1,5 +1,5 @@
 import { REWARD_POOLS, STARTER_DECKS } from './cards';
-import type { ClassDef, ClassId, TalentTree } from './types';
+import type { ClassDef, ClassId, OpeningSpec, TalentTree } from './types';
 
 export const CLASSES: Record<ClassId, ClassDef> = {
   druid: {
@@ -13,6 +13,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     starterDeck: STARTER_DECKS.druid,
     rewardPool: REWARD_POOLS.druid,
     talentTrees: ['feral', 'resto', 'balance'],
+    openingSpecs: ['bear', 'cat', 'boomkin', 'tree'],
   },
   priest: {
     id: 'priest',
@@ -25,6 +26,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     starterDeck: STARTER_DECKS.priest,
     rewardPool: REWARD_POOLS.priest,
     talentTrees: ['holy', 'shadow', 'discipline'],
+    openingSpecs: ['holy', 'shadow', 'discipline'],
   },
 };
 
@@ -36,4 +38,8 @@ export function getClass(id: ClassId): ClassDef {
 
 export function talentTreesForClass(id: ClassId): TalentTree[] {
   return CLASSES[id].talentTrees;
+}
+
+export function openingSpecsForClass(id: ClassId): OpeningSpec[] {
+  return CLASSES[id].openingSpecs;
 }

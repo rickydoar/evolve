@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { availableNodes } from '../data/run';
+import { FORM_LABELS } from '../data/cards';
+import { availableNodes, usePotion } from '../data/run';
 import type { MapNode, NodeType } from '../data/types';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
@@ -56,12 +57,19 @@ export class MapScene extends Phaser.Scene {
         color: '#e8f5e9',
       });
 
+    const specLabel = FORM_LABELS[run.openingSpec] ?? run.openingSpec;
+    const potionBit = run.potions > 0 ? `   ·   Potions ${run.potions}` : '';
     this.add
-      .text(40, 70, `HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}`, {
-        fontFamily: 'Georgia, serif',
-        fontSize: '16px',
-        color: '#a8e6cf',
-      });
+      .text(
+        40,
+        70,
+        `HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}${potionBit}`,
+        {
+          fontFamily: 'Georgia, serif',
+          fontSize: '16px',
+          color: '#a8e6cf',
+        },
+      );
 
     const talentBtn = this.add
       .text(width - 40, 48, run.talentPoints > 0 ? `Talents (${run.talentPoints})` : 'Talents', {
@@ -77,6 +85,28 @@ export class MapScene extends Phaser.Scene {
     talentBtn.on('pointerdown', () => {
       this.scene.start('Talent', { returnTo: 'Map' });
     });
+
+    if (run.potions > 0) {
+      const canDrink = run.hp < run.maxHp;
+      const potionBtn = this.add
+        .text(width - 40, 92, canDrink ? `Drink Potion (${run.potions})` : `Potions ${run.potions}`, {
+          fontFamily: 'Georgia, serif',
+          fontSize: '15px',
+          color: canDrink ? '#0b1210' : '#94a3b8',
+          backgroundColor: canDrink ? '#c084fc' : '#1a2e24',
+          padding: { x: 12, y: 6 },
+        })
+        .setOrigin(1, 0.5);
+
+      if (canDrink) {
+        potionBtn.setInteractive({ useHandCursor: true });
+        potionBtn.on('pointerdown', () => {
+          if (usePotion(run) > 0) {
+            this.scene.restart();
+          }
+        });
+      }
+    }
 
     const available = new Set(availableNodes(run).map((n) => n.id));
     const positions = new Map<string, { x: number; y: number }>();

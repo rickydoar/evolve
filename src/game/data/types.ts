@@ -159,6 +159,9 @@ export interface MapNode {
   cleared: boolean;
 }
 
+/** Opening form (Druid) or school (Priest) chosen at run start. */
+export type OpeningSpec = Form;
+
 export interface ClassDef {
   id: ClassId;
   name: string;
@@ -170,10 +173,14 @@ export interface ClassDef {
   starterDeck: string[];
   rewardPool: string[];
   talentTrees: TalentTree[];
+  /** Forms/schools offered as opening specializations. */
+  openingSpecs: OpeningSpec[];
 }
 
 export interface RunState {
   classId: ClassId;
+  /** Form/school chosen at run start; shapes the starter deck. */
+  openingSpec: OpeningSpec;
   hp: number;
   maxHp: number;
   gold: number;
@@ -193,4 +200,8 @@ export interface RunState {
   talents: Record<string, number>;
   /** Shop rerolls since last fight; cost = 1 + this value. Resets after each combat victory. */
   shopRerollCount: number;
+  /** Heal potions held (usable from the map). */
+  potions: number;
+  /** Cards removed at shops this run (drives escalating remove cost). */
+  cardsRemoved: number;
 }

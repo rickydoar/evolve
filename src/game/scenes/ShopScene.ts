@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
 import {
-  CARD_REMOVE_COST,
   CARDS,
   FORM_COLORS,
   FORM_LABELS,
   RARITY_COLORS,
   cardBuyCost,
+  cardRemoveCost,
   shopRerollCost,
 } from '../data/cards';
 import { getCardDescription } from '../data/talents';
@@ -59,7 +59,7 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.stock = randomRewards(5, run.classId);
+    this.stock = randomRewards(5, run.classId, run);
     this.contentRoot = this.add.container(0, 0);
 
     this.refreshGold();
@@ -92,7 +92,7 @@ export class ShopScene extends Phaser.Scene {
     if (run.gold < cost) return;
     run.gold -= cost;
     run.shopRerollCount += 1;
-    this.stock = randomRewards(5, run.classId);
+    this.stock = randomRewards(5, run.classId, run);
     this.purchased = new Set();
     this.refreshGold();
     this.renderBrowse();
@@ -238,18 +238,19 @@ export class ShopScene extends Phaser.Scene {
     }
     this.contentRoot.add(rerollBtn);
 
+    const removeCost = cardRemoveCost(run.cardsRemoved);
+    const canRemove = run.gold >= removeCost && run.deck.length > 1;
     const removeBtn = this.add
-      .text(width / 2 + 140, 480, `Remove a Card — ${CARD_REMOVE_COST}g`, {
+      .text(width / 2 + 140, 480, `Remove a Card — ${removeCost}g`, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
-        color: run.gold >= CARD_REMOVE_COST && run.deck.length > 1 ? '#0b1210' : '#64748b',
-        backgroundColor:
-          run.gold >= CARD_REMOVE_COST && run.deck.length > 1 ? '#fbbf24' : '#1e293b',
+        color: canRemove ? '#0b1210' : '#64748b',
+        backgroundColor: canRemove ? '#fbbf24' : '#1e293b',
         padding: { x: 16, y: 10 },
       })
       .setOrigin(0.5);
 
-    if (run.gold >= CARD_REMOVE_COST && run.deck.length > 1) {
+    if (canRemove) {
       removeBtn.setInteractive({ useHandCursor: true });
       removeBtn.on('pointerdown', () => this.renderRemove());
     }
@@ -261,9 +262,10 @@ export class ShopScene extends Phaser.Scene {
     const run = GameRegistry.run!;
     const width = GAME_W;
     const height = GAME_H;
+    const removeCost = cardRemoveCost(run.cardsRemoved);
 
     const title = this.add
-      .text(width / 2, 128, `Choose a card to remove (${CARD_REMOVE_COST}g)`, {
+      .text(width / 2, 128, `Choose a card to remove (${removeCost}g)`, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: '#e8f5e9',
@@ -339,9 +341,11 @@ export class ShopScene extends Phaser.Scene {
       frame.on('pointerover', () => frame.setStrokeStyle(3, 0xf87171));
       frame.on('pointerout', () => frame.setStrokeStyle(2, formColor));
       frame.on('pointerdown', () => {
-        if (run.gold < CARD_REMOVE_COST || run.deck.length <= 1) return;
-        run.gold -= CARD_REMOVE_COST;
+        const cost = cardRemoveCost(run.cardsRemoved);
+        if (run.gold < cost || run.deck.length <= 1) return;
+        run.gold -= cost;
         removeCardAt(run, index);
+        run.cardsRemoved += 1;
         this.refreshGold();
         this.renderBrowse();
       });

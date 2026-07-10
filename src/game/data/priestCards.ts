@@ -350,23 +350,44 @@ export const PRIEST_CARDS: Record<string, CardDef> = {
   },
 };
 
-export const PRIEST_STARTER_DECK: string[] = [
+export const PRIEST_STARTER_CORE: string[] = [
   'smite',
-  'smite',
-  'penance',
   'power_word_shield',
   'mind_blast',
-  'shadow_word_pain',
-  'shadow_word_pain',
-  'mind_flay',
-  'flash_heal',
   'flash_heal',
   'renew',
+  'shadow_word_pain',
   'holy_fire',
-  'holy_nova',
-  'power_word_radiance',
   'purify',
-  'shadow_word_death',
 ];
+
+export const PRIEST_SPEC_PACKAGE: Record<'holy' | 'shadow' | 'discipline', string[]> = {
+  holy: ['flash_heal', 'renew', 'holy_nova', 'prayer_of_healing', 'holy_fire'],
+  shadow: ['mind_blast', 'shadow_word_pain', 'mind_flay', 'vampiric_touch', 'shadow_word_death'],
+  discipline: ['smite', 'penance', 'power_word_shield', 'power_word_radiance', 'atonement'],
+};
+
+export const PRIEST_SPEC_TRIM: Record<'holy' | 'shadow' | 'discipline', string[]> = {
+  holy: ['mind_blast', 'shadow_word_pain', 'smite', 'power_word_shield'],
+  shadow: ['flash_heal', 'renew', 'holy_fire', 'purify'],
+  discipline: ['mind_blast', 'shadow_word_pain', 'holy_fire', 'renew'],
+};
+
+export function buildPriestStarter(spec: string): string[] {
+  const school: 'holy' | 'shadow' | 'discipline' =
+    spec === 'shadow' || spec === 'discipline' ? spec : 'holy';
+  const trim = new Set(PRIEST_SPEC_TRIM[school]);
+  const core = PRIEST_STARTER_CORE.filter((id) => !trim.has(id));
+  return [...core, ...PRIEST_SPEC_PACKAGE[school]];
+}
+
+export const PRIEST_STARTER_BY_SPEC: Record<string, string[]> = {
+  holy: buildPriestStarter('holy'),
+  shadow: buildPriestStarter('shadow'),
+  discipline: buildPriestStarter('discipline'),
+};
+
+/** Fallback / legacy flat starter (Holy-leaning). Prefer buildPriestStarter. */
+export const PRIEST_STARTER_DECK: string[] = PRIEST_STARTER_BY_SPEC.holy!;
 
 export const PRIEST_REWARD_POOL: string[] = Object.keys(PRIEST_CARDS);
