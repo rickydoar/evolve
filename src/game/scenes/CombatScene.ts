@@ -781,6 +781,8 @@ export class CombatScene extends Phaser.Scene {
           } else {
             this.scene.start('GameOver', { victory: true });
           }
+        } else if (node?.type === 'elite') {
+          this.scene.start('ItemReward');
         } else {
           this.scene.start('Reward');
         }

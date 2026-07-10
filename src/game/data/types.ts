@@ -329,4 +329,6 @@ export interface RunState {
   potions: number;
   /** Cards removed at shops this run (drives escalating remove cost). */
   cardsRemoved: number;
+  /** Passive item ids collected this run (elite rewards). */
+  items: string[];
 }

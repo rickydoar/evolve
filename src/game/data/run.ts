@@ -68,6 +68,7 @@ export function createRun(
     shopRerollCount: 0,
     potions: 0,
     cardsRemoved: 0,
+    items: [],
   };
 }
 

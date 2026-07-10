@@ -2,6 +2,24 @@ import { CARDS, CURSE_CARD_ID } from '../data/cards';
 import { getClass } from '../data/classes';
 import { ENEMIES } from '../data/enemies';
 import {
+  createItemCombatState,
+  forEachItemEffect,
+  itemBeginTurn,
+  itemDotExtraDuration,
+  itemDotTickBonus,
+  itemExtraBlockCarryover,
+  itemHasDeathWish,
+  itemHasTwinStar,
+  itemHotTickBlock,
+  itemModifyBlockAmount,
+  itemModifyCardCost,
+  itemModifyHealAmount,
+  itemModifyOutgoingDamage,
+  itemModifyRecoil,
+  type ItemCombatApi,
+  type ItemCombatState,
+} from '../data/itemCombat';
+import {
   hasTalentSpecial,
   modifyEffectValue,
   talentAlsoVulnerable,
@@ -83,6 +101,10 @@ export interface CombatState {
   pendingEnergy: number;
   /** True after a once-per-turn playDraw talent has fired this turn. */
   playDrawUsedThisTurn: boolean;
+  /** Passive items snapshot + runtime flags. */
+  itemState: ItemCombatState;
+  /** Gold granted by items during combat; merged into the run on victory. */
+  pendingGold: number;
 }
 
 function uid(prefix: string): string {
@@ -184,6 +206,8 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
     formSpellCounts: {},
     pendingEnergy: 0,
     playDrawUsedThisTurn: false,
+    itemState: createItemCombatState(run.items ?? []),
+    pendingGold: 0,
   };
 
   if (talentSp > 0) {
@@ -202,7 +226,102 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
       color: '#e2e8f0',
     });
   }
+
+  // Item combat-start effects (after opening hand)
+  forEachItemEffect(state.itemState, 'combatStart', makeItemApi(state), {});
   return state;
+}
+
+function makeItemApi(state: CombatState): ItemCombatApi {
+  return {
+    drawCards: (n) => drawCards(state, n),
+    gainBlock: (n, trigger = true) => gainBlock(state, n, trigger),
+    healPlayer: (n, trigger = true) => healPlayer(state, n, trigger),
+    dealRandom: (n) => {
+      dealRandomDamage(state, n, undefined);
+    },
+    dealLowest: (n) => {
+      const living = state.enemies.filter((e) => e.hp > 0).sort((a, b) => a.hp - b.hp);
+      const t = living[0];
+      if (!t) return;
+      const fake: CardDef = {
+        id: 'item_hit',
+        name: 'Item',
+        form: 'bear',
+        cost: 0,
+        description: '',
+        target: 'enemy',
+        effects: [],
+        art: '',
+        rarity: 'common',
+      };
+      dealDamageTo(state, fake, t, n, false);
+    },
+    dealAll: (n) => {
+      const fake: CardDef = {
+        id: 'item_aoe',
+        name: 'Item',
+        form: 'bear',
+        cost: 0,
+        description: '',
+        target: 'allEnemies',
+        effects: [],
+        art: '',
+        rarity: 'common',
+      };
+      for (const e of state.enemies.filter((en) => en.hp > 0)) {
+        dealDamageTo(state, fake, e, n, false);
+      }
+    },
+    addEnergy: (n) => {
+      state.energy += n;
+    },
+    addSpellPower: (n) => {
+      state.spellPowerBonus += n;
+    },
+    addStrength: (n) => {
+      addStatus(state.player, {
+        id: uid('str'),
+        name: 'Strength',
+        kind: 'strength',
+        value: n,
+        duration: 99,
+        stacks: true,
+      });
+    },
+    applyVulnerable: (duration, card) => {
+      const targets =
+        card?.target === 'allEnemies'
+          ? state.enemies.filter((e) => e.hp > 0)
+          : state.enemies.filter((e) => e.hp > 0);
+      // Prefer current intent target if single — apply to all living for simplicity on play
+      for (const t of targets) {
+        addStatus(t, {
+          id: uid('vuln'),
+          name: 'Vulnerable',
+          kind: 'vulnerable',
+          value: 1,
+          duration,
+        });
+      }
+    },
+    applyBleedAll: (total, duration, name) => {
+      for (const e of state.enemies.filter((en) => en.hp > 0)) {
+        applyBleed(e, total, duration, state, name);
+      }
+    },
+    cleanseOne: () => {
+      const debuffs: StatusEffect['kind'][] = ['poison', 'bleed', 'weak', 'vulnerable'];
+      const idx = state.player.statuses.findIndex((s) => debuffs.includes(s.kind));
+      if (idx >= 0) state.player.statuses.splice(idx, 1);
+    },
+    addGold: (n) => {
+      state.pendingGold += n;
+    },
+    log: (text, color) => state.log.push({ text, color }),
+    player: state.player,
+    livingEnemies: () => state.enemies.filter((e) => e.hp > 0),
+  };
 }
 
 function onCardDrawn(state: CombatState, cardId: string): void {
@@ -343,6 +462,7 @@ function onEnemyKilledByPlayer(state: CombatState): void {
       state.log.push({ text: `Kill: healed ${healed}.`, color: '#86efac' });
     }
   }
+  forEachItemEffect(state.itemState, 'onKill', makeItemApi(state), {});
 }
 
 function maybeTriggerEnrage(enemy: Combatant, state: CombatState): void {
@@ -395,9 +515,11 @@ function triggerEcho(state: CombatState, from: CardTypeTag): void {
 }
 
 function gainBlock(state: CombatState, amount: number, trigger = true): void {
-  state.player.block += amount;
+  const boosted = itemModifyBlockAmount(state.itemState.items, amount);
+  state.player.block += boosted;
+  state.itemState.flags.blockGainedThisTurn += boosted;
   state.log.push({
-    text: `Gained ${amount} Block.`,
+    text: `Gained ${boosted} Block.`,
     color: '#7dd3fc',
   });
   if (trigger) triggerEcho(state, 'block');
@@ -411,12 +533,25 @@ function gainBlock(state: CombatState, amount: number, trigger = true): void {
       });
     }
   }
+  if (trigger) {
+    forEachItemEffect(state.itemState, 'onGainBlock', makeItemApi(state), {
+      blockAmount: boosted,
+    });
+  }
 }
 
 function healPlayer(state: CombatState, amount: number, trigger = true): number {
-  const healed = heal(state.player, amount);
+  const wasFull = state.player.hp >= state.player.maxHp;
+  const boosted = itemModifyHealAmount(state.itemState.items, amount);
+  const healed = heal(state.player, boosted);
   state.log.push({ text: `Healed ${healed} HP.`, color: '#86efac' });
   if (trigger && healed > 0) triggerEcho(state, 'heal');
+  if (trigger && healed > 0) {
+    forEachItemEffect(state.itemState, 'onHeal', makeItemApi(state), {
+      healAmount: healed,
+      wasFullHp: wasFull,
+    });
+  }
   return healed;
 }
 
@@ -455,7 +590,7 @@ function computeCardDamage(
   }
   const str = getStatus(state.player, 'strength');
   if (str) dmg += str.value;
-  return dmg;
+  return itemModifyOutgoingDamage(state.itemState.items, card, dmg);
 }
 
 function applyBleed(
@@ -465,6 +600,8 @@ function applyBleed(
   state: CombatState,
   sourceName: string,
 ): void {
+  const extra = itemDotExtraDuration(state.itemState.items);
+  const dur = duration + extra;
   const perTick = Math.floor(total / Math.max(1, duration));
   // Keep each DoT as its own status so they display and tick independently.
   target.statuses.push({
@@ -472,10 +609,10 @@ function applyBleed(
     name: sourceName,
     kind: 'bleed',
     value: perTick,
-    duration,
+    duration: dur,
   });
   state.log.push({
-    text: `${sourceName}: ${perTick}/turn for ${duration} turns on ${target.name}.`,
+    text: `${sourceName}: ${perTick}/turn for ${dur} turns on ${target.name}.`,
     color: '#f87171',
   });
 }
@@ -504,6 +641,13 @@ function dealDamageTo(
   });
   consumeEarthAndMoon(target, card, state);
   if (triggerEchoOnHit && dealt > 0) triggerEcho(state, 'attack');
+  if (dealt > 0 && card.id !== 'item_hit' && card.id !== 'item_aoe' && card.id !== 'echo_hit') {
+    forEachItemEffect(state.itemState, 'onDealDamage', makeItemApi(state), {
+      card,
+      damageAmount: dealt,
+      isRandomDamage: false,
+    });
+  }
   return dealt;
 }
 
@@ -684,6 +828,7 @@ export function getCardPlayCost(
   }
 
   cost -= talentCardCostReduce(state.talents, card.id);
+  cost = itemModifyCardCost(state.itemState.items, card, cost);
   return Math.max(0, cost);
 }
 
@@ -807,6 +952,11 @@ function afterCardPlayed(
   if (card.id === 'void_eruption' && hasTalentSpecial(state.talents, 'voidDetonateDots')) {
     detonateEnemyDots(state);
   }
+
+  if (card.form === 'tree') {
+    state.itemState.treePlaysThisTurn += 1;
+  }
+  forEachItemEffect(state.itemState, 'onPlayCard', makeItemApi(state), { card });
 }
 
 function detonateEnemyDots(state: CombatState): void {
@@ -994,16 +1144,39 @@ function applyCardEffects(
         const living = state.enemies.filter((e) => e.hp > 0);
         if (!living.length) break;
         const t = living[Math.floor(Math.random() * living.length)]!;
-        dealDamageTo(state, card, t, value);
+        const dealt = dealDamageTo(state, card, t, value);
         dealtDamage = true;
+        if (itemHasTwinStar(state.itemState.items) && dealt > 0) {
+          const others = state.enemies.filter((e) => e.hp > 0 && e.id !== t.id);
+          const half = Math.ceil(dealt / 2);
+          if (others.length && half > 0) {
+            const t2 = others[Math.floor(Math.random() * others.length)]!;
+            dealDamageTo(state, card, t2, half, false);
+            state.log.push({
+              text: `Twin Star: ${half} to ${t2.name}.`,
+              color: '#c4b5fd',
+            });
+          } else if (half > 0 && t.hp > 0) {
+            dealDamageTo(state, card, t, half, false);
+            state.log.push({
+              text: `Twin Star: ${half} again.`,
+              color: '#c4b5fd',
+            });
+          }
+        }
         break;
       }
       case 'recoil': {
-        const dealt = applyDamage(state.player, value, state);
+        const reduced = itemModifyRecoil(state.itemState.items, value);
+        const dealt = applyDamage(state.player, reduced, state);
         state.log.push({
           text: `Recoil: you take ${dealt} damage.`,
           color: '#f87171',
         });
+        if (itemHasDeathWish(state.itemState.items)) {
+          state.energy += 1;
+          state.log.push({ text: 'Death Wish: +1 Energy.', color: '#fde68a' });
+        }
         break;
       }
       case 'block': {
@@ -1285,6 +1458,9 @@ function applyCardEffects(
           text: `Thorns ${value} for ${duration} turns.`,
           color: '#86efac',
         });
+        forEachItemEffect(state.itemState, 'onGainThorns', makeItemApi(state), {
+          card,
+        });
         break;
       }
     }
@@ -1309,12 +1485,28 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
             color: '#7dd3fc',
           });
         }
+        const itemHot = itemHotTickBlock(state.itemState.items);
+        if (itemHot > 0) {
+          state.player.block += itemHot;
+          state.log.push({
+            text: `Lifebloom Crown: +${itemHot} Block.`,
+            color: '#7dd3fc',
+          });
+        }
+        if (healed > 0) {
+          forEachItemEffect(state.itemState, 'onHeal', makeItemApi(state), {
+            healAmount: healed,
+            wasFullHp: false,
+          });
+        }
       }
     }
     if (s.kind === 'bleed' || s.kind === 'poison') {
-      c.hp = Math.max(0, c.hp - s.value);
+      const bonus = !isPlayer ? itemDotTickBonus(state.itemState.items) : 0;
+      const tickDmg = s.value + bonus;
+      c.hp = Math.max(0, c.hp - tickDmg);
       state.log.push({
-        text: `${c.name} takes ${s.value} from ${s.name}.`,
+        text: `${c.name} takes ${tickDmg} from ${s.name}.`,
         color: '#f87171',
       });
       if (!isPlayer) {
@@ -1326,6 +1518,7 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
             color: '#86efac',
           });
         }
+        forEachItemEffect(state.itemState, 'onEnemyDotTick', makeItemApi(state), {});
         if (c.hp <= 0) {
           const energy = talentBleedKillEnergy(state.talents);
           if (energy > 0 && s.kind === 'bleed') {
@@ -1418,13 +1611,20 @@ export function beginPlayerTurn(state: CombatState): void {
   state.turn += 1;
   state.phase = 'player';
   state.playDrawUsedThisTurn = false;
+  itemBeginTurn(state.itemState);
   const carryPct = talentBlockCarryoverPct(state.talents);
-  const carried =
+  const talentCarried =
     carryPct > 0 ? Math.floor(state.player.block * (carryPct / 100)) : 0;
-  state.player.block = carried;
-  if (carried > 0) {
+  const itemCarry = itemExtraBlockCarryover(
+    state.itemState.items,
+    state.player.block,
+  );
+  // Use the stronger carryover source (talent % or item %)
+  const finalCarried = Math.max(talentCarried, itemCarry);
+  state.player.block = finalCarried;
+  if (finalCarried > 0) {
     state.log.push({
-      text: `Borrowed Time: ${carried} Block carries over.`,
+      text: `Block carries over: ${finalCarried}.`,
       color: '#7dd3fc',
     });
   }
@@ -1483,6 +1683,7 @@ export function beginPlayerTurn(state: CombatState): void {
       color: '#e2e8f0',
     });
   }
+  forEachItemEffect(state.itemState, 'turnStart', makeItemApi(state), {});
   state.log.push({ text: `— Turn ${state.turn} —`, color: '#e2e8f0' });
 }
 
@@ -1666,4 +1867,8 @@ export function commitPendingDeckCards(run: RunState, state: CombatState): void 
     run.deck.push(id);
   }
   state.pendingDeckCards = [];
+  if (state.pendingGold > 0) {
+    run.gold += state.pendingGold;
+    state.pendingGold = 0;
+  }
 }

@@ -4,6 +4,7 @@ import { TitleScene } from './game/scenes/TitleScene';
 import { SpecScene } from './game/scenes/SpecScene';
 import { MapScene } from './game/scenes/MapScene';
 import { CombatScene } from './game/scenes/CombatScene';
+import { ItemRewardScene } from './game/scenes/ItemRewardScene';
 import { RewardScene } from './game/scenes/RewardScene';
 import { RestScene } from './game/scenes/RestScene';
 import { ShopScene } from './game/scenes/ShopScene';
@@ -47,6 +48,7 @@ const config: Phaser.Types.Core.GameConfig = {
     SpecScene,
     MapScene,
     CombatScene,
+    ItemRewardScene,
     RewardScene,
     RestScene,
     ShopScene,

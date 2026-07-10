@@ -488,10 +488,10 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     form: 'tree',
     cost: 1,
     description:
-      'Gain 8 Block. Heal 5. Whenever you gain Block this combat, deal 3 to a random enemy.',
+      'Gain 8 Block. Heal 5. Whenever you gain Block this combat, deal 2 to a random enemy.',
     target: 'self',
     effects: [
-      { kind: 'echo', value: 3, echoFrom: 'block', echoTo: 'attack', duration: 99 },
+      { kind: 'echo', value: 2, echoFrom: 'block', echoTo: 'attack', duration: 99 },
       { kind: 'block', value: 8 },
       { kind: 'heal', value: 5 },
     ],
