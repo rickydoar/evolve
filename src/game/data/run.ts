@@ -32,7 +32,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function defaultSpec(classId: ClassId): OpeningSpec {
-  return classId === 'priest' ? 'holy' : 'bear';
+  return classId === 'priest' ? 'holy' : 'feral';
 }
 
 export function createRun(

@@ -39,7 +39,7 @@ export class SpecScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 96, isPriest ? 'Choose your opening school' : 'Choose your opening form', {
+      .text(width / 2, 96, isPriest ? 'Choose your opening school' : 'Choose your opening specialization', {
         fontFamily: 'Georgia, serif',
         fontSize: '32px',
         color: '#e8f5e9',

@@ -269,8 +269,18 @@ export interface MapNode {
   cleared: boolean;
 }
 
-/** Opening form (Druid) or school (Priest) chosen at run start. */
-export type OpeningSpec = Form;
+/**
+ * Opening specialization chosen at run start.
+ * Druid: Feral combines Cat + Bear card forms; Boomkin / Tree match card forms.
+ * Priest: schools match card forms.
+ */
+export type OpeningSpec =
+  | 'feral'
+  | 'boomkin'
+  | 'tree'
+  | 'holy'
+  | 'shadow'
+  | 'discipline';
 
 export interface ClassDef {
   id: ClassId;
