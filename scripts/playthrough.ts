@@ -644,10 +644,16 @@ function pickItem(run: RunState, offers: string[], policy: Policy, spec: Opening
   if (policy === 'random') {
     return offers[Math.floor(Math.random() * offers.length)] ?? null;
   }
+  // After 2 spec items, inject noise so runs don't vacuum every spec relic
+  const specOwned = run.items.filter((id) => ITEMS[id]?.spec === spec).length;
   let best: string | null = null;
   let bestScore = -Infinity;
   for (const id of offers) {
-    const s = scoreItemOffer(run, id, spec, policy);
+    let s = scoreItemOffer(run, id, spec, policy);
+    if (specOwned >= 2 && ITEMS[id]?.spec === spec) s -= 12;
+    if (specOwned >= 2 && ITEMS[id]?.spec === null) s += 8;
+    // Slight randomness so first-item commitment varies across runs
+    s += Math.random() * 10;
     if (s > bestScore) {
       bestScore = s;
       best = id;
@@ -866,156 +872,76 @@ function hasItem(items: string[], id: string): boolean {
 }
 
 /**
- * Detect the primary victory path from items + key cards in the final deck.
- * Returns the strongest matching path id for the specialization.
+ * Detect the primary victory path from the first specialization item picked
+ * (early commitment). Falls back to scored heuristics if no spec item yet.
  */
-function detectPath(spec: OpeningSpec, items: string[], deck: string[]): string {
-  type Scored = { path: string; score: number };
-  const scores: Scored[] = [];
+const SPEC_ITEM_PATH: Record<string, string> = {
+  bloodfang_charm: 'bleed',
+  ironpelt_totem: 'bear_wall',
+  thick_hide_wraps: 'bear_wall',
+  frenzy_claw: 'tempo',
+  alpha_mark: 'tempo',
+  celestial_orb: 'celestial',
+  astral_battery: 'celestial',
+  thornwoven_cloak: 'thorns',
+  hurricane_eye: 'aoe',
+  twin_star: 'twin_star',
+  verdant_lash: 'verdant',
+  lifebloom_crown: 'fortress',
+  barkbreaker_seed: 'barkbreaker',
+  swiftroot_charm: 'swiftroot',
+  grove_battery: 'swiftroot',
+  radiant_censer: 'radiant',
+  sacred_flame: 'flame',
+  serenity_bell: 'serenity',
+  hymn_book: 'hymn',
+  martyr_rosary: 'hymn',
+  void_leech: 'leech',
+  pain_amplifier: 'pain',
+  death_wish: 'recoil',
+  shadow_absorb: 'recoil',
+  scream_mask: 'scream',
+  shield_spike: 'spike',
+  smite_echo: 'smite_echo',
+  penitent_brand: 'penance',
+  radiance_loop: 'radiance',
+  borrowed_timepiece: 'radiance',
+};
 
-  const push = (path: string, score: number) => {
-    if (score > 0) scores.push({ path, score });
-  };
-
+function detectPath(
+  spec: OpeningSpec,
+  items: string[],
+  deck: string[],
+  itemsPicked: string[] = [],
+): string {
+  for (const id of itemsPicked) {
+    const path = SPEC_ITEM_PATH[id];
+    if (path) return path;
+  }
+  for (const id of items) {
+    const path = SPEC_ITEM_PATH[id];
+    if (path) return path;
+  }
+  // Card-only fallbacks
   if (spec === 'feral') {
-    const bleedCards = deckCountAny(deck, ['rake', 'rip', 'ferocious_bite']);
-    push(
-      'bleed',
-      (hasItem(items, 'bloodfang_charm') ? 40 : 0) +
-        (bleedCards >= 3 ? 25 : bleedCards >= 2 ? 12 : 0) +
-        (deckHas(deck, 'rake') && deckHas(deck, 'ferocious_bite') ? 10 : 0),
-    );
-    const bearCards = deckCountAny(deck, ['ironfur', 'barkskin', 'maul', 'thrash']);
-    push(
-      'bear_wall',
-      (hasItem(items, 'ironpelt_totem') ? 40 : 0) +
-        (hasItem(items, 'thick_hide_wraps') ? 30 : 0) +
-        (deckHas(deck, 'ironfur') && deckHas(deck, 'barkskin') ? 20 : 0) +
-        (bearCards >= 3 ? 10 : 0),
-    );
-    const zeroCostish = deckCountAny(deck, ['shred', 'claw', 'tigers_fury']);
-    push(
-      'tempo',
-      (hasItem(items, 'frenzy_claw') ? 40 : 0) +
-        (deckCountAny(deck, ['shred']) >= 2 ? 20 : deckHas(deck, 'shred') ? 10 : 0) +
-        (zeroCostish >= 3 ? 12 : 0),
-    );
-    if (!scores.length) return 'hybrid';
-    scores.sort((a, b) => b.score - a.score);
-    const top = scores[0]!;
-    const second = scores[1];
-    // Mixed engines → hybrid
-    if (second && top.score - second.score < 12 && top.score >= 20 && second.score >= 20) {
-      return 'hybrid';
-    }
-    return top.score >= 12 ? top.path : 'hybrid';
+    if (deckCountAny(deck, ['rake', 'rip', 'ferocious_bite']) >= 3) return 'bleed';
+    if (deckHas(deck, 'ironfur') && deckHas(deck, 'barkskin')) return 'bear_wall';
+    if (deckCountAny(deck, ['shred']) >= 2) return 'tempo';
+    return 'hybrid';
   }
-
   if (spec === 'boomkin') {
-    push(
-      'celestial',
-      (hasItem(items, 'celestial_orb') ? 40 : 0) +
-        (deckHas(deck, 'celestial_alignment') ? 25 : 0) +
-        (deckCountAny(deck, ['moonfire', 'starsurge', 'starfire']) >= 3 ? 12 : 0),
-    );
-    push(
-      'thorns',
-      (hasItem(items, 'thornwoven_cloak') ? 35 : 0) +
-        (deckHas(deck, 'thorns') ? 30 : 0) +
-        (hasItem(items, 'thornwoven_cloak') && deckHas(deck, 'thorns') ? 15 : 0),
-    );
-    push(
-      'aoe',
-      (hasItem(items, 'hurricane_eye') ? 40 : 0) +
-        (deckCountAny(deck, ['hurricane', 'starfall']) >= 2 ? 25 : 0) +
-        (deckHas(deck, 'hurricane') || deckHas(deck, 'starfall') ? 12 : 0),
-    );
-    push(
-      'twin_star',
-      (hasItem(items, 'twin_star') ? 45 : 0) +
-        (deckCountAny(deck, ['wrath', 'starfire', 'starsurge']) >= 2 ? 10 : 0),
-    );
+    if (deckHas(deck, 'celestial_alignment')) return 'celestial';
+    if (deckHas(deck, 'thorns')) return 'thorns';
+    return 'aoe';
   }
-
   if (spec === 'tree') {
-    push('verdant', hasItem(items, 'verdant_lash') ? 50 : 0);
-    push(
-      'fortress',
-      (hasItem(items, 'lifebloom_crown') ? 35 : 0) +
-        (deckCountAny(deck, ['barkskin', 'ironbark', 'lifebloom', 'tranquility']) >= 3 ? 20 : 0) +
-        (deckHas(deck, 'barkskin') ? 10 : 0),
-    );
-    push('barkbreaker', hasItem(items, 'barkbreaker_seed') ? 50 : 0);
-    push(
-      'swiftroot',
-      (hasItem(items, 'swiftroot_charm') ? 45 : 0) +
-        (hasItem(items, 'grove_battery') ? 15 : 0),
-    );
+    if (deckHas(deck, 'wild_growth')) return 'fortress';
+    return 'verdant';
   }
-
-  if (spec === 'holy') {
-    push('radiant', hasItem(items, 'radiant_censer') ? 50 : 0);
-    push(
-      'flame',
-      (hasItem(items, 'sacred_flame') ? 40 : 0) +
-        (deckCountAny(deck, ['holy_fire', 'holy_nova']) >= 2 ? 15 : 0),
-    );
-    push(
-      'serenity',
-      (hasItem(items, 'serenity_bell') ? 40 : 0) +
-        (deckHas(deck, 'holy_word_serenity') ? 15 : 0),
-    );
-    push(
-      'hymn',
-      (hasItem(items, 'hymn_book') ? 40 : 0) +
-        (hasItem(items, 'martyr_rosary') ? 30 : 0) +
-        (deckHas(deck, 'divine_hymn') ? 12 : 0),
-    );
-  }
-
-  if (spec === 'shadow') {
-    push('leech', hasItem(items, 'void_leech') ? 50 : 0);
-    push(
-      'pain',
-      (hasItem(items, 'pain_amplifier') ? 40 : 0) +
-        (deckCountAny(deck, ['shadow_word_pain', 'vampiric_touch']) >= 2 ? 15 : 0),
-    );
-    push(
-      'recoil',
-      (hasItem(items, 'death_wish') ? 35 : 0) +
-        (hasItem(items, 'shadow_absorb') ? 35 : 0) +
-        (deckHas(deck, 'shadow_word_death') ? 10 : 0),
-    );
-    push(
-      'scream',
-      (hasItem(items, 'scream_mask') ? 40 : 0) +
-        (deckHas(deck, 'psychic_scream') ? 15 : 0),
-    );
-  }
-
-  if (spec === 'discipline') {
-    push('spike', hasItem(items, 'shield_spike') ? 50 : 0);
-    push(
-      'smite_echo',
-      (hasItem(items, 'smite_echo') ? 40 : 0) +
-        (deckCountAny(deck, ['smite', 'penance']) >= 2 ? 12 : 0),
-    );
-    push(
-      'penance',
-      (hasItem(items, 'penitent_brand') ? 40 : 0) +
-        (deckHas(deck, 'penance', 2) ? 15 : deckHas(deck, 'penance') ? 8 : 0),
-    );
-    push(
-      'radiance',
-      (hasItem(items, 'radiance_loop') ? 35 : 0) +
-        (hasItem(items, 'borrowed_timepiece') ? 35 : 0) +
-        (deckCountAny(deck, ['power_word_shield', 'power_word_radiance']) >= 2 ? 10 : 0),
-    );
-  }
-
-  if (!scores.length) return 'other';
-  scores.sort((a, b) => b.score - a.score);
-  return scores[0]!.score >= 12 ? scores[0]!.path : 'other';
+  if (spec === 'holy') return 'radiant';
+  if (spec === 'shadow') return 'pain';
+  if (spec === 'discipline') return 'spike';
+  return 'other';
 }
 
 /** Whether a run "attempted" a path (owned key item or enough key cards). */
@@ -1098,7 +1024,7 @@ function makeResult(
   itemsPicked: string[],
   turnsFought: number,
 ): RunResult {
-  const path = detectPath(spec, run.items, run.deck);
+  const path = detectPath(spec, run.items, run.deck, itemsPicked);
   return {
     classId,
     spec,
@@ -1122,13 +1048,23 @@ function makeResult(
   };
 }
 
-function simulateRun(classId: ClassId, spec: OpeningSpec, policy: Policy): RunResult {
+function simulateRun(
+  classId: ClassId,
+  spec: OpeningSpec,
+  policy: Policy,
+  seedItemId?: string,
+): RunResult {
   const run = createRun(classId, spec);
   const picked: string[] = [];
   const removed: string[] = [];
   const itemsPicked: string[] = [];
   let turnsFought = 0;
   let lastNode: MapNode | null = null;
+
+  if (seedItemId) {
+    applyItemPickup(run, seedItemId);
+    itemsPicked.push(seedItemId);
+  }
 
   const attachRemoved = () => {
     const extra = (run as RunState & { _removed?: string[] })._removed;
@@ -1678,11 +1614,87 @@ async function main(): Promise<void> {
     }
   }
 
+  // ── Forced path-seed validation (proves 2–3 viable lines per spec) ──
+  const seedRuns = Number(process.env.SEED_RUNS ?? 25);
+  const PATH_SEEDS: Record<OpeningSpec, Array<{ path: string; item: string }>> = {
+    feral: [
+      { path: 'bleed', item: 'bloodfang_charm' },
+      { path: 'bear_wall', item: 'ironpelt_totem' },
+      { path: 'tempo', item: 'frenzy_claw' },
+    ],
+    boomkin: [
+      { path: 'celestial', item: 'celestial_orb' },
+      { path: 'thorns', item: 'thornwoven_cloak' },
+      { path: 'aoe', item: 'hurricane_eye' },
+      { path: 'twin_star', item: 'twin_star' },
+    ],
+    tree: [
+      { path: 'verdant', item: 'verdant_lash' },
+      { path: 'fortress', item: 'lifebloom_crown' },
+      { path: 'barkbreaker', item: 'barkbreaker_seed' },
+      { path: 'swiftroot', item: 'swiftroot_charm' },
+    ],
+    holy: [
+      { path: 'radiant', item: 'radiant_censer' },
+      { path: 'flame', item: 'sacred_flame' },
+      { path: 'serenity', item: 'serenity_bell' },
+      { path: 'hymn', item: 'hymn_book' },
+    ],
+    shadow: [
+      { path: 'leech', item: 'void_leech' },
+      { path: 'pain', item: 'pain_amplifier' },
+      { path: 'recoil', item: 'death_wish' },
+      { path: 'scream', item: 'scream_mask' },
+    ],
+    discipline: [
+      { path: 'spike', item: 'shield_spike' },
+      { path: 'smite_echo', item: 'smite_echo' },
+      { path: 'penance', item: 'penitent_brand' },
+      { path: 'radiance', item: 'borrowed_timepiece' },
+    ],
+  };
+
+  console.log(`\n=== PATH SEED VALIDATION (${seedRuns} onspec runs / seed) ===`);
+  const pathSeedResults: Record<
+    string,
+    Array<{ path: string; item: string; winRate: number; wins: number; runs: number; viable: boolean }>
+  > = {};
+  const VIABLE_SEED_WR = 0.45;
+
+  for (const { classId, spec } of ALL_CONFIGS) {
+    const key = `${classId}/${spec}`;
+    pathSeedResults[key] = [];
+    let viableCount = 0;
+    for (const seed of PATH_SEEDS[spec]) {
+      let wins = 0;
+      for (let i = 0; i < seedRuns; i++) {
+        const r = simulateRun(classId, spec, 'onspec', seed.item);
+        if (r.won) wins += 1;
+      }
+      const winRate = wins / seedRuns;
+      const viable = winRate >= VIABLE_SEED_WR;
+      if (viable) viableCount += 1;
+      pathSeedResults[key]!.push({
+        path: seed.path,
+        item: seed.item,
+        winRate,
+        wins,
+        runs: seedRuns,
+        viable,
+      });
+      console.log(
+        `  ${key} [${seed.path}] seed=${seed.item}: ${(100 * winRate).toFixed(0)}% ${viable ? '✓' : '·'}`,
+      );
+    }
+    console.log(`  → ${key}: ${viableCount} viable seeded paths (need ≥2)\n`);
+  }
+
   // Dump JSON summary for further analysis
   const summary = {
     smartRuns,
     onspecRuns,
     randomRuns,
+    seedRuns,
     specs: Object.fromEntries(
       [...smartAggs.entries()].map(([k, a]) => [
         k,
@@ -1708,6 +1720,7 @@ async function main(): Promise<void> {
       ]),
     ),
     pathBreakdown,
+    pathSeedResults,
     overall: {
       smartWin: smartWinTotal / smartN,
       onspecWin: onspecWinTotal / onspecN,

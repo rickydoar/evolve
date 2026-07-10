@@ -61,12 +61,13 @@ export class MapScene extends Phaser.Scene {
 
     const specLabel = FORM_LABELS[run.openingSpec] ?? run.openingSpec;
     const potionBit = run.potions > 0 ? `   ·   Potions ${run.potions}` : '';
+    const itemBit = run.items.length > 0 ? `   ·   Items ${run.items.length}` : '';
     const hudColor = run.act === 2 ? '#fcd34d' : '#a8e6cf';
     this.add
       .text(
         40,
         70,
-        `Act ${run.act}   ·   HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}${potionBit}`,
+        `Act ${run.act}   ·   HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}${potionBit}${itemBit}`,
         {
           fontFamily: 'Georgia, serif',
           fontSize: '16px',

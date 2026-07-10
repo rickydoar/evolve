@@ -266,10 +266,10 @@ export const ITEMS: Record<string, ItemDef> = {
   bloodfang_charm: {
     id: 'bloodfang_charm',
     name: 'Bloodfang Charm',
-    description: 'Bleed ticks deal +3 damage.',
+    description: 'Bleed ticks deal +4 damage.',
     spec: 'feral',
     rarity: 'rare',
-    effects: [{ trigger: 'onEnemyDotTick', kind: 'dotBonusPerTick', value: 3 }],
+    effects: [{ trigger: 'onEnemyDotTick', kind: 'dotBonusPerTick', value: 4 }],
   },
   ironpelt_totem: {
     id: 'ironpelt_totem',
@@ -282,14 +282,14 @@ export const ITEMS: Record<string, ItemDef> = {
   frenzy_claw: {
     id: 'frenzy_claw',
     name: 'Frenzy Claw',
-    description: 'After you play a 0-cost card, deal 5 damage to the lowest-HP enemy.',
+    description: 'After you play a 0-cost card, deal 6 damage to the lowest-HP enemy.',
     spec: 'feral',
     rarity: 'rare',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'damageLowest',
-        value: 5,
+        value: 6,
         exactCost: 0,
       },
     ],
@@ -333,18 +333,18 @@ export const ITEMS: Record<string, ItemDef> = {
   celestial_orb: {
     id: 'celestial_orb',
     name: 'Celestial Orb',
-    description: 'At the start of combat, gain 2 Spell Power.',
+    description: 'At the start of combat, gain 3 Spell Power.',
     spec: 'boomkin',
     rarity: 'rare',
-    effects: [{ trigger: 'combatStart', kind: 'spellPower', value: 2 }],
+    effects: [{ trigger: 'combatStart', kind: 'spellPower', value: 3 }],
   },
   thornwoven_cloak: {
     id: 'thornwoven_cloak',
     name: 'Thornwoven Cloak',
-    description: 'When you gain Thorns, also gain 10 Block.',
+    description: 'When you gain Thorns, also gain 8 Block.',
     spec: 'boomkin',
     rarity: 'epic',
-    effects: [{ trigger: 'onGainThorns', kind: 'thornsBonusBlock', value: 10 }],
+    effects: [{ trigger: 'onGainThorns', kind: 'thornsBonusBlock', value: 8 }],
   },
   twin_star: {
     id: 'twin_star',
@@ -357,14 +357,14 @@ export const ITEMS: Record<string, ItemDef> = {
   hurricane_eye: {
     id: 'hurricane_eye',
     name: 'Hurricane Eye',
-    description: 'Your Boomkin AoE also applies 4 bleed over 2 turns.',
+    description: 'Your Boomkin AoE also applies 6 bleed over 2 turns.',
     spec: 'boomkin',
     rarity: 'rare',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'applyBleed',
-        value: 4,
+        value: 6,
         forms: ['boomkin'],
         cardIds: ['hurricane', 'starfall', 'sunfire'],
         statusDuration: 2,
@@ -395,10 +395,10 @@ export const ITEMS: Record<string, ItemDef> = {
   verdant_lash: {
     id: 'verdant_lash',
     name: 'Verdant Lash',
-    description: 'Whenever you heal, deal 3 damage to a random enemy.',
+    description: 'Whenever you heal, deal 4 damage to a random enemy.',
     spec: 'tree',
     rarity: 'epic',
-    effects: [{ trigger: 'onHeal', kind: 'damageRandom', value: 3, minHeal: 1 }],
+    effects: [{ trigger: 'onHeal', kind: 'damageRandom', value: 4, minHeal: 1 }],
   },
   lifebloom_crown: {
     id: 'lifebloom_crown',
@@ -427,15 +427,14 @@ export const ITEMS: Record<string, ItemDef> = {
   barkbreaker_seed: {
     id: 'barkbreaker_seed',
     name: 'Barkbreaker Seed',
-    description: 'The first time you gain 10+ Block in a turn, deal 8 to ALL enemies.',
+    description: 'The first time you gain 10+ Block in a turn, deal 10 to ALL enemies.',
     spec: 'tree',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onGainBlock',
         kind: 'damageAll',
-        value: 8,
-        minBlock: 10,
+        value: 10,
         oncePerTurn: true,
       },
     ],
@@ -455,14 +454,14 @@ export const ITEMS: Record<string, ItemDef> = {
   radiant_censer: {
     id: 'radiant_censer',
     name: 'Radiant Censer',
-    description: 'Whenever you play a Holy heal, deal 4 damage to the lowest-HP enemy.',
+    description: 'Whenever you play a Holy heal, deal 5 damage to the lowest-HP enemy.',
     spec: 'holy',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'damageLowest',
-        value: 4,
+        value: 5,
         forms: ['holy'],
         cardIds: [
           'flash_heal',
@@ -502,10 +501,10 @@ export const ITEMS: Record<string, ItemDef> = {
   sacred_flame: {
     id: 'sacred_flame',
     name: 'Sacred Flame',
-    description: 'Holy Fire and Holy Nova deal +4 damage.',
+    description: 'Holy Fire and Holy Nova deal +5 damage.',
     spec: 'holy',
     rarity: 'rare',
-    effects: [{ trigger: 'onDealDamage', kind: 'flag', value: 4 }],
+    effects: [{ trigger: 'onDealDamage', kind: 'flag', value: 5 }],
   },
   martyr_rosary: {
     id: 'martyr_rosary',
@@ -545,20 +544,20 @@ export const ITEMS: Record<string, ItemDef> = {
   void_leech: {
     id: 'void_leech',
     name: 'Void Leech',
-    description: 'When an enemy DoT ticks, heal 3.',
+    description: 'When an enemy DoT ticks, heal 4.',
     spec: 'shadow',
     rarity: 'epic',
-    effects: [{ trigger: 'onEnemyDotTick', kind: 'healOnDotTick', value: 3 }],
+    effects: [{ trigger: 'onEnemyDotTick', kind: 'healOnDotTick', value: 4 }],
   },
   pain_amplifier: {
     id: 'pain_amplifier',
     name: 'Pain Amplifier',
-    description: 'Damage-over-time effects you apply last 1 extra turn and deal +1 per tick.',
+    description: 'Damage-over-time effects you apply last 1 extra turn and deal +2 per tick.',
     spec: 'shadow',
     rarity: 'rare',
     effects: [
       { trigger: 'onApplyDot', kind: 'dotExtraDuration', value: 1 },
-      { trigger: 'onEnemyDotTick', kind: 'dotBonusPerTick', value: 1 },
+      { trigger: 'onEnemyDotTick', kind: 'dotBonusPerTick', value: 2 },
     ],
   },
   scream_mask: {
@@ -600,10 +599,10 @@ export const ITEMS: Record<string, ItemDef> = {
   shield_spike: {
     id: 'shield_spike',
     name: 'Shield Spike',
-    description: 'Whenever you gain Block, deal 2 damage to a random enemy.',
+    description: 'Whenever you gain Block, deal 3 damage to a random enemy.',
     spec: 'discipline',
     rarity: 'epic',
-    effects: [{ trigger: 'onGainBlock', kind: 'damageRandom', value: 2 }],
+    effects: [{ trigger: 'onGainBlock', kind: 'damageRandom', value: 3 }],
   },
   penitent_brand: {
     id: 'penitent_brand',
@@ -632,14 +631,14 @@ export const ITEMS: Record<string, ItemDef> = {
   smite_echo: {
     id: 'smite_echo',
     name: 'Smite Echo',
-    description: 'Discipline attacks heal you for 3.',
+    description: 'Discipline attacks heal you for 4.',
     spec: 'discipline',
     rarity: 'rare',
     effects: [
       {
         trigger: 'onDealDamage',
         kind: 'heal',
-        value: 3,
+        value: 4,
         forms: ['discipline'],
       },
     ],
@@ -754,7 +753,7 @@ export function itemFlatBlockBonus(items: string[]): number {
 
 export function itemSacredFlameBonus(items: string[], cardId: string): number {
   if (!items.includes('sacred_flame')) return 0;
-  return cardId === 'holy_fire' || cardId === 'holy_nova' ? 4 : 0;
+  return cardId === 'holy_fire' || cardId === 'holy_nova' ? 5 : 0;
 }
 
 export function itemTreeCostReduce(items: string[]): number {

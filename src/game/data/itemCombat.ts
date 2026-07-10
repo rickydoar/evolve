@@ -301,8 +301,8 @@ function resolveEffect(
 
 export function itemDotTickBonus(items: string[]): number {
   let bonus = 0;
-  if (items.includes('bloodfang_charm')) bonus += 3;
-  if (items.includes('pain_amplifier')) bonus += 1;
+  if (items.includes('bloodfang_charm')) bonus += 4;
+  if (items.includes('pain_amplifier')) bonus += 2;
   return bonus;
 }
 

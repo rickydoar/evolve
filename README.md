@@ -17,8 +17,13 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 2. Pick a path node on the map (fights, elites, rest, treasure, shop, boss).
 3. In combat: click a card, then click an enemy if it needs a target. **End Turn** when ready.
 4. After victory, pick a reward card and spend a **talent point** in your class trees.
-5. Defeat the **Nightmare of the Grove**, then push into **The Barrens**.
-6. Face random **Wailing Caverns** elites and defeat **Mutanus the Devourer**.
+5. **Defeat an elite** to choose **1 of 3 items** (general relics + your specialization's unique set).
+6. Defeat the **Nightmare of the Grove**, then push into **The Barrens**.
+7. Face random **Wailing Caverns** elites and defeat **Mutanus the Devourer**.
+
+### Items
+
+Elites drop relics. The offer pool is **20 general items** (any class) plus **5 unique items per opening specialization**. Spec items only appear for that opening. Keep one of three each elite clear.
 
 ### Druid opening specs
 
