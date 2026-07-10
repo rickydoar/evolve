@@ -197,7 +197,7 @@ export class CombatScene extends Phaser.Scene {
 
     const living = combat.enemies;
     const startX = GAME_W / 2 + 40;
-    const spacing = 180;
+    const spacing = living.length >= 4 ? 150 : 180;
     const totalW = (living.length - 1) * spacing;
     const baseX = startX - totalW / 2;
     const y = 260;
@@ -245,12 +245,24 @@ export class CombatScene extends Phaser.Scene {
       );
 
       if (!dead && enemy.intent) {
+        const intentIcon =
+          enemy.intent.type === 'summon'
+            ? '✧'
+            : enemy.intent.type === 'heal'
+              ? '✚'
+              : enemy.intent.type === 'buff'
+                ? '▲'
+                : enemy.intent.type === 'defend'
+                  ? '🛡'
+                  : enemy.intent.type === 'debuff'
+                    ? '☠'
+                    : '⚔';
         container.add(
           this.add
-            .text(0, -85, `⚔ ${enemy.intent.label}`, {
+            .text(0, -85, `${intentIcon} ${enemy.intent.label}`, {
               fontFamily: 'Georgia, serif',
               fontSize: '13px',
-              color: '#fca5a5',
+              color: enemy.enraged ? '#fb923c' : '#fca5a5',
               backgroundColor: '#1e1010',
               padding: { x: 8, y: 4 },
             })
@@ -258,20 +270,20 @@ export class CombatScene extends Phaser.Scene {
         );
       }
 
-      const statusStr = enemy.statuses
-        .map((s) =>
-          s.kind === 'earthAndMoon'
-            ? `${s.name} +${s.value}%`
-            : `${s.name}:${s.value}(${s.duration})`,
-        )
-        .join(' ');
+      const statusParts = enemy.statuses.map((s) =>
+        s.kind === 'earthAndMoon'
+          ? `${s.name} +${s.value}%`
+          : `${s.name}:${s.value}(${s.duration})`,
+      );
+      if (enemy.enraged) statusParts.unshift('ENRAGED');
+      const statusStr = statusParts.join(' ');
       if (statusStr) {
         container.add(
           this.add
             .text(0, 115, statusStr, {
               fontFamily: 'Georgia, serif',
               fontSize: '10px',
-              color: '#f87171',
+              color: enemy.enraged ? '#fb923c' : '#f87171',
             })
             .setOrigin(0.5),
         );
@@ -593,6 +605,24 @@ export class CombatScene extends Phaser.Scene {
           ease: 'Sine.easeOut',
           onYoyo: () => {
             this.flashFloatingText(originX, originY - 100, `+${step.intent.value} HP`, '#86efac');
+          },
+          onComplete: () => {
+            container.setScale(1);
+            onComplete();
+          },
+        });
+        break;
+      }
+      case 'summon': {
+        this.tweens.add({
+          targets: container,
+          scaleX: 1.15,
+          scaleY: 1.15,
+          duration: 220,
+          yoyo: true,
+          ease: 'Back.easeOut',
+          onYoyo: () => {
+            this.flashFloatingText(originX, originY - 100, step.intent.label, '#c4b5fd');
           },
           onComplete: () => {
             container.setScale(1);
