@@ -10,6 +10,7 @@ import {
   cancelTarget,
   canPlayCard,
   endPlayerTurn,
+  getCardPlayCost,
   playCardOnEnemy,
   selectCard,
   type CombatState,
@@ -339,10 +340,11 @@ export class CombatScene extends Phaser.Scene {
       }
 
       // Cost gem
+      const playCost = getCardPlayCost(combat, card);
       container.add(this.add.circle(-CARD_W / 2 + 16, -CARD_H / 2 + 16, 14, 0x1d4ed8));
       container.add(
         this.add
-          .text(-CARD_W / 2 + 16, -CARD_H / 2 + 16, String(card.cost), {
+          .text(-CARD_W / 2 + 16, -CARD_H / 2 + 16, String(playCost), {
             fontFamily: 'Georgia, serif',
             fontSize: '16px',
             color: '#fff',

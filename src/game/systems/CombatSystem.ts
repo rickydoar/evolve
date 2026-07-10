@@ -2,13 +2,39 @@ import { CARDS } from '../data/cards';
 import { getClass } from '../data/classes';
 import { ENEMIES } from '../data/enemies';
 import {
+  hasTalentSpecial,
   modifyEffectValue,
+  talentAlsoVulnerable,
+  talentBleedKillEnergy,
+  talentBlockCarryoverPct,
+  talentBlockGainHeal,
+  talentBlockPerHot,
+  talentCardCostReduce,
+  talentCleanseOnPlay,
+  talentCombatStartDraw,
+  talentDamageGrantsBlock,
+  talentDotExtraDuration,
+  talentDotTickHeal,
+  talentExhaustBlock,
+  talentFreeSpellDraw,
+  talentHealPlayBlock,
+  talentHotExtraDuration,
+  talentHotTickBlock,
+  talentKillDraw,
+  talentKillHeal,
+  talentNthFormSpellFree,
+  talentPlayDrawAmount,
+  talentShredExhaustDraw,
   talentSpellPowerBonus,
+  talentStartTurnBlock,
+  talentStartTurnDraw,
+  talentStartTurnEnergy,
 } from '../data/talents';
 import type {
   CardDef,
   Combatant,
   EnemyIntent,
+  Form,
   RunState,
   StatusEffect,
 } from '../data/types';
@@ -37,6 +63,12 @@ export interface CombatState {
   spellPowerBonus: number;
   /** Snapshot of run talents for this combat. */
   talents: Record<string, number>;
+  /** Form spell play counts for nth-free talents (e.g. Shooting Stars). */
+  formSpellCounts: Partial<Record<Form, number>>;
+  /** Energy granted mid-enemy-turn (applied at the start of your next turn). */
+  pendingEnergy: number;
+  /** True after a once-per-turn playDraw talent has fired this turn. */
+  playDrawUsedThisTurn: boolean;
 }
 
 function uid(prefix: string): string {
@@ -111,16 +143,27 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
     awaitingTarget: false,
     spellPowerBonus: run.spellPowerBonus + talentSp,
     talents: { ...run.talents },
+    formSpellCounts: {},
+    pendingEnergy: 0,
+    playDrawUsedThisTurn: false,
   };
 
   if (talentSp > 0) {
     state.log.push({
-      text: `Lunar Guidance: +${talentSp} Spell Power.`,
+      text: `Spell Power: +${talentSp}.`,
       color: '#a78bfa',
     });
   }
 
   drawCards(state, 5);
+  const bonusDraw = talentCombatStartDraw(run.talents);
+  if (bonusDraw > 0) {
+    drawCards(state, bonusDraw);
+    state.log.push({
+      text: `Combat start: drew ${bonusDraw} extra.`,
+      color: '#e2e8f0',
+    });
+  }
   return state;
 }
 
@@ -170,12 +213,38 @@ export function applyDamage(
   const vuln = getStatus(target, 'vulnerable');
   if (vuln) amount = Math.floor(amount * 1.5);
 
+  const prevHp = target.hp;
   const blocked = Math.min(target.block, amount);
   target.block -= blocked;
   amount -= blocked;
   target.hp = Math.max(0, target.hp - amount);
   maybeTriggerEnrage(target, state);
+
+  if (
+    sourceLabel === 'player' &&
+    !target.isPlayer &&
+    prevHp > 0 &&
+    target.hp <= 0
+  ) {
+    onEnemyKilledByPlayer(state);
+  }
+
   return amount + blocked;
+}
+
+function onEnemyKilledByPlayer(state: CombatState): void {
+  const draw = talentKillDraw(state.talents);
+  if (draw > 0) {
+    drawCards(state, draw);
+    state.log.push({ text: `Kill: drew ${draw}.`, color: '#e2e8f0' });
+  }
+  const healAmt = talentKillHeal(state.talents);
+  if (healAmt > 0) {
+    const healed = heal(state.player, healAmt);
+    if (healed > 0) {
+      state.log.push({ text: `Kill: healed ${healed}.`, color: '#86efac' });
+    }
+  }
 }
 
 function maybeTriggerEnrage(enemy: Combatant, state: CombatState): void {
@@ -260,19 +329,192 @@ function applyBleed(
 
 function consumeEarthAndMoon(target: Combatant, card: CardDef, state: CombatState): void {
   if (card.id !== 'starfire' && card.id !== 'wrath') return;
+  if (hasTalentSpecial(state.talents, 'earthAndMoonPersistent')) return;
   const bonus = getStatus(target, 'earthAndMoon');
   if (!bonus) return;
   target.statuses = target.statuses.filter((s) => s.kind !== 'earthAndMoon');
   state.log.push({ text: 'Earth and Moon consumed.', color: '#c4b5fd' });
 }
 
-export function canPlayCard(state: CombatState, handIndex: number): boolean {
+function anyEnemyBleeding(state: CombatState): boolean {
+  return state.enemies.some((e) => e.hp > 0 && !!getStatus(e, 'bleed'));
+}
+
+/** Effective energy cost after transformative talents. */
+export function getCardPlayCost(
+  state: CombatState,
+  card: CardDef,
+  target?: Combatant,
+): number {
+  let cost = card.cost;
+
+  if (
+    card.id === 'ferocious_bite' &&
+    hasTalentSpecial(state.talents, 'bleedBiteFree')
+  ) {
+    if (target) {
+      if (getStatus(target, 'bleed')) return 0;
+    } else if (anyEnemyBleeding(state)) {
+      return 0;
+    }
+  }
+
+  const every = talentNthFormSpellFree(state.talents, card.form);
+  if (every != null && every > 0) {
+    const played = state.formSpellCounts[card.form] ?? 0;
+    if ((played + 1) % every === 0) return 0;
+  }
+
+  cost -= talentCardCostReduce(state.talents, card.id);
+  return Math.max(0, cost);
+}
+
+function resolveCardDestination(state: CombatState, cardId: string): void {
+  const shredDraw = talentShredExhaustDraw(state.talents);
+  if (cardId === 'shred' && shredDraw != null) {
+    state.exhaustPile.push(cardId);
+    const block = talentExhaustBlock(state.talents);
+    if (block > 0) {
+      state.player.block += block;
+      state.log.push({ text: `Exhaust: gained ${block} Block.`, color: '#7dd3fc' });
+    }
+    return;
+  }
+  state.discardPile.push(cardId);
+}
+
+function afterCardPlayed(
+  state: CombatState,
+  card: CardDef,
+  paidCost: number,
+  dealtDamage: boolean,
+  target?: Combatant,
+): void {
+  const every = talentNthFormSpellFree(state.talents, card.form);
+  if (every != null) {
+    state.formSpellCounts[card.form] = (state.formSpellCounts[card.form] ?? 0) + 1;
+    if (paidCost === 0 && (state.formSpellCounts[card.form] ?? 0) % every === 0) {
+      const draw = talentFreeSpellDraw(state.talents);
+      if (draw > 0) {
+        drawCards(state, draw);
+        state.log.push({
+          text: `Shooting Stars: drew ${draw}.`,
+          color: '#c4b5fd',
+        });
+      }
+    }
+  }
+
+  const healBlock = talentHealPlayBlock(state.talents, card);
+  if (healBlock > 0) {
+    state.player.block += healBlock;
+    state.log.push({
+      text: `Gained ${healBlock} Block from healing.`,
+      color: '#7dd3fc',
+    });
+  }
+
+  if (dealtDamage) {
+    const dmgBlock = talentDamageGrantsBlock(state.talents, card);
+    if (dmgBlock > 0) {
+      state.player.block += dmgBlock;
+      state.log.push({
+        text: `Gained ${dmgBlock} Block from damage.`,
+        color: '#7dd3fc',
+      });
+    }
+  }
+
+  if (talentCleanseOnPlay(state.talents, card)) {
+    const debuffs: StatusEffect['kind'][] = ['poison', 'bleed', 'weak', 'vulnerable'];
+    const before = state.player.statuses.length;
+    state.player.statuses = state.player.statuses.filter(
+      (s) => !debuffs.includes(s.kind),
+    );
+    const removed = before - state.player.statuses.length;
+    if (removed > 0) {
+      state.log.push({
+        text: `${card.name} cleansed ${removed} debuff(s).`,
+        color: '#fde68a',
+      });
+    }
+  }
+
+  const vulnDur = talentAlsoVulnerable(state.talents, card.id);
+  if (vulnDur != null) {
+    const vulnTargets =
+      card.target === 'allEnemies'
+        ? state.enemies.filter((e) => e.hp > 0)
+        : target
+          ? [target]
+          : [];
+    for (const t of vulnTargets) {
+      addStatus(t, {
+        id: uid('vuln'),
+        name: 'Vulnerable',
+        kind: 'vulnerable',
+        value: 1,
+        duration: vulnDur,
+      });
+      state.log.push({
+        text: `${t.name} is Vulnerable for ${vulnDur} turns.`,
+        color: '#fb923c',
+      });
+    }
+  }
+
+  const playDraw = talentPlayDrawAmount(
+    state.talents,
+    card,
+    state.playDrawUsedThisTurn,
+  );
+  if (playDraw > 0) {
+    drawCards(state, playDraw);
+    state.playDrawUsedThisTurn = true;
+    state.log.push({
+      text: `Drew ${playDraw} from ${card.name}.`,
+      color: '#e2e8f0',
+    });
+  }
+
+  if (card.id === 'shred') {
+    const shredDraw = talentShredExhaustDraw(state.talents);
+    drawCards(state, shredDraw ?? 1);
+  }
+
+  if (card.id === 'void_eruption' && hasTalentSpecial(state.talents, 'voidDetonateDots')) {
+    detonateEnemyDots(state);
+  }
+}
+
+function detonateEnemyDots(state: CombatState): void {
+  for (const enemy of state.enemies.filter((e) => e.hp > 0)) {
+    const dots = enemy.statuses.filter((s) => s.kind === 'bleed' || s.kind === 'poison');
+    if (!dots.length) continue;
+    let total = 0;
+    for (const d of dots) total += d.value * Math.max(1, d.duration);
+    enemy.statuses = enemy.statuses.filter(
+      (s) => s.kind !== 'bleed' && s.kind !== 'poison',
+    );
+    const dealt = applyDamage(enemy, total, state, 'player');
+    state.log.push({
+      text: `Void Eruption detonates DoTs for ${dealt} on ${enemy.name}.`,
+      color: '#a78bfa',
+    });
+  }
+}
+
+export function canPlayCard(
+  state: CombatState,
+  handIndex: number,
+  target?: Combatant,
+): boolean {
   if (state.phase !== 'player') return false;
   const id = state.hand[handIndex];
   if (!id) return false;
   const card = CARDS[id];
   if (!card) return false;
-  return state.energy >= card.cost;
+  return state.energy >= getCardPlayCost(state, card, target);
 }
 
 export function selectCard(state: CombatState, handIndex: number): string | null {
@@ -296,20 +538,22 @@ export function playCardOnEnemy(
   enemyId: string,
 ): boolean {
   const id = state.hand[handIndex];
-  if (!id || !canPlayCard(state, handIndex)) return false;
+  if (!id) return false;
   const card = CARDS[id]!;
   if (card.target !== 'enemy') return false;
   const enemy = state.enemies.find((e) => e.id === enemyId && e.hp > 0);
   if (!enemy) return false;
+  if (!canPlayCard(state, handIndex, enemy)) return false;
 
-  state.energy -= card.cost;
+  const cost = getCardPlayCost(state, card, enemy);
+  state.energy -= cost;
   state.hand.splice(handIndex, 1);
-  applyCardEffects(state, card, enemy);
-  state.discardPile.push(id);
+  const dealt = applyCardEffects(state, card, enemy);
+  resolveCardDestination(state, id);
   state.selectedCardId = null;
   state.awaitingTarget = false;
 
-  if (id === 'shred') drawCards(state, 1);
+  afterCardPlayed(state, card, cost, dealt, enemy);
   checkCombatEnd(state);
   return true;
 }
@@ -321,14 +565,15 @@ export function playCard(state: CombatState, handIndex: number): boolean {
 
   if (card.target === 'enemy') return false;
 
-  state.energy -= card.cost;
+  const cost = getCardPlayCost(state, card);
+  state.energy -= cost;
   state.hand.splice(handIndex, 1);
-  applyCardEffects(state, card, undefined);
-  state.discardPile.push(id);
+  const dealt = applyCardEffects(state, card, undefined);
+  resolveCardDestination(state, id);
   state.selectedCardId = null;
   state.awaitingTarget = false;
 
-  if (id === 'shred') drawCards(state, 1);
+  afterCardPlayed(state, card, cost, dealt);
   checkCombatEnd(state);
   return true;
 }
@@ -337,7 +582,9 @@ function applyCardEffects(
   state: CombatState,
   card: CardDef,
   target?: Combatant,
-): void {
+): boolean {
+  let dealtDamage = false;
+
   // Penance: damage and heal scale with half current Block (armor).
   if (card.id === 'penance') {
     const halfBlock = Math.floor(state.player.block / 2);
@@ -351,6 +598,7 @@ function applyCardEffects(
       );
       const dmg = computeCardDamage(card, base, state, target);
       const dealt = applyDamage(target, dmg, state, 'player');
+      dealtDamage = true;
       state.log.push({
         text: `${card.name}: ${dealt} damage to ${target.name}.`,
         color: '#ffb347',
@@ -365,7 +613,7 @@ function applyCardEffects(
       const healed = heal(state.player, healAmt);
       state.log.push({ text: `Healed ${healed} HP.`, color: '#86efac' });
     }
-    return;
+    return dealtDamage;
   }
 
   for (const effect of card.effects) {
@@ -375,6 +623,7 @@ function applyCardEffects(
         if (!target) break;
         const dmg = computeCardDamage(card, value, state, target);
         const dealt = applyDamage(target, dmg, state, 'player');
+        dealtDamage = true;
         state.log.push({
           text: `${card.name}: ${dealt} damage to ${target.name}.`,
           color: '#ffb347',
@@ -390,6 +639,7 @@ function applyCardEffects(
         const dmg = computeCardDamage(card, value, state);
         for (const e of targets) {
           const dealt = applyDamage(e, dmg, state, 'player');
+          dealtDamage = true;
           state.log.push({
             text: `${card.name}: ${dealt} to ${e.name}.`,
             color: '#ffb347',
@@ -403,6 +653,16 @@ function applyCardEffects(
           text: `Gained ${value} Block.`,
           color: '#7dd3fc',
         });
+        const blockHeal = talentBlockGainHeal(state.talents);
+        if (blockHeal > 0) {
+          const healed = heal(state.player, blockHeal);
+          if (healed > 0) {
+            state.log.push({
+              text: `Focused Will healed ${healed}.`,
+              color: '#86efac',
+            });
+          }
+        }
         break;
       }
       case 'heal': {
@@ -411,22 +671,27 @@ function applyCardEffects(
         break;
       }
       case 'healOverTime': {
-        const perTick = Math.floor(value / (effect.duration ?? 1));
+        const baseDuration = effect.duration ?? 1;
+        const duration =
+          baseDuration + talentHotExtraDuration(state.talents, card.id);
+        // Keep tick strength from the base duration; extra turns are bonus healing.
+        const perTick = Math.floor(value / Math.max(1, baseDuration));
         addStatus(state.player, {
           id: uid('regen'),
           name: card.name,
           kind: 'regen',
           value: perTick,
-          duration: effect.duration ?? 1,
+          duration,
         });
         state.log.push({
-          text: `${card.name}: ${perTick} heal/turn for ${effect.duration} turns.`,
+          text: `${card.name}: ${perTick} heal/turn for ${duration} turns.`,
           color: '#86efac',
         });
         break;
       }
       case 'damageOverTime': {
-        const duration = effect.duration ?? 1;
+        const duration =
+          (effect.duration ?? 1) + talentDotExtraDuration(state.talents, card.id);
         if (card.target === 'allEnemies') {
           for (const e of state.enemies.filter((en) => en.hp > 0)) {
             applyBleed(e, value, duration, state, card.name);
@@ -528,6 +793,8 @@ function applyCardEffects(
       }
     }
   }
+
+  return dealtDamage;
 }
 
 function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void {
@@ -537,6 +804,14 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
       const healed = heal(c, s.value);
       if (isPlayer) {
         state.log.push({ text: `Regen healed ${healed}.`, color: '#86efac' });
+        const tickBlock = talentHotTickBlock(state.talents, s.name);
+        if (tickBlock > 0) {
+          state.player.block += tickBlock;
+          state.log.push({
+            text: `${s.name}: +${tickBlock} Block.`,
+            color: '#7dd3fc',
+          });
+        }
       }
     }
     if (s.kind === 'bleed' || s.kind === 'poison') {
@@ -545,6 +820,26 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
         text: `${c.name} takes ${s.value} from ${s.name}.`,
         color: '#f87171',
       });
+      if (!isPlayer) {
+        const leech = talentDotTickHeal(state.talents);
+        if (leech > 0) {
+          const healed = heal(state.player, leech);
+          state.log.push({
+            text: `Vampiric Embrace healed ${healed}.`,
+            color: '#86efac',
+          });
+        }
+        if (c.hp <= 0) {
+          const energy = talentBleedKillEnergy(state.talents);
+          if (energy > 0 && s.kind === 'bleed') {
+            state.pendingEnergy += energy;
+            state.log.push({
+              text: `Blood in the Water: +${energy} Energy next turn.`,
+              color: '#fde68a',
+            });
+          }
+        }
+      }
     }
     // Earth and Moon lasts until Wrath/Starfire consumes it.
     if (s.kind === 'earthAndMoon') {
@@ -623,18 +918,75 @@ function isCombatOver(state: CombatState): boolean {
 export function beginPlayerTurn(state: CombatState): void {
   if (state.phase === 'victory' || state.phase === 'defeat') return;
 
-  // Block clears at start of YOUR turn (Slay the Spire style).
+  // Block clears at start of YOUR turn, unless talents carry some over.
   state.turn += 1;
   state.phase = 'player';
-  state.player.block = 0;
+  state.playDrawUsedThisTurn = false;
+  const carryPct = talentBlockCarryoverPct(state.talents);
+  const carried =
+    carryPct > 0 ? Math.floor(state.player.block * (carryPct / 100)) : 0;
+  state.player.block = carried;
+  if (carried > 0) {
+    state.log.push({
+      text: `Borrowed Time: ${carried} Block carries over.`,
+      color: '#7dd3fc',
+    });
+  }
+
   tickStatuses(state.player, state, true);
   if (state.player.hp <= 0) {
     state.phase = 'defeat';
     state.log.push({ text: 'You have fallen...', color: '#ef4444' });
     return;
   }
-  state.energy = state.energyMax;
+
+  const perHot = talentBlockPerHot(state.talents);
+  if (perHot > 0) {
+    const hots = state.player.statuses.filter((s) => s.kind === 'regen').length;
+    if (hots > 0) {
+      const gained = perHot * hots;
+      state.player.block += gained;
+      state.log.push({
+        text: `Tree of Life: +${gained} Block from ${hots} HoT(s).`,
+        color: '#7dd3fc',
+      });
+    }
+  }
+
+  const turnBlock = talentStartTurnBlock(state.talents);
+  if (turnBlock > 0) {
+    state.player.block += turnBlock;
+    state.log.push({
+      text: `Start of turn: +${turnBlock} Block.`,
+      color: '#7dd3fc',
+    });
+  }
+
+  const turnEnergy = talentStartTurnEnergy(state.talents);
+  state.energy = state.energyMax + state.pendingEnergy + turnEnergy;
+  if (state.pendingEnergy > 0) {
+    state.log.push({
+      text: `Blood in the Water: +${state.pendingEnergy} Energy.`,
+      color: '#fde68a',
+    });
+    state.pendingEnergy = 0;
+  }
+  if (turnEnergy > 0) {
+    state.log.push({
+      text: `Start of turn: +${turnEnergy} Energy.`,
+      color: '#fde68a',
+    });
+  }
+
   drawCards(state, 5);
+  const turnDraw = talentStartTurnDraw(state.talents);
+  if (turnDraw > 0) {
+    drawCards(state, turnDraw);
+    state.log.push({
+      text: `Start of turn: drew ${turnDraw}.`,
+      color: '#e2e8f0',
+    });
+  }
   state.log.push({ text: `— Turn ${state.turn} —`, color: '#e2e8f0' });
 }
 

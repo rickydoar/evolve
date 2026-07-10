@@ -55,7 +55,73 @@ export interface CardDef {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
-/** Flat bonuses applied per talent rank to matching card effects. */
+/**
+ * Transformative combat behaviors. Flat +X is fine early; mid/capstones should
+ * change how cards play (new verbs), not just inflate numbers.
+ */
+export type TalentSpecial =
+  /** Shred goes to Exhaust and draws this many (replaces the base draw 1). */
+  | { type: 'shredExhaustDraw'; draw: number }
+  /** When you Exhaust a card, gain this much Block (per rank). */
+  | { type: 'exhaustGrantsBlock'; block: number }
+  /** Ferocious Bite costs 0 while any living enemy is bleeding. */
+  | { type: 'bleedBiteFree' }
+  /** Named HoT cards also grant Block each regen tick (per rank). */
+  | { type: 'hotTickBlock'; cardIds: string[]; blockPerTick: number }
+  /** Heal-over-time effects from matching cards last this many extra turns (per rank). */
+  | { type: 'hotExtraDuration'; cardIds: string[]; extra: number }
+  /** Every Nth card of this form costs 0. */
+  | { type: 'nthFormSpellFree'; form: Form; every: number }
+  /** When a form spell costs 0 from nthFormSpellFree, draw this many. */
+  | { type: 'freeSpellDraw'; draw: number }
+  /** Earth and Moon is not consumed by Wrath / Starfire. */
+  | { type: 'earthAndMoonPersistent' }
+  /** This percent of leftover Block carries into your next turn. */
+  | { type: 'blockCarryover'; pct: number }
+  /** Void Eruption detonates enemy DoTs for their remaining damage. */
+  | { type: 'voidDetonateDots' }
+  /** When an enemy DoT ticks, heal the player (per rank). */
+  | { type: 'dotTickHeal'; heal: number }
+  /** When a bleed tick kills an enemy, gain Energy (per rank). */
+  | { type: 'bleedKillEnergy'; energy: number }
+  /** After playing a matching heal card, gain Block (per rank). */
+  | { type: 'healPlayGrantsBlock'; forms?: Form[]; cardIds?: string[]; block: number }
+  /** At turn start, gain Block per active player HoT (per rank). */
+  | { type: 'blockPerHot'; block: number }
+  /** Draw this many cards at combat start (per rank). */
+  | { type: 'combatStartDraw'; draw: number }
+  /** When you kill an enemy, draw this many (per rank). */
+  | { type: 'killDraw'; draw: number }
+  /** When you kill an enemy, heal this much (per rank). */
+  | { type: 'killHeal'; heal: number }
+  /** Draw this many at the start of each of your turns (per rank). */
+  | { type: 'startTurnDraw'; draw: number }
+  /** Gain this much Block at the start of each of your turns (per rank). */
+  | { type: 'startTurnBlock'; block: number }
+  /** Gain this much Energy at the start of each of your turns (per rank). */
+  | { type: 'startTurnEnergy'; energy: number }
+  /** After a matching card deals damage, gain Block (per rank). */
+  | { type: 'damageGrantsBlock'; forms?: Form[]; cardIds?: string[]; block: number }
+  /** After playing a matching card, draw (optionally once per turn). */
+  | {
+      type: 'playDraw';
+      forms?: Form[];
+      cardIds?: string[];
+      draw: number;
+      oncePerTurn?: boolean;
+    }
+  /** Reduce energy cost of matching cards (per rank). */
+  | { type: 'cardCostReduce'; cardIds: string[]; amount: number }
+  /** Playing a matching card also removes your debuffs. */
+  | { type: 'cleanseOnPlay'; forms?: Form[]; cardIds?: string[] }
+  /** Playing a matching card also applies Vulnerable. */
+  | { type: 'alsoVulnerable'; cardIds: string[]; duration: number }
+  /** When you gain Block from a card, also heal (per rank). */
+  | { type: 'blockGainHeal'; heal: number }
+  /** Damage-over-time from matching cards lasts extra turns (per rank). */
+  | { type: 'dotExtraDuration'; cardIds: string[]; extra: number };
+
+/** Flat bonuses + optional transformative specials applied per talent rank. */
 export interface TalentModifier {
   /** Card ids this talent affects. Empty / omitted = use forms. */
   cardIds?: string[];
@@ -72,6 +138,10 @@ export interface TalentModifier {
   healPct?: number;
   /** Multiplicative damage bonus as percent (e.g. 15 = +15%). */
   damagePct?: number;
+  /** Multiplicative block bonus as percent (e.g. 25 = +25%). */
+  blockPct?: number;
+  /** Transformative combat behaviors (mid/capstone verbs). */
+  specials?: TalentSpecial[];
 }
 
 export interface TalentDef {
