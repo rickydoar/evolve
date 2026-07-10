@@ -55,6 +55,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('card-lifebloom', '/assets/cards/lifebloom.png');
     this.load.image('card-ironbark', '/assets/cards/ironbark.png');
     this.load.image('card-tranquility', '/assets/cards/tranquility.png');
+    this.load.image('card-innervate', '/assets/cards/innervate.png');
 
     // Priest cards
     this.load.image('card-smite', '/assets/cards/smite.png');

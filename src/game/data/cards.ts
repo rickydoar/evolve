@@ -319,6 +319,17 @@ export const DRUID_CARDS: Record<string, CardDef> = {
   },
 
   // ── Tree ────────────────────────────────────────────────────────
+  innervate: {
+    id: 'innervate',
+    name: 'Innervate',
+    form: 'tree',
+    cost: 0,
+    description: 'Gain 2 Energy.',
+    target: 'self',
+    effects: [{ kind: 'energy', value: 2 }],
+    art: 'card-innervate',
+    rarity: 'rare',
+  },
   decurse: {
     id: 'decurse',
     name: 'Decurse',
@@ -471,6 +482,7 @@ export const REWARD_POOL: string[] = [
   'starfall',
   'celestial_alignment',
   'incarnation',
+  'innervate',
   'decurse',
   'rejuvenation',
   'healing_touch',

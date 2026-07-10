@@ -946,17 +946,7 @@ export function getCardDescription(card: CardDef, talents: Record<string, number
 
   // Priest special-cases
   if (card.id === 'penance') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage. Heal ${healAmt}.`;
+    return 'Deal damage and Heal equal to half your current Block.';
   }
   if (card.id === 'atonement') {
     const dmg = modifyEffectValue(
