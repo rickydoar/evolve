@@ -5,92 +5,88 @@
   "seedRuns": 30,
   "specs": {
     "druid/feral": {
-      "smartWin": 0.95,
-      "smartAct1": 0.95,
-      "smartAvgV": 16.1,
+      "smartWin": 0.85,
+      "smartAct1": 0.85,
+      "smartAvgV": 14.25,
       "onspecWin": 0.95,
       "onspecAct1": 0.95,
-      "onspecAvgV": 16.15,
+      "onspecAvgV": 15.8,
       "randomWin": 0,
       "randomAct1": 0,
-      "randomAvgV": 2,
+      "randomAvgV": 2.4,
       "topPicks": [
         [
           "tigers_fury",
-          31
+          27
         ],
         [
           "barkskin",
-          27
-        ],
-        [
-          "ferocious_bite",
-          27
-        ],
-        [
-          "ironfur",
-          26
+          25
         ],
         [
           "mangle",
           22
         ],
         [
+          "ironfur",
+          20
+        ],
+        [
           "rejuvenation",
-          20
-        ],
-        [
-          "ironbark",
-          20
-        ],
-        [
-          "celestial_alignment",
           19
         ],
         [
-          "wild_growth",
-          17
+          "ironbark",
+          18
         ],
         [
-          "moonfire",
-          15
+          "ferocious_bite",
+          18
         ],
         [
           "predatory_strike",
+          16
+        ],
+        [
+          "rake",
           15
         ],
         [
-          "thrash",
+          "wild_growth",
+          14
+        ],
+        [
+          "innervate",
+          14
+        ],
+        [
+          "celestial_alignment",
           14
         ]
       ],
       "onspecPicks": [
         [
-          "ironfur",
-          39
+          "barkskin",
+          31
         ],
         [
           "tigers_fury",
-          34
-        ],
-        [
-          "barkskin",
-          30
-        ],
-        [
-          "mangle",
-          29
-        ],
-        [
-          "ferocious_bite",
-          27
-        ],
-        [
-          "thrash",
-          23
+          31
         ],
         [
           "rake",
+          27
+        ],
+        [
+          "mangle",
+          27
+        ],
+        [
+          "ironfur",
+          25
+        ],
+        [
+          "thrash",
           22
         ],
         [
@@ -98,20 +94,24 @@
           19
         ],
         [
-          "ironbark",
-          13
-        ],
-        [
-          "predatory_strike",
-          13
-        ],
-        [
-          "shred",
-          12
+          "ferocious_bite",
+          18
         ],
         [
           "rip",
-          12
+          15
+        ],
+        [
+          "predatory_strike",
+          14
+        ],
+        [
+          "ironbark",
+          14
+        ],
+        [
+          "swipe",
+          13
         ]
       ],
       "winStaples": [
@@ -144,45 +144,49 @@
           1
         ],
         [
-          "ironfur",
-          0.9473684210526315
-        ],
-        [
-          "ferocious_bite",
-          0.8947368421052632
+          "mangle",
+          0.9411764705882353
         ],
         [
           "tigers_fury",
-          0.8421052631578947
+          0.9411764705882353
         ],
         [
-          "mangle",
-          0.8421052631578947
+          "wild_growth",
+          0.8823529411764706
+        ],
+        [
+          "rake",
+          0.7058823529411765
         ],
         [
           "ironbark",
-          0.7368421052631579
+          0.7058823529411765
         ],
         [
-          "celestial_alignment",
-          0.7368421052631579
+          "ironfur",
+          0.7058823529411765
+        ],
+        [
+          "ferocious_bite",
+          0.7058823529411765
         ],
         [
           "thrash",
-          0.6842105263157895
-        ],
-        [
-          "moonfire",
-          0.631578947368421
+          0.6470588235294118
         ]
       ],
       "deaths": [
         [
           "victory",
-          19
+          17
         ],
         [
-          "act1-f8-elite",
+          "act1-f9-elite",
+          2
+        ],
+        [
+          "act1-f4-combat",
           1
         ]
       ],
@@ -198,113 +202,113 @@
       ]
     },
     "druid/boomkin": {
-      "smartWin": 0.85,
-      "smartAct1": 0.85,
-      "smartAvgV": 13.6,
-      "onspecWin": 0.65,
-      "onspecAct1": 0.7,
-      "onspecAvgV": 12.55,
+      "smartWin": 0.65,
+      "smartAct1": 0.65,
+      "smartAvgV": 10.65,
+      "onspecWin": 0.5,
+      "onspecAct1": 0.5,
+      "onspecAvgV": 9.8,
       "randomWin": 0,
-      "randomAct1": 0.1,
-      "randomAvgV": 2.6,
+      "randomAct1": 0,
+      "randomAvgV": 2.4,
       "topPicks": [
         [
           "moonfire",
-          29
-        ],
-        [
-          "innervate",
-          23
+          22
         ],
         [
           "barkskin",
-          21
+          20
         ],
         [
-          "celestial_alignment",
-          21
-        ],
-        [
-          "thorns",
+          "innervate",
           18
         ],
         [
-          "hurricane",
-          17
-        ],
-        [
           "starfall",
+          18
+        ],
+        [
+          "celestial_alignment",
           17
         ],
         [
-          "ironbark",
-          17
+          "thorns",
+          13
         ],
         [
-          "starsurge",
-          15
+          "hurricane",
+          13
         ],
         [
           "wild_growth",
-          14
+          12
         ],
         [
-          "rejuvenation",
-          14
+          "ironbark",
+          11
         ],
         [
-          "tigers_fury",
-          14
+          "starsurge",
+          10
+        ],
+        [
+          "starfire",
+          10
+        ],
+        [
+          "ferocious_bite",
+          9
         ]
       ],
       "onspecPicks": [
         [
           "celestial_alignment",
-          27
+          21
         ],
         [
           "moonfire",
-          22
-        ],
-        [
-          "starfire",
-          22
-        ],
-        [
-          "sunfire",
-          22
-        ],
-        [
-          "starfall",
           20
         ],
         [
-          "wild_growth",
-          18
-        ],
-        [
           "starsurge",
-          18
+          19
         ],
         [
-          "thorns",
-          17
+          "sunfire",
+          18
         ],
         [
           "hurricane",
-          17
+          15
         ],
         [
-          "barkskin",
-          13
+          "thorns",
+          14
+        ],
+        [
+          "starfire",
+          12
+        ],
+        [
+          "starfall",
+          12
+        ],
+        [
+          "wild_growth",
+          9
+        ],
+        [
+          "ironbark",
+          8
         ],
         [
           "rejuvenation",
-          10
+          8
         ],
         [
-          "incarnation",
-          10
+          "innervate",
+          7
         ]
       ],
       "winStaples": [
@@ -342,186 +346,194 @@
         ],
         [
           "innervate",
-          0.8823529411764706
+          0.9230769230769231
         ],
         [
           "barkskin",
-          0.7647058823529411
+          0.9230769230769231
         ],
         [
           "celestial_alignment",
-          0.7058823529411765
+          0.8461538461538461
         ],
         [
           "starfall",
-          0.6470588235294118
+          0.8461538461538461
+        ],
+        [
+          "wild_growth",
+          0.6923076923076923
         ],
         [
           "ironbark",
-          0.6470588235294118
+          0.6153846153846154
         ],
         [
           "tigers_fury",
-          0.6470588235294118
-        ],
-        [
-          "incarnation",
-          0.5882352941176471
+          0.6153846153846154
         ]
       ],
       "deaths": [
         [
           "victory",
-          17
+          13
         ],
         [
           "act1-f7-elite",
-          2
+          3
         ],
         [
           "act1-f3-elite",
+          2
+        ],
+        [
+          "act1-f2-combat",
+          1
+        ],
+        [
+          "act1-f8-elite",
           1
         ]
       ],
       "onspecDeaths": [
         [
           "victory",
-          13
-        ],
-        [
-          "act1-f3-elite",
-          2
+          10
         ],
         [
           "act1-f7-elite",
-          1
+          4
         ],
         [
           "act1-f9-elite",
-          1
+          2
         ],
         [
           "act1-f9-combat",
           1
         ],
         [
-          "act2-f10-boss",
+          "act1-f10-boss",
           1
         ],
         [
-          "act1-f10-boss",
+          "act1-f3-elite",
+          1
+        ],
+        [
+          "act1-f2-combat",
           1
         ]
       ]
     },
     "druid/tree": {
-      "smartWin": 1,
-      "smartAct1": 1,
-      "smartAvgV": 16.9,
+      "smartWin": 0.95,
+      "smartAct1": 0.95,
+      "smartAvgV": 16.2,
       "onspecWin": 0.75,
       "onspecAct1": 0.75,
       "onspecAvgV": 13.5,
       "randomWin": 0,
       "randomAct1": 0,
-      "randomAvgV": 1.5,
+      "randomAvgV": 0.7,
       "topPicks": [
         [
           "moonfire",
-          39
-        ],
-        [
-          "barkskin",
-          32
+          40
         ],
         [
           "wild_growth",
-          29
+          36
         ],
         [
-          "starsurge",
-          28
+          "thrash",
+          25
         ],
         [
-          "wrath",
-          26
+          "barkskin",
+          24
         ],
         [
           "sunfire",
           23
         ],
         [
-          "thrash",
-          22
-        ],
-        [
-          "mangle",
-          20
+          "starsurge",
+          23
         ],
         [
           "innervate",
+          20
+        ],
+        [
+          "wrath",
+          20
+        ],
+        [
+          "mangle",
           18
         ],
         [
-          "swipe",
-          16
+          "celestial_alignment",
+          18
         ],
         [
-          "claw",
-          16
+          "ironbark",
+          17
         ],
         [
-          "decurse",
+          "tigers_fury",
           14
         ]
       ],
       "onspecPicks": [
         [
           "rejuvenation",
-          29
+          27
         ],
         [
           "innervate",
-          28
-        ],
-        [
-          "barkskin",
-          20
-        ],
-        [
-          "ironbark",
-          20
-        ],
-        [
-          "maul",
-          19
-        ],
-        [
-          "wild_growth",
-          18
-        ],
-        [
-          "decurse",
-          18
+          26
         ],
         [
           "moonfire",
-          17
+          24
+        ],
+        [
+          "decurse",
+          23
+        ],
+        [
+          "barkskin",
+          22
+        ],
+        [
+          "wild_growth",
+          22
+        ],
+        [
+          "ironbark",
+          21
         ],
         [
           "starsurge",
+          17
+        ],
+        [
+          "mangle",
           14
         ],
         [
-          "thrash",
+          "tranquility",
           13
         ],
         [
-          "tranquility",
-          12
+          "lifebloom",
+          11
         ],
         [
-          "swiftmend",
-          11
+          "maul",
+          10
         ]
       ],
       "winStaples": [
@@ -555,41 +567,45 @@
         ],
         [
           "moonfire",
-          0.95
-        ],
-        [
-          "barkskin",
-          0.95
-        ],
-        [
-          "starsurge",
-          0.8
-        ],
-        [
-          "mangle",
-          0.8
+          0.9473684210526315
         ],
         [
           "thrash",
-          0.8
+          0.8421052631578947
         ],
         [
           "sunfire",
-          0.75
+          0.8421052631578947
         ],
         [
-          "wrath",
-          0.75
+          "starsurge",
+          0.7894736842105263
         ],
         [
           "innervate",
-          0.65
+          0.7368421052631579
+        ],
+        [
+          "mangle",
+          0.6842105263157895
+        ],
+        [
+          "barkskin",
+          0.6842105263157895
+        ],
+        [
+          "wrath",
+          0.6842105263157895
         ]
       ],
       "deaths": [
         [
           "victory",
-          20
+          19
+        ],
+        [
+          "act1-f3-elite",
+          1
         ]
       ],
       "onspecDeaths": [
@@ -598,130 +614,118 @@
           15
         ],
         [
-          "act1-f2-combat",
-          2
-        ],
-        [
-          "act1-f6-elite",
-          1
-        ],
-        [
-          "act1-f8-elite",
-          1
-        ],
-        [
           "act1-f3-elite",
-          1
+          5
         ]
       ]
     },
     "priest/holy": {
-      "smartWin": 0.95,
-      "smartAct1": 0.95,
-      "smartAvgV": 16.05,
+      "smartWin": 1,
+      "smartAct1": 1,
+      "smartAvgV": 16.8,
       "onspecWin": 1,
       "onspecAct1": 1,
-      "onspecAvgV": 16.85,
+      "onspecAvgV": 17.05,
       "randomWin": 0,
       "randomAct1": 0,
-      "randomAvgV": 3.1,
+      "randomAvgV": 3,
       "topPicks": [
         [
-          "renew",
-          55
+          "atonement",
+          47
         ],
         [
-          "atonement",
-          38
+          "renew",
+          37
+        ],
+        [
+          "psychic_scream",
+          30
         ],
         [
           "smite",
-          27
+          29
         ],
         [
-          "mind_blast",
+          "shadow_word_pain",
           26
         ],
         [
           "guardian_spirit",
-          25
-        ],
-        [
-          "shadow_word_pain",
           24
         ],
         [
-          "psychic_scream",
-          22
-        ],
-        [
-          "holy_nova",
-          21
+          "mind_blast",
+          23
         ],
         [
           "power_infusion",
-          20
+          21
         ],
         [
-          "void_eruption",
+          "holy_nova",
           18
         ],
         [
-          "purify",
-          14
+          "shadowfiend",
+          16
         ],
         [
-          "shadowfiend",
+          "shadow_word_death",
+          16
+        ],
+        [
+          "void_eruption",
           14
         ]
       ],
       "onspecPicks": [
         [
-          "holy_nova",
-          47
-        ],
-        [
           "atonement",
           40
         ],
         [
-          "renew",
+          "holy_nova",
           38
         ],
         [
-          "purify",
-          35
+          "holy_fire",
+          37
+        ],
+        [
+          "renew",
+          34
         ],
         [
           "guardian_spirit",
-          28
+          31
         ],
         [
-          "holy_fire",
-          26
-        ],
-        [
-          "holy_word_serenity",
-          26
-        ],
-        [
-          "power_word_shield",
-          22
-        ],
-        [
-          "mind_blast",
-          14
-        ],
-        [
-          "prayer_of_healing",
-          12
+          "purify",
+          29
         ],
         [
           "divine_hymn",
-          11
+          24
+        ],
+        [
+          "holy_word_serenity",
+          22
+        ],
+        [
+          "power_word_shield",
+          17
+        ],
+        [
+          "psychic_scream",
+          12
         ],
         [
           "smite",
+          12
+        ],
+        [
+          "prayer_of_healing",
           11
         ]
       ],
@@ -751,50 +755,46 @@
           1
         ],
         [
-          "guardian_spirit",
-          0.9473684210526315
-        ],
-        [
-          "mind_blast",
-          0.8947368421052632
-        ],
-        [
-          "shadow_word_pain",
-          0.8947368421052632
-        ],
-        [
           "atonement",
-          0.8421052631578947
+          1
         ],
         [
           "smite",
-          0.8421052631578947
+          0.95
         ],
         [
-          "void_eruption",
-          0.7894736842105263
+          "mind_blast",
+          0.9
+        ],
+        [
+          "shadow_word_pain",
+          0.9
         ],
         [
           "psychic_scream",
-          0.6842105263157895
+          0.85
+        ],
+        [
+          "guardian_spirit",
+          0.8
         ],
         [
           "power_infusion",
-          0.631578947368421
+          0.7
         ],
         [
-          "vampiric_touch",
-          0.631578947368421
+          "penance",
+          0.65
+        ],
+        [
+          "shadow_word_death",
+          0.6
         ]
       ],
       "deaths": [
         [
           "victory",
-          19
-        ],
-        [
-          "act1-f9-combat",
-          1
+          20
         ]
       ],
       "onspecDeaths": [
@@ -807,56 +807,56 @@
     "priest/shadow": {
       "smartWin": 0.75,
       "smartAct1": 0.75,
-      "smartAvgV": 13.45,
-      "onspecWin": 0.7,
-      "onspecAct1": 0.7,
-      "onspecAvgV": 13.55,
+      "smartAvgV": 13.15,
+      "onspecWin": 0.6,
+      "onspecAct1": 0.6,
+      "onspecAvgV": 11.2,
       "randomWin": 0,
-      "randomAct1": 0.1,
-      "randomAvgV": 2.9,
+      "randomAct1": 0,
+      "randomAvgV": 1.8,
       "topPicks": [
         [
           "atonement",
-          32
+          40
+        ],
+        [
+          "void_eruption",
+          23
         ],
         [
           "renew",
-          27
+          21
         ],
         [
-          "power_word_shield",
-          25
+          "guardian_spirit",
+          21
         ],
         [
-          "psychic_scream",
+          "shadow_word_death",
           20
         ],
         [
           "vampiric_touch",
-          19
-        ],
-        [
-          "void_eruption",
-          18
+          17
         ],
         [
           "shadowfiend",
           16
         ],
         [
-          "shadow_word_death",
+          "power_word_shield",
           16
         ],
         [
-          "guardian_spirit",
-          14
-        ],
-        [
-          "dispersion",
-          13
+          "psychic_scream",
+          15
         ],
         [
           "power_infusion",
+          14
+        ],
+        [
+          "archangel",
           12
         ],
         [
@@ -866,52 +866,52 @@
       ],
       "onspecPicks": [
         [
-          "vampiric_touch",
-          29
-        ],
-        [
-          "dispersion",
-          25
-        ],
-        [
           "mind_flay",
-          25
-        ],
-        [
-          "shadow_word_death",
           24
         ],
         [
           "shadowfiend",
-          23
-        ],
-        [
-          "void_eruption",
           22
         ],
         [
-          "psychic_scream",
-          21
+          "dispersion",
+          22
         ],
         [
-          "atonement",
+          "vampiric_touch",
           20
         ],
         [
-          "shadow_word_pain",
+          "psychic_scream",
+          19
+        ],
+        [
+          "shadow_word_death",
+          19
+        ],
+        [
+          "void_eruption",
+          19
+        ],
+        [
+          "atonement",
           16
         ],
         [
-          "power_word_shield",
-          14
-        ],
-        [
-          "mind_blast",
-          12
+          "shadow_word_pain",
+          13
         ],
         [
           "renew",
+          13
+        ],
+        [
+          "power_word_shield",
           12
+        ],
+        [
+          "mind_blast",
+          9
         ]
       ],
       "winStaples": [
@@ -948,23 +948,23 @@
           1
         ],
         [
-          "psychic_scream",
-          0.9333333333333333
-        ],
-        [
           "renew",
-          0.9333333333333333
+          1
         ],
         [
           "guardian_spirit",
-          0.8
-        ],
-        [
-          "dispersion",
-          0.6666666666666666
+          1
         ],
         [
           "void_eruption",
+          0.8666666666666667
+        ],
+        [
+          "psychic_scream",
+          0.8
+        ],
+        [
+          "shadowfiend",
           0.6666666666666666
         ],
         [
@@ -972,7 +972,7 @@
           0.6
         ],
         [
-          "shadowfiend",
+          "archangel",
           0.6
         ]
       ],
@@ -982,7 +982,11 @@
           15
         ],
         [
-          "act1-f8-elite",
+          "act1-f3-elite",
+          2
+        ],
+        [
+          "act1-f9-elite",
           1
         ],
         [
@@ -990,137 +994,137 @@
           1
         ],
         [
-          "act1-f7-combat",
-          1
-        ],
-        [
-          "act1-f7-elite",
-          1
-        ],
-        [
-          "act1-f3-elite",
+          "act1-f9-combat",
           1
         ]
       ],
       "onspecDeaths": [
         [
           "victory",
-          14
-        ],
-        [
-          "act1-f9-elite",
-          3
+          12
         ],
         [
           "act1-f3-elite",
+          3
+        ],
+        [
+          "act1-f7-elite",
           2
         ],
         [
           "act1-f10-boss",
           1
+        ],
+        [
+          "act1-f4-combat",
+          1
+        ],
+        [
+          "act1-f8-elite",
+          1
         ]
       ]
     },
     "priest/discipline": {
-      "smartWin": 1,
-      "smartAct1": 1,
-      "smartAvgV": 17.15,
+      "smartWin": 0.9,
+      "smartAct1": 0.9,
+      "smartAvgV": 16.15,
       "onspecWin": 1,
       "onspecAct1": 1,
-      "onspecAvgV": 17.35,
+      "onspecAvgV": 17.45,
       "randomWin": 0,
       "randomAct1": 0,
-      "randomAvgV": 1.8,
+      "randomAvgV": 1.6,
       "topPicks": [
         [
           "atonement",
-          55
+          47
         ],
         [
           "power_word_shield",
-          34
-        ],
-        [
-          "renew",
-          31
+          36
         ],
         [
           "pain_suppression",
-          31
+          28
         ],
         [
-          "penance",
-          22
-        ],
-        [
-          "power_infusion",
-          22
-        ],
-        [
-          "archangel",
-          22
+          "renew",
+          28
         ],
         [
           "guardian_spirit",
-          21
+          28
         ],
         [
-          "holy_word_serenity",
-          20
+          "archangel",
+          26
         ],
         [
-          "power_word_radiance",
-          14
+          "penance",
+          19
+        ],
+        [
+          "power_infusion",
+          17
         ],
         [
           "prayer_of_healing",
+          16
+        ],
+        [
+          "power_word_radiance",
+          15
+        ],
+        [
+          "holy_word_serenity",
           13
         ],
         [
-          "shadowfiend",
-          13
+          "shadow_word_death",
+          10
         ]
       ],
       "onspecPicks": [
         [
           "atonement",
-          50
-        ],
-        [
-          "power_infusion",
-          45
-        ],
-        [
-          "power_word_shield",
-          44
-        ],
-        [
-          "pain_suppression",
-          34
-        ],
-        [
-          "power_word_radiance",
-          28
+          46
         ],
         [
           "penance",
-          27
+          44
+        ],
+        [
+          "power_word_shield",
+          37
+        ],
+        [
+          "pain_suppression",
+          30
+        ],
+        [
+          "power_word_radiance",
+          29
+        ],
+        [
+          "power_infusion",
+          26
+        ],
+        [
+          "renew",
+          23
         ],
         [
           "archangel",
           22
         ],
         [
-          "renew",
-          18
+          "guardian_spirit",
+          20
         ],
         [
           "smite",
           15
-        ],
-        [
-          "guardian_spirit",
-          14
         ]
       ],
       "winStaples": [
@@ -1153,42 +1157,50 @@
           1
         ],
         [
-          "renew",
-          0.95
-        ],
-        [
-          "pain_suppression",
-          0.9
-        ],
-        [
           "guardian_spirit",
-          0.85
+          0.9444444444444444
         ],
         [
           "archangel",
-          0.7
+          0.8333333333333334
         ],
         [
-          "holy_word_serenity",
-          0.65
+          "pain_suppression",
+          0.7777777777777778
+        ],
+        [
+          "renew",
+          0.7777777777777778
         ],
         [
           "power_infusion",
-          0.6
-        ],
-        [
-          "shadowfiend",
-          0.5
+          0.7222222222222222
         ],
         [
           "prayer_of_healing",
-          0.45
+          0.5555555555555556
+        ],
+        [
+          "holy_word_serenity",
+          0.5555555555555556
+        ],
+        [
+          "shadow_word_death",
+          0.5
         ]
       ],
       "deaths": [
         [
           "victory",
-          20
+          18
+        ],
+        [
+          "act1-f6-elite",
+          1
+        ],
+        [
+          "act1-f8-elite",
+          1
         ]
       ],
       "onspecDeaths": [
@@ -1201,7 +1213,7 @@
   },
   "pathBreakdown": {
     "druid/feral": {
-      "wins": 38,
+      "wins": 36,
       "runs": 40,
       "viable": [
         "bleed",
@@ -1211,45 +1223,33 @@
       "note": "3 viable paths",
       "distribution": {
         "bleed": {
-          "winShare": 0.3157894736842105,
-          "attemptWinRate": 0.95,
-          "winCount": 12,
+          "winShare": 0.25,
+          "attemptWinRate": 0.9,
+          "winCount": 9,
           "attempts": 40
         },
         "bear_wall": {
-          "winShare": 0.34210526315789475,
-          "attemptWinRate": 0.9743589743589743,
+          "winShare": 0.3611111111111111,
+          "attemptWinRate": 0.9230769230769231,
           "winCount": 13,
           "attempts": 39
         },
         "tempo": {
-          "winShare": 0.34210526315789475,
-          "attemptWinRate": 0.9743589743589743,
-          "winCount": 13,
-          "attempts": 39
+          "winShare": 0.3888888888888889,
+          "attemptWinRate": 0.9473684210526315,
+          "winCount": 14,
+          "attempts": 38
         },
         "hybrid": {
           "winShare": 0,
-          "attemptWinRate": 0.95,
+          "attemptWinRate": 0.9,
           "winCount": 0,
           "attempts": 40
         }
       },
       "topItems": [
         [
-          "bloodfang_charm",
-          39
-        ],
-        [
           "alpha_mark",
-          39
-        ],
-        [
-          "frenzy_claw",
-          39
-        ],
-        [
-          "ironpelt_totem",
           38
         ],
         [
@@ -1257,41 +1257,53 @@
           38
         ],
         [
-          "adrenaline_vial",
-          14
+          "frenzy_claw",
+          37
         ],
         [
-          "restless_mind",
-          12
+          "bloodfang_charm",
+          37
+        ],
+        [
+          "ironpelt_totem",
+          36
         ],
         [
           "war_paint",
-          11
-        ],
-        [
-          "focus_band",
-          11
-        ],
-        [
-          "second_wind",
-          9
-        ],
-        [
-          "monk_beads",
-          8
+          13
         ],
         [
           "crow_feather",
-          8
+          12
+        ],
+        [
+          "focus_band",
+          9
+        ],
+        [
+          "restless_mind",
+          9
+        ],
+        [
+          "adrenaline_vial",
+          7
+        ],
+        [
+          "second_wind",
+          5
+        ],
+        [
+          "monk_beads",
+          4
         ]
       ],
       "itemsInWins": [
         [
-          "bloodfang_charm",
+          "alpha_mark",
           1
         ],
         [
-          "alpha_mark",
+          "thick_hide_wraps",
           1
         ],
         [
@@ -1300,44 +1312,44 @@
         ],
         [
           "ironpelt_totem",
-          1
+          0.9722222222222222
         ],
         [
-          "thick_hide_wraps",
-          1
-        ],
-        [
-          "adrenaline_vial",
-          0.3684210526315789
-        ],
-        [
-          "restless_mind",
-          0.3157894736842105
+          "bloodfang_charm",
+          0.9722222222222222
         ],
         [
           "war_paint",
-          0.2894736842105263
-        ],
-        [
-          "focus_band",
-          0.2894736842105263
-        ],
-        [
-          "second_wind",
-          0.23684210526315788
-        ],
-        [
-          "monk_beads",
-          0.21052631578947367
+          0.3611111111111111
         ],
         [
           "crow_feather",
-          0.21052631578947367
+          0.3333333333333333
+        ],
+        [
+          "focus_band",
+          0.25
+        ],
+        [
+          "restless_mind",
+          0.25
+        ],
+        [
+          "adrenaline_vial",
+          0.19444444444444445
+        ],
+        [
+          "second_wind",
+          0.1388888888888889
+        ],
+        [
+          "monk_beads",
+          0.1111111111111111
         ]
       ]
     },
     "druid/boomkin": {
-      "wins": 30,
+      "wins": 23,
       "runs": 40,
       "viable": [
         "celestial",
@@ -1347,231 +1359,220 @@
       "note": "3 viable paths",
       "distribution": {
         "celestial": {
-          "winShare": 0.4666666666666667,
-          "attemptWinRate": 0.9090909090909091,
-          "winCount": 14,
-          "attempts": 33
+          "winShare": 0.5217391304347826,
+          "attemptWinRate": 0.7666666666666667,
+          "winCount": 12,
+          "attempts": 30
         },
         "thorns": {
-          "winShare": 0.3,
-          "attemptWinRate": 0.75,
-          "winCount": 9,
+          "winShare": 0.2608695652173913,
+          "attemptWinRate": 0.575,
+          "winCount": 6,
           "attempts": 40
         },
         "aoe": {
-          "winShare": 0.03333333333333333,
-          "attemptWinRate": 0.75,
-          "winCount": 1,
+          "winShare": 0.08695652173913043,
+          "attemptWinRate": 0.575,
+          "winCount": 2,
           "attempts": 40
         },
         "twin_star": {
-          "winShare": 0.2,
-          "attemptWinRate": 0.8787878787878788,
-          "winCount": 6,
-          "attempts": 33
+          "winShare": 0.13043478260869565,
+          "attemptWinRate": 0.9130434782608695,
+          "winCount": 3,
+          "attempts": 23
         }
       },
       "topItems": [
         [
-          "twin_star",
-          33
+          "celestial_orb",
+          26
         ],
         [
           "astral_battery",
-          32
-        ],
-        [
-          "celestial_orb",
-          32
-        ],
-        [
-          "thornwoven_cloak",
-          31
+          25
         ],
         [
           "hurricane_eye",
-          29
+          25
         ],
         [
-          "restless_mind",
-          7
+          "thornwoven_cloak",
+          24
         ],
         [
-          "blood_pact",
-          4
+          "twin_star",
+          23
         ],
         [
           "adrenaline_vial",
-          4
+          5
         ],
         [
-          "venom_vial",
+          "restless_mind",
+          5
+        ],
+        [
+          "monk_beads",
           3
-        ],
-        [
-          "crow_feather",
-          3
-        ],
-        [
-          "spare_flask",
-          2
         ],
         [
           "war_paint",
           2
+        ],
+        [
+          "focus_band",
+          2
+        ],
+        [
+          "second_wind",
+          1
+        ],
+        [
+          "crow_feather",
+          1
         ]
       ],
       "itemsInWins": [
         [
-          "twin_star",
-          0.9666666666666667
-        ],
-        [
           "astral_battery",
-          0.9666666666666667
-        ],
-        [
-          "thornwoven_cloak",
-          0.9666666666666667
+          1
         ],
         [
           "celestial_orb",
-          0.9666666666666667
+          0.9565217391304348
         ],
         [
           "hurricane_eye",
-          0.9
+          0.9565217391304348
         ],
         [
-          "restless_mind",
-          0.23333333333333334
+          "twin_star",
+          0.9130434782608695
         ],
         [
-          "blood_pact",
-          0.13333333333333333
+          "thornwoven_cloak",
+          0.9130434782608695
         ],
         [
           "adrenaline_vial",
-          0.13333333333333333
+          0.21739130434782608
         ],
         [
-          "venom_vial",
-          0.1
+          "restless_mind",
+          0.21739130434782608
         ],
         [
-          "crow_feather",
-          0.1
-        ],
-        [
-          "spare_flask",
-          0.06666666666666667
+          "monk_beads",
+          0.13043478260869565
         ],
         [
           "war_paint",
-          0.06666666666666667
+          0.08695652173913043
+        ],
+        [
+          "focus_band",
+          0.08695652173913043
+        ],
+        [
+          "second_wind",
+          0.043478260869565216
+        ],
+        [
+          "crow_feather",
+          0.043478260869565216
         ]
       ]
     },
     "druid/tree": {
-      "wins": 35,
+      "wins": 34,
       "runs": 40,
       "viable": [
         "verdant",
+        "fortress",
         "barkbreaker",
         "swiftroot"
       ],
-      "note": "3 viable paths",
+      "note": "4 viable paths",
       "distribution": {
         "verdant": {
-          "winShare": 0.2571428571428571,
+          "winShare": 0.23529411764705882,
           "attemptWinRate": 1,
-          "winCount": 9,
-          "attempts": 35
+          "winCount": 8,
+          "attempts": 34
         },
         "fortress": {
-          "winShare": 0.08571428571428572,
-          "attemptWinRate": 0.9210526315789473,
-          "winCount": 3,
-          "attempts": 38
+          "winShare": 0.20588235294117646,
+          "attemptWinRate": 0.9714285714285714,
+          "winCount": 7,
+          "attempts": 35
         },
         "barkbreaker": {
-          "winShare": 0.2571428571428571,
-          "attemptWinRate": 0.9722222222222222,
-          "winCount": 9,
-          "attempts": 36
+          "winShare": 0.17647058823529413,
+          "attemptWinRate": 1,
+          "winCount": 6,
+          "attempts": 34
         },
         "swiftroot": {
-          "winShare": 0.4,
-          "attemptWinRate": 0.9459459459459459,
-          "winCount": 14,
-          "attempts": 37
+          "winShare": 0.38235294117647056,
+          "attemptWinRate": 1,
+          "winCount": 13,
+          "attempts": 34
         }
       },
       "topItems": [
         [
-          "swiftroot_charm",
-          37
-        ],
-        [
-          "lifebloom_crown",
-          36
+          "verdant_lash",
+          34
         ],
         [
           "barkbreaker_seed",
-          36
+          34
         ],
         [
           "grove_battery",
-          35
+          34
         ],
         [
-          "verdant_lash",
-          35
+          "swiftroot_charm",
+          34
         ],
         [
-          "adrenaline_vial",
-          15
-        ],
-        [
-          "war_paint",
-          14
-        ],
-        [
-          "crow_feather",
-          14
+          "lifebloom_crown",
+          34
         ],
         [
           "restless_mind",
           12
         ],
         [
-          "focus_band",
+          "war_paint",
           11
         ],
         [
-          "second_wind",
-          6
+          "blood_pact",
+          10
         ],
         [
-          "venom_vial",
-          6
+          "adrenaline_vial",
+          10
+        ],
+        [
+          "focus_band",
+          9
+        ],
+        [
+          "spare_flask",
+          8
+        ],
+        [
+          "crow_feather",
+          8
         ]
       ],
       "itemsInWins": [
         [
-          "grove_battery",
-          1
-        ],
-        [
           "verdant_lash",
-          1
-        ],
-        [
-          "lifebloom_crown",
-          1
-        ],
-        [
-          "swiftroot_charm",
           1
         ],
         [
@@ -1579,37 +1580,49 @@
           1
         ],
         [
-          "adrenaline_vial",
-          0.42857142857142855
+          "grove_battery",
+          1
         ],
         [
-          "war_paint",
-          0.4
+          "swiftroot_charm",
+          1
         ],
         [
-          "crow_feather",
-          0.4
+          "lifebloom_crown",
+          1
         ],
         [
           "restless_mind",
-          0.34285714285714286
+          0.35294117647058826
+        ],
+        [
+          "war_paint",
+          0.3235294117647059
+        ],
+        [
+          "blood_pact",
+          0.29411764705882354
+        ],
+        [
+          "adrenaline_vial",
+          0.29411764705882354
         ],
         [
           "focus_band",
-          0.3142857142857143
+          0.2647058823529412
         ],
         [
-          "second_wind",
-          0.17142857142857143
+          "spare_flask",
+          0.23529411764705882
         ],
         [
-          "venom_vial",
-          0.17142857142857143
+          "crow_feather",
+          0.23529411764705882
         ]
       ]
     },
     "priest/holy": {
-      "wins": 39,
+      "wins": 40,
       "runs": 40,
       "viable": [
         "radiant",
@@ -1619,27 +1632,27 @@
       "note": "3 viable paths",
       "distribution": {
         "radiant": {
-          "winShare": 0.358974358974359,
-          "attemptWinRate": 0.975,
-          "winCount": 14,
+          "winShare": 0.2,
+          "attemptWinRate": 1,
+          "winCount": 8,
           "attempts": 40
         },
         "flame": {
-          "winShare": 0.1794871794871795,
-          "attemptWinRate": 0.975,
-          "winCount": 7,
+          "winShare": 0.25,
+          "attemptWinRate": 1,
+          "winCount": 10,
           "attempts": 40
         },
         "serenity": {
-          "winShare": 0.05128205128205128,
+          "winShare": 0.1,
           "attemptWinRate": 1,
-          "winCount": 2,
-          "attempts": 39
+          "winCount": 4,
+          "attempts": 40
         },
         "hymn": {
-          "winShare": 0.41025641025641024,
-          "attemptWinRate": 0.975,
-          "winCount": 16,
+          "winShare": 0.45,
+          "attemptWinRate": 1,
+          "winCount": 18,
           "attempts": 40
         }
       },
@@ -1649,7 +1662,7 @@
           40
         ],
         [
-          "radiant_censer",
+          "serenity_bell",
           40
         ],
         [
@@ -1658,39 +1671,39 @@
         ],
         [
           "hymn_book",
-          39
+          40
         ],
         [
-          "serenity_bell",
-          39
-        ],
-        [
-          "adrenaline_vial",
-          20
-        ],
-        [
-          "focus_band",
-          17
+          "radiant_censer",
+          40
         ],
         [
           "crow_feather",
-          16
-        ],
-        [
-          "war_paint",
-          14
+          19
         ],
         [
           "restless_mind",
+          17
+        ],
+        [
+          "war_paint",
+          17
+        ],
+        [
+          "spare_flask",
           13
         ],
         [
-          "second_wind",
-          10
+          "adrenaline_vial",
+          11
+        ],
+        [
+          "focus_band",
+          8
         ],
         [
           "blood_pact",
-          9
+          7
         ]
       ],
       "itemsInWins": [
@@ -1699,6 +1712,14 @@
           1
         ],
         [
+          "serenity_bell",
+          1
+        ],
+        [
+          "sacred_flame",
+          1
+        ],
+        [
           "hymn_book",
           1
         ],
@@ -1707,45 +1728,37 @@
           1
         ],
         [
-          "sacred_flame",
-          1
-        ],
-        [
-          "serenity_bell",
-          1
-        ],
-        [
-          "adrenaline_vial",
-          0.5128205128205128
-        ],
-        [
-          "focus_band",
-          0.4358974358974359
-        ],
-        [
           "crow_feather",
-          0.41025641025641024
-        ],
-        [
-          "war_paint",
-          0.358974358974359
+          0.475
         ],
         [
           "restless_mind",
-          0.3333333333333333
+          0.425
         ],
         [
-          "second_wind",
-          0.2564102564102564
+          "war_paint",
+          0.425
+        ],
+        [
+          "spare_flask",
+          0.325
+        ],
+        [
+          "adrenaline_vial",
+          0.275
+        ],
+        [
+          "focus_band",
+          0.2
         ],
         [
           "blood_pact",
-          0.23076923076923078
+          0.175
         ]
       ]
     },
     "priest/shadow": {
-      "wins": 29,
+      "wins": 27,
       "runs": 40,
       "viable": [
         "leech",
@@ -1756,87 +1769,83 @@
       "note": "4 viable paths",
       "distribution": {
         "leech": {
-          "winShare": 0.41379310344827586,
-          "attemptWinRate": 0.9666666666666667,
-          "winCount": 12,
-          "attempts": 30
+          "winShare": 0.3333333333333333,
+          "attemptWinRate": 0.9642857142857143,
+          "winCount": 9,
+          "attempts": 28
         },
         "pain": {
-          "winShare": 0.20689655172413793,
-          "attemptWinRate": 1,
-          "winCount": 6,
-          "attempts": 29
+          "winShare": 0.25925925925925924,
+          "attemptWinRate": 0.9,
+          "winCount": 7,
+          "attempts": 30
         },
         "recoil": {
-          "winShare": 0.2413793103448276,
-          "attemptWinRate": 0.8787878787878788,
+          "winShare": 0.25925925925925924,
+          "attemptWinRate": 0.7941176470588235,
           "winCount": 7,
-          "attempts": 33
+          "attempts": 34
         },
         "scream": {
-          "winShare": 0.13793103448275862,
-          "attemptWinRate": 0.8529411764705882,
+          "winShare": 0.14814814814814814,
+          "attemptWinRate": 0.9285714285714286,
           "winCount": 4,
-          "attempts": 34
+          "attempts": 28
         }
       },
       "topItems": [
         [
-          "scream_mask",
-          34
-        ],
-        [
-          "death_wish",
-          31
-        ],
-        [
           "shadow_absorb",
           31
         ],
         [
-          "void_leech",
+          "pain_amplifier",
           30
         ],
         [
-          "pain_amplifier",
+          "death_wish",
           29
         ],
         [
-          "war_paint",
-          11
+          "scream_mask",
+          28
         ],
         [
-          "focus_band",
-          11
+          "void_leech",
+          28
         ],
         [
-          "crow_feather",
-          11
-        ],
-        [
-          "adrenaline_vial",
-          7
+          "second_wind",
+          9
         ],
         [
           "restless_mind",
-          7
+          9
         ],
         [
-          "blood_pact",
+          "war_paint",
+          8
+        ],
+        [
+          "crow_feather",
           6
         ],
         [
-          "monk_beads",
-          3
+          "adrenaline_vial",
+          6
+        ],
+        [
+          "focus_band",
+          5
+        ],
+        [
+          "spare_flask",
+          5
         ]
       ],
       "itemsInWins": [
         [
-          "death_wish",
-          1
-        ],
-        [
-          "pain_amplifier",
+          "shadow_absorb",
           1
         ],
         [
@@ -1844,131 +1853,143 @@
           1
         ],
         [
+          "pain_amplifier",
+          1
+        ],
+        [
           "scream_mask",
-          1
+          0.9629629629629629
         ],
         [
-          "shadow_absorb",
-          1
+          "death_wish",
+          0.9629629629629629
         ],
         [
-          "war_paint",
-          0.3793103448275862
-        ],
-        [
-          "focus_band",
-          0.3793103448275862
-        ],
-        [
-          "crow_feather",
-          0.3793103448275862
-        ],
-        [
-          "adrenaline_vial",
-          0.2413793103448276
+          "second_wind",
+          0.3333333333333333
         ],
         [
           "restless_mind",
-          0.2413793103448276
+          0.3333333333333333
         ],
         [
-          "blood_pact",
-          0.20689655172413793
+          "war_paint",
+          0.2962962962962963
         ],
         [
-          "monk_beads",
-          0.10344827586206896
+          "crow_feather",
+          0.2222222222222222
+        ],
+        [
+          "adrenaline_vial",
+          0.2222222222222222
+        ],
+        [
+          "focus_band",
+          0.18518518518518517
+        ],
+        [
+          "spare_flask",
+          0.18518518518518517
         ]
       ]
     },
     "priest/discipline": {
-      "wins": 40,
+      "wins": 38,
       "runs": 40,
       "viable": [
         "spike",
+        "smite_echo",
         "penance",
-        "radiance",
-        "smite_echo"
+        "radiance"
       ],
       "note": "4 viable paths",
       "distribution": {
         "spike": {
-          "winShare": 0.2,
-          "attemptWinRate": 1,
-          "winCount": 8,
-          "attempts": 40
+          "winShare": 0.4473684210526316,
+          "attemptWinRate": 0.9743589743589743,
+          "winCount": 17,
+          "attempts": 39
         },
         "smite_echo": {
-          "winShare": 0.125,
-          "attemptWinRate": 1,
-          "winCount": 5,
-          "attempts": 40
+          "winShare": 0.18421052631578946,
+          "attemptWinRate": 0.9743589743589743,
+          "winCount": 7,
+          "attempts": 39
         },
         "penance": {
-          "winShare": 0.25,
-          "attemptWinRate": 1,
-          "winCount": 10,
+          "winShare": 0.18421052631578946,
+          "attemptWinRate": 0.95,
+          "winCount": 7,
           "attempts": 40
         },
         "radiance": {
-          "winShare": 0.425,
+          "winShare": 0.18421052631578946,
           "attemptWinRate": 1,
-          "winCount": 17,
-          "attempts": 40
+          "winCount": 7,
+          "attempts": 38
         }
       },
       "topItems": [
         [
-          "borrowed_timepiece",
-          40
-        ],
-        [
-          "smite_echo",
-          40
+          "shield_spike",
+          39
         ],
         [
           "penitent_brand",
-          40
+          39
         ],
         [
-          "shield_spike",
-          40
+          "smite_echo",
+          39
+        ],
+        [
+          "borrowed_timepiece",
+          38
         ],
         [
           "radiance_loop",
-          40
+          38
+        ],
+        [
+          "focus_band",
+          17
         ],
         [
           "crow_feather",
-          20
-        ],
-        [
-          "adrenaline_vial",
-          19
-        ],
-        [
-          "war_paint",
-          15
-        ],
-        [
-          "restless_mind",
-          15
+          16
         ],
         [
           "venom_vial",
-          11
+          15
         ],
         [
-          "blood_pact",
-          8
+          "adrenaline_vial",
+          14
+        ],
+        [
+          "restless_mind",
+          14
+        ],
+        [
+          "war_paint",
+          12
         ],
         [
           "monk_beads",
-          7
+          10
         ]
       ],
       "itemsInWins": [
         [
+          "shield_spike",
+          1
+        ],
+        [
+          "penitent_brand",
+          1
+        ],
+        [
           "borrowed_timepiece",
           1
         ],
@@ -1977,44 +1998,36 @@
           1
         ],
         [
-          "penitent_brand",
-          1
-        ],
-        [
-          "shield_spike",
-          1
-        ],
-        [
           "radiance_loop",
           1
         ],
         [
+          "focus_band",
+          0.4473684210526316
+        ],
+        [
           "crow_feather",
-          0.5
-        ],
-        [
-          "adrenaline_vial",
-          0.475
-        ],
-        [
-          "war_paint",
-          0.375
-        ],
-        [
-          "restless_mind",
-          0.375
+          0.42105263157894735
         ],
         [
           "venom_vial",
-          0.275
+          0.39473684210526316
         ],
         [
-          "blood_pact",
-          0.2
+          "adrenaline_vial",
+          0.3684210526315789
+        ],
+        [
+          "restless_mind",
+          0.3684210526315789
+        ],
+        [
+          "war_paint",
+          0.3157894736842105
         ],
         [
           "monk_beads",
-          0.175
+          0.2631578947368421
         ]
       ]
     }
@@ -2024,24 +2037,24 @@
       {
         "path": "bleed",
         "item": "bloodfang_charm",
-        "winRate": 0.9333333333333333,
-        "wins": 28,
+        "winRate": 0.8,
+        "wins": 24,
         "runs": 30,
         "viable": true
       },
       {
         "path": "bear_wall",
         "item": "ironpelt_totem",
-        "winRate": 0.9333333333333333,
-        "wins": 28,
+        "winRate": 0.7333333333333333,
+        "wins": 22,
         "runs": 30,
         "viable": true
       },
       {
         "path": "tempo",
         "item": "frenzy_claw",
-        "winRate": 0.9,
-        "wins": 27,
+        "winRate": 0.7666666666666667,
+        "wins": 23,
         "runs": 30,
         "viable": true
       }
@@ -2050,32 +2063,32 @@
       {
         "path": "celestial",
         "item": "celestial_orb",
-        "winRate": 0.8666666666666667,
-        "wins": 26,
-        "runs": 30,
-        "viable": true
-      },
-      {
-        "path": "thorns",
-        "item": "thornwoven_cloak",
-        "winRate": 0.8,
-        "wins": 24,
-        "runs": 30,
-        "viable": true
-      },
-      {
-        "path": "aoe",
-        "item": "hurricane_eye",
         "winRate": 0.7,
         "wins": 21,
         "runs": 30,
         "viable": true
       },
       {
+        "path": "thorns",
+        "item": "thornwoven_cloak",
+        "winRate": 0.5333333333333333,
+        "wins": 16,
+        "runs": 30,
+        "viable": true
+      },
+      {
+        "path": "aoe",
+        "item": "hurricane_eye",
+        "winRate": 0.6666666666666666,
+        "wins": 20,
+        "runs": 30,
+        "viable": true
+      },
+      {
         "path": "twin_star",
         "item": "twin_star",
-        "winRate": 0.7666666666666667,
-        "wins": 23,
+        "winRate": 0.5,
+        "wins": 15,
         "runs": 30,
         "viable": true
       }
@@ -2084,32 +2097,32 @@
       {
         "path": "verdant",
         "item": "verdant_lash",
-        "winRate": 0.9666666666666667,
-        "wins": 29,
+        "winRate": 0.8,
+        "wins": 24,
         "runs": 30,
         "viable": true
       },
       {
         "path": "fortress",
         "item": "lifebloom_crown",
-        "winRate": 0.8666666666666667,
-        "wins": 26,
+        "winRate": 0.6333333333333333,
+        "wins": 19,
         "runs": 30,
         "viable": true
       },
       {
         "path": "barkbreaker",
         "item": "barkbreaker_seed",
-        "winRate": 1,
-        "wins": 30,
+        "winRate": 0.9333333333333333,
+        "wins": 28,
         "runs": 30,
         "viable": true
       },
       {
         "path": "swiftroot",
         "item": "swiftroot_charm",
-        "winRate": 0.8333333333333334,
-        "wins": 25,
+        "winRate": 0.8,
+        "wins": 24,
         "runs": 30,
         "viable": true
       }
@@ -2152,32 +2165,32 @@
       {
         "path": "leech",
         "item": "void_leech",
-        "winRate": 0.9666666666666667,
-        "wins": 29,
-        "runs": 30,
-        "viable": true
-      },
-      {
-        "path": "pain",
-        "item": "pain_amplifier",
         "winRate": 0.9333333333333333,
         "wins": 28,
         "runs": 30,
         "viable": true
       },
       {
+        "path": "pain",
+        "item": "pain_amplifier",
+        "winRate": 0.8,
+        "wins": 24,
+        "runs": 30,
+        "viable": true
+      },
+      {
         "path": "recoil",
         "item": "death_wish",
-        "winRate": 0.6666666666666666,
-        "wins": 20,
+        "winRate": 0.7666666666666667,
+        "wins": 23,
         "runs": 30,
         "viable": true
       },
       {
         "path": "scream",
         "item": "scream_mask",
-        "winRate": 0.5666666666666667,
-        "wins": 17,
+        "winRate": 0.8,
+        "wins": 24,
         "runs": 30,
         "viable": true
       }
@@ -2186,8 +2199,8 @@
       {
         "path": "spike",
         "item": "shield_spike",
-        "winRate": 0.9666666666666667,
-        "wins": 29,
+        "winRate": 1,
+        "wins": 30,
         "runs": 30,
         "viable": true
       },
@@ -2202,8 +2215,8 @@
       {
         "path": "penance",
         "item": "penitent_brand",
-        "winRate": 0.9333333333333333,
-        "wins": 28,
+        "winRate": 1,
+        "wins": 30,
         "runs": 30,
         "viable": true
       },
@@ -2218,412 +2231,262 @@
     ]
   },
   "overall": {
-    "smartWin": 0.9166666666666666,
-    "onspecWin": 0.8416666666666667,
+    "smartWin": 0.85,
+    "onspecWin": 0.8,
     "randomWin": 0,
-    "winDeckN": 110,
-    "lossDeckN": 10
+    "winDeckN": 102,
+    "lossDeckN": 18
   },
   "cardLift": [
     {
-      "id": "barkskin",
-      "lift": 1,
-      "wins": 80,
-      "losses": 0,
-      "total": 80,
-      "winRate": 0.4636363636363636,
-      "lossRate": 0.1,
-      "delta": 0.36363636363636365
-    },
-    {
-      "id": "mangle",
-      "lift": 1,
-      "wins": 52,
-      "losses": 0,
-      "total": 52,
-      "winRate": 0.36363636363636365,
-      "lossRate": 0,
-      "delta": 0.36363636363636365
-    },
-    {
-      "id": "wild_growth",
-      "lift": 1,
-      "wins": 60,
-      "losses": 0,
-      "total": 60,
-      "winRate": 0.36363636363636365,
-      "lossRate": 0,
-      "delta": 0.36363636363636365
-    },
-    {
-      "id": "atonement",
-      "lift": 0.984,
-      "wins": 123,
-      "losses": 2,
-      "total": 125,
-      "winRate": 0.4636363636363636,
-      "lossRate": 0.1,
-      "delta": 0.36363636363636365
-    },
-    {
-      "id": "celestial_alignment",
-      "lift": 1,
-      "wins": 53,
-      "losses": 0,
-      "total": 53,
-      "winRate": 0.33636363636363636,
-      "lossRate": 0,
-      "delta": 0.33636363636363636
-    },
-    {
       "id": "guardian_spirit",
-      "lift": 0.9833333333333333,
-      "wins": 59,
-      "losses": 1,
-      "total": 60,
-      "winRate": 0.42727272727272725,
-      "lossRate": 0.1,
-      "delta": 0.32727272727272727
+      "lift": 1,
+      "wins": 73,
+      "losses": 0,
+      "total": 73,
+      "winRate": 0.47058823529411764,
+      "lossRate": 0,
+      "delta": 0.47058823529411764
     },
     {
-      "id": "purify",
-      "lift": 1,
-      "wins": 30,
-      "losses": 0,
-      "total": 30,
-      "winRate": 0.4,
-      "lossRate": 0.1,
-      "delta": 0.30000000000000004
+      "id": "renew",
+      "lift": 0.9651162790697675,
+      "wins": 83,
+      "losses": 3,
+      "total": 86,
+      "winRate": 0.4803921568627451,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.369281045751634
     },
     {
       "id": "tigers_fury",
       "lift": 1,
-      "wins": 53,
+      "wins": 49,
       "losses": 0,
-      "total": 53,
-      "winRate": 0.3,
-      "lossRate": 0,
-      "delta": 0.3
-    },
-    {
-      "id": "innervate",
-      "lift": 1,
-      "wins": 47,
-      "losses": 0,
-      "total": 47,
-      "winRate": 0.3,
-      "lossRate": 0,
-      "delta": 0.3
-    },
-    {
-      "id": "thrash",
-      "lift": 1,
-      "wins": 36,
-      "losses": 0,
-      "total": 36,
-      "winRate": 0.2636363636363636,
-      "lossRate": 0,
-      "delta": 0.2636363636363636
-    },
-    {
-      "id": "lifebloom",
-      "lift": 1,
-      "wins": 10,
-      "losses": 0,
-      "total": 10,
-      "winRate": 0.2636363636363636,
-      "lossRate": 0,
-      "delta": 0.2636363636363636
-    },
-    {
-      "id": "incarnation",
-      "lift": 1,
-      "wins": 25,
-      "losses": 0,
-      "total": 25,
-      "winRate": 0.20909090909090908,
-      "lossRate": 0,
-      "delta": 0.20909090909090908
-    },
-    {
-      "id": "ironbark",
-      "lift": 0.9795918367346939,
-      "wins": 48,
-      "losses": 1,
       "total": 49,
-      "winRate": 0.3090909090909091,
-      "lossRate": 0.1,
-      "delta": 0.20909090909090908
-    },
-    {
-      "id": "power_infusion",
-      "lift": 0.9814814814814815,
-      "wins": 53,
-      "losses": 1,
-      "total": 54,
-      "winRate": 0.3,
-      "lossRate": 0.1,
-      "delta": 0.19999999999999998
-    },
-    {
-      "id": "claw",
-      "lift": 1,
-      "wins": 16,
-      "losses": 0,
-      "total": 16,
-      "winRate": 0.2909090909090909,
-      "lossRate": 0.1,
-      "delta": 0.1909090909090909
-    },
-    {
-      "id": "psychic_scream",
-      "lift": 0.9787234042553191,
-      "wins": 46,
-      "losses": 1,
-      "total": 47,
-      "winRate": 0.2909090909090909,
-      "lossRate": 0.1,
-      "delta": 0.1909090909090909
-    },
-    {
-      "id": "decurse",
-      "lift": 1,
-      "wins": 14,
-      "losses": 0,
-      "total": 14,
-      "winRate": 0.18181818181818182,
+      "winRate": 0.3431372549019608,
       "lossRate": 0,
-      "delta": 0.18181818181818182
+      "delta": 0.3431372549019608
     },
     {
-      "id": "archangel",
-      "lift": 1,
-      "wins": 31,
-      "losses": 0,
-      "total": 31,
-      "winRate": 0.18181818181818182,
-      "lossRate": 0,
-      "delta": 0.18181818181818182
-    },
-    {
-      "id": "power_word_radiance",
-      "lift": 1,
-      "wins": 14,
-      "losses": 0,
-      "total": 14,
-      "winRate": 0.18181818181818182,
-      "lossRate": 0,
-      "delta": 0.18181818181818182
-    },
-    {
-      "id": "renew",
-      "lift": 0.9646017699115044,
-      "wins": 109,
-      "losses": 4,
-      "total": 113,
-      "winRate": 0.4727272727272727,
-      "lossRate": 0.3,
-      "delta": 0.17272727272727273
-    },
-    {
-      "id": "void_eruption",
-      "lift": 0.9761904761904762,
-      "wins": 41,
-      "losses": 1,
-      "total": 42,
-      "winRate": 0.2727272727272727,
-      "lossRate": 0.1,
-      "delta": 0.1727272727272727
-    },
-    {
-      "id": "holy_word_serenity",
-      "lift": 1,
-      "wins": 25,
-      "losses": 0,
-      "total": 25,
-      "winRate": 0.16363636363636364,
-      "lossRate": 0,
-      "delta": 0.16363636363636364
-    },
-    {
-      "id": "shadowfiend",
-      "lift": 0.9767441860465116,
-      "wins": 42,
-      "losses": 1,
-      "total": 43,
-      "winRate": 0.2636363636363636,
-      "lossRate": 0.1,
-      "delta": 0.1636363636363636
-    },
-    {
-      "id": "prayer_of_healing",
-      "lift": 1,
-      "wins": 13,
-      "losses": 0,
-      "total": 13,
-      "winRate": 0.2545454545454545,
-      "lossRate": 0.1,
-      "delta": 0.1545454545454545
-    },
-    {
-      "id": "rip",
-      "lift": 1,
-      "wins": 15,
-      "losses": 0,
-      "total": 15,
-      "winRate": 0.24545454545454545,
-      "lossRate": 0.1,
-      "delta": 0.14545454545454545
-    },
-    {
-      "id": "predatory_strike",
-      "lift": 0.967741935483871,
-      "wins": 30,
-      "losses": 1,
-      "total": 31,
-      "winRate": 0.22727272727272727,
-      "lossRate": 0.1,
-      "delta": 0.12727272727272726
-    },
-    {
-      "id": "pain_suppression",
-      "lift": 0.975,
-      "wins": 39,
-      "losses": 1,
-      "total": 40,
-      "winRate": 0.21818181818181817,
-      "lossRate": 0.1,
-      "delta": 0.11818181818181817
-    },
-    {
-      "id": "sunfire",
-      "lift": 0.9696969696969697,
-      "wins": 32,
-      "losses": 1,
-      "total": 33,
-      "winRate": 0.20909090909090908,
-      "lossRate": 0.1,
-      "delta": 0.10909090909090907
-    },
-    {
-      "id": "swipe",
-      "lift": 1,
-      "wins": 18,
-      "losses": 0,
-      "total": 18,
-      "winRate": 0.509090909090909,
-      "lossRate": 0.4,
-      "delta": 0.10909090909090902
-    },
-    {
-      "id": "rejuvenation",
-      "lift": 0.9534883720930233,
-      "wins": 41,
-      "losses": 2,
-      "total": 43,
-      "winRate": 0.509090909090909,
-      "lossRate": 0.4,
-      "delta": 0.10909090909090902
-    },
-    {
-      "id": "ironfur",
-      "lift": 0.9666666666666667,
-      "wins": 29,
-      "losses": 1,
-      "total": 30,
-      "winRate": 0.2,
-      "lossRate": 0.1,
-      "delta": 0.1
-    },
-    {
-      "id": "ferocious_bite",
-      "lift": 0.96875,
-      "wins": 31,
-      "losses": 1,
-      "total": 32,
-      "winRate": 0.19090909090909092,
-      "lossRate": 0.1,
-      "delta": 0.09090909090909091
-    },
-    {
-      "id": "holy_nova",
+      "id": "purify",
       "lift": 1,
       "wins": 21,
       "losses": 0,
       "total": 21,
-      "winRate": 0.17272727272727273,
-      "lossRate": 0.1,
-      "delta": 0.07272727272727272
+      "winRate": 0.4117647058823529,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.3006535947712418
     },
     {
-      "id": "moonfire",
-      "lift": 0.9397590361445783,
-      "wins": 78,
-      "losses": 5,
-      "total": 83,
-      "winRate": 0.43636363636363634,
-      "lossRate": 0.4,
-      "delta": 0.03636363636363632
-    },
-    {
-      "id": "penance",
-      "lift": 0.9285714285714286,
-      "wins": 39,
-      "losses": 3,
-      "total": 42,
-      "winRate": 0.3181818181818182,
-      "lossRate": 0.3,
-      "delta": 0.018181818181818188
-    },
-    {
-      "id": "rake",
-      "lift": 0.9230769230769231,
-      "wins": 12,
-      "losses": 1,
-      "total": 13,
-      "winRate": 0.10909090909090909,
-      "lossRate": 0.1,
-      "delta": 0.00909090909090908
-    },
-    {
-      "id": "hurricane",
+      "id": "thrash",
       "lift": 1,
-      "wins": 36,
+      "wins": 37,
       "losses": 0,
-      "total": 36,
-      "winRate": 0.2909090909090909,
-      "lossRate": 0.3,
-      "delta": -0.009090909090909094
+      "total": 37,
+      "winRate": 0.2647058823529412,
+      "lossRate": 0,
+      "delta": 0.2647058823529412
     },
     {
-      "id": "wrath",
+      "id": "wild_growth",
+      "lift": 0.967741935483871,
+      "wins": 60,
+      "losses": 2,
+      "total": 62,
+      "winRate": 0.4215686274509804,
+      "lossRate": 0.16666666666666666,
+      "delta": 0.2549019607843137
+    },
+    {
+      "id": "power_infusion",
+      "lift": 0.9423076923076923,
+      "wins": 49,
+      "losses": 3,
+      "total": 52,
+      "winRate": 0.35294117647058826,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.24183006535947715
+    },
+    {
+      "id": "prayer_of_healing",
+      "lift": 0.9375,
+      "wins": 15,
+      "losses": 1,
+      "total": 16,
+      "winRate": 0.29411764705882354,
+      "lossRate": 0.05555555555555555,
+      "delta": 0.238562091503268
+    },
+    {
+      "id": "archangel",
+      "lift": 1,
+      "wins": 38,
+      "losses": 0,
+      "total": 38,
+      "winRate": 0.23529411764705882,
+      "lossRate": 0,
+      "delta": 0.23529411764705882
+    },
+    {
+      "id": "shadowfiend",
+      "lift": 0.9761904761904762,
+      "wins": 41,
+      "losses": 1,
+      "total": 42,
+      "winRate": 0.28431372549019607,
+      "lossRate": 0.05555555555555555,
+      "delta": 0.22875816993464052
+    },
+    {
+      "id": "incarnation",
       "lift": 1,
       "wins": 26,
       "losses": 0,
       "total": 26,
-      "winRate": 0.2909090909090909,
-      "lossRate": 0.3,
-      "delta": -0.009090909090909094
+      "winRate": 0.21568627450980393,
+      "lossRate": 0,
+      "delta": 0.21568627450980393
     },
     {
-      "id": "starsurge",
-      "lift": 0.9642857142857143,
-      "wins": 54,
+      "id": "mangle",
+      "lift": 0.9545454545454546,
+      "wins": 42,
       "losses": 2,
-      "total": 56,
-      "winRate": 0.39090909090909093,
-      "lossRate": 0.4,
-      "delta": -0.009090909090909094
+      "total": 44,
+      "winRate": 0.3235294117647059,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.2124183006535948
     },
     {
-      "id": "starfall",
-      "lift": 0.92,
-      "wins": 23,
+      "id": "sunfire",
+      "lift": 1,
+      "wins": 26,
+      "losses": 0,
+      "total": 26,
+      "winRate": 0.20588235294117646,
+      "lossRate": 0,
+      "delta": 0.20588235294117646
+    },
+    {
+      "id": "celestial_alignment",
+      "lift": 0.9591836734693877,
+      "wins": 47,
       "losses": 2,
-      "total": 25,
-      "winRate": 0.17272727272727273,
-      "lossRate": 0.2,
-      "delta": -0.027272727272727282
+      "total": 49,
+      "winRate": 0.3137254901960784,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.20261437908496732
+    },
+    {
+      "id": "holy_nova",
+      "lift": 1,
+      "wins": 18,
+      "losses": 0,
+      "total": 18,
+      "winRate": 0.19607843137254902,
+      "lossRate": 0,
+      "delta": 0.19607843137254902
+    },
+    {
+      "id": "barkskin",
+      "lift": 0.9565217391304348,
+      "wins": 66,
+      "losses": 3,
+      "total": 69,
+      "winRate": 0.4117647058823529,
+      "lossRate": 0.2222222222222222,
+      "delta": 0.1895424836601307
+    },
+    {
+      "id": "atonement",
+      "lift": 0.9626865671641791,
+      "wins": 129,
+      "losses": 5,
+      "total": 134,
+      "winRate": 0.5196078431372549,
+      "lossRate": 0.3333333333333333,
+      "delta": 0.18627450980392163
+    },
+    {
+      "id": "psychic_scream",
+      "lift": 0.9444444444444444,
+      "wins": 51,
+      "losses": 3,
+      "total": 54,
+      "winRate": 0.35294117647058826,
+      "lossRate": 0.16666666666666666,
+      "delta": 0.1862745098039216
+    },
+    {
+      "id": "ironbark",
+      "lift": 0.9347826086956522,
+      "wins": 43,
+      "losses": 3,
+      "total": 46,
+      "winRate": 0.29411764705882354,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.18300653594771243
+    },
+    {
+      "id": "penance",
+      "lift": 0.972972972972973,
+      "wins": 36,
+      "losses": 1,
+      "total": 37,
+      "winRate": 0.3431372549019608,
+      "lossRate": 0.16666666666666666,
+      "delta": 0.17647058823529413
+    },
+    {
+      "id": "innervate",
+      "lift": 0.9230769230769231,
+      "wins": 48,
+      "losses": 4,
+      "total": 52,
+      "winRate": 0.3431372549019608,
+      "lossRate": 0.16666666666666666,
+      "delta": 0.17647058823529413
+    },
+    {
+      "id": "void_eruption",
+      "lift": 0.9574468085106383,
+      "wins": 45,
+      "losses": 2,
+      "total": 47,
+      "winRate": 0.28431372549019607,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.17320261437908496
+    },
+    {
+      "id": "holy_word_serenity",
+      "lift": 0.96875,
+      "wins": 31,
+      "losses": 1,
+      "total": 32,
+      "winRate": 0.22549019607843138,
+      "lossRate": 0.05555555555555555,
+      "delta": 0.16993464052287582
+    },
+    {
+      "id": "pain_suppression",
+      "lift": 0.972972972972973,
+      "wins": 36,
+      "losses": 1,
+      "total": 37,
+      "winRate": 0.21568627450980393,
+      "lossRate": 0.05555555555555555,
+      "delta": 0.16013071895424838
+    },
+    {
+      "id": "dispersion",
+      "lift": 1,
+      "wins": 20,
+      "losses": 0,
+      "total": 20,
+      "winRate": 0.1568627450980392,
+      "lossRate": 0,
+      "delta": 0.1568627450980392
     },
     {
       "id": "smite",
@@ -2631,99 +2494,219 @@
       "wins": 33,
       "losses": 0,
       "total": 33,
-      "winRate": 0.4636363636363636,
-      "lossRate": 0.5,
-      "delta": -0.036363636363636376
+      "winRate": 0.5098039215686274,
+      "lossRate": 0.3888888888888889,
+      "delta": 0.12091503267973852
     },
     {
-      "id": "thorns",
-      "lift": 0.9615384615384616,
-      "wins": 25,
-      "losses": 1,
-      "total": 26,
-      "winRate": 0.22727272727272727,
-      "lossRate": 0.3,
-      "delta": -0.07272727272727272
-    },
-    {
-      "id": "dispersion",
-      "lift": 0.8823529411764706,
-      "wins": 15,
-      "losses": 2,
-      "total": 17,
-      "winRate": 0.11818181818181818,
-      "lossRate": 0.2,
-      "delta": -0.08181818181818183
-    },
-    {
-      "id": "power_word_shield",
-      "lift": 0.971830985915493,
-      "wins": 69,
-      "losses": 2,
-      "total": 71,
-      "winRate": 0.41818181818181815,
-      "lossRate": 0.5,
-      "delta": -0.08181818181818185
-    },
-    {
-      "id": "starfire",
-      "lift": 0.9230769230769231,
+      "id": "claw",
+      "lift": 1,
       "wins": 12,
-      "losses": 1,
-      "total": 13,
-      "winRate": 0.19090909090909092,
-      "lossRate": 0.3,
-      "delta": -0.10909090909090907
+      "losses": 0,
+      "total": 12,
+      "winRate": 0.28431372549019607,
+      "lossRate": 0.16666666666666666,
+      "delta": 0.11764705882352941
     },
     {
-      "id": "mind_flay",
-      "lift": 0.9444444444444444,
-      "wins": 17,
-      "losses": 1,
-      "total": 18,
-      "winRate": 0.21818181818181817,
-      "lossRate": 0.5,
-      "delta": -0.28181818181818186
-    },
-    {
-      "id": "vampiric_touch",
-      "lift": 0.9210526315789473,
-      "wins": 35,
+      "id": "predatory_strike",
+      "lift": 0.8928571428571429,
+      "wins": 25,
       "losses": 3,
-      "total": 38,
-      "winRate": 0.3090909090909091,
-      "lossRate": 0.6,
-      "delta": -0.2909090909090909
-    },
-    {
-      "id": "shadow_word_pain",
-      "lift": 0.9375,
-      "wins": 30,
-      "losses": 2,
-      "total": 32,
-      "winRate": 0.2909090909090909,
-      "lossRate": 0.6,
-      "delta": -0.3090909090909091
-    },
-    {
-      "id": "mind_blast",
-      "lift": 0.8787878787878788,
-      "wins": 29,
-      "losses": 4,
-      "total": 33,
-      "winRate": 0.2909090909090909,
-      "lossRate": 0.6,
-      "delta": -0.3090909090909091
+      "total": 28,
+      "winRate": 0.20588235294117646,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.09477124183006536
     },
     {
       "id": "shadow_word_death",
-      "lift": 0.90625,
-      "wins": 29,
-      "losses": 3,
+      "lift": 0.9565217391304348,
+      "wins": 44,
+      "losses": 2,
+      "total": 46,
+      "winRate": 0.35294117647058826,
+      "lossRate": 0.2777777777777778,
+      "delta": 0.07516339869281047
+    },
+    {
+      "id": "power_word_radiance",
+      "lift": 0.9333333333333333,
+      "wins": 14,
+      "losses": 1,
+      "total": 15,
+      "winRate": 0.17647058823529413,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.06535947712418302
+    },
+    {
+      "id": "shadow_word_pain",
+      "lift": 0.96875,
+      "wins": 31,
+      "losses": 1,
       "total": 32,
-      "winRate": 0.2545454545454545,
-      "lossRate": 0.6,
-      "delta": -0.34545454545454546
+      "winRate": 0.3235294117647059,
+      "lossRate": 0.2777777777777778,
+      "delta": 0.04575163398692811
+    },
+    {
+      "id": "mind_blast",
+      "lift": 0.9354838709677419,
+      "wins": 29,
+      "losses": 2,
+      "total": 31,
+      "winRate": 0.3235294117647059,
+      "lossRate": 0.2777777777777778,
+      "delta": 0.04575163398692811
+    },
+    {
+      "id": "ironfur",
+      "lift": 0.9230769230769231,
+      "wins": 24,
+      "losses": 2,
+      "total": 26,
+      "winRate": 0.1568627450980392,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.04575163398692811
+    },
+    {
+      "id": "moonfire",
+      "lift": 0.9420289855072463,
+      "wins": 65,
+      "losses": 4,
+      "total": 69,
+      "winRate": 0.4117647058823529,
+      "lossRate": 0.3888888888888889,
+      "delta": 0.022875816993464027
+    },
+    {
+      "id": "rake",
+      "lift": 0.9375,
+      "wins": 15,
+      "losses": 1,
+      "total": 16,
+      "winRate": 0.12745098039215685,
+      "lossRate": 0.1111111111111111,
+      "delta": 0.01633986928104575
+    },
+    {
+      "id": "power_word_shield",
+      "lift": 0.95,
+      "wins": 57,
+      "losses": 3,
+      "total": 60,
+      "winRate": 0.4019607843137255,
+      "lossRate": 0.3888888888888889,
+      "delta": 0.01307189542483661
+    },
+    {
+      "id": "starfall",
+      "lift": 0.7777777777777778,
+      "wins": 21,
+      "losses": 6,
+      "total": 27,
+      "winRate": 0.18627450980392157,
+      "lossRate": 0.2222222222222222,
+      "delta": -0.03594771241830064
+    },
+    {
+      "id": "vampiric_touch",
+      "lift": 0.9411764705882353,
+      "wins": 32,
+      "losses": 2,
+      "total": 34,
+      "winRate": 0.29411764705882354,
+      "lossRate": 0.3333333333333333,
+      "delta": -0.039215686274509776
+    },
+    {
+      "id": "ferocious_bite",
+      "lift": 0.7878787878787878,
+      "wins": 26,
+      "losses": 7,
+      "total": 33,
+      "winRate": 0.21568627450980393,
+      "lossRate": 0.2777777777777778,
+      "delta": -0.06209150326797386
+    },
+    {
+      "id": "mind_flay",
+      "lift": 0.875,
+      "wins": 14,
+      "losses": 2,
+      "total": 16,
+      "winRate": 0.20588235294117646,
+      "lossRate": 0.2777777777777778,
+      "delta": -0.07189542483660133
+    },
+    {
+      "id": "starsurge",
+      "lift": 1,
+      "wins": 37,
+      "losses": 0,
+      "total": 37,
+      "winRate": 0.3137254901960784,
+      "lossRate": 0.3888888888888889,
+      "delta": -0.07516339869281047
+    },
+    {
+      "id": "hurricane",
+      "lift": 1,
+      "wins": 29,
+      "losses": 0,
+      "total": 29,
+      "winRate": 0.2647058823529412,
+      "lossRate": 0.3888888888888889,
+      "delta": -0.12418300653594772
+    },
+    {
+      "id": "swipe",
+      "lift": 1,
+      "wins": 14,
+      "losses": 0,
+      "total": 14,
+      "winRate": 0.4803921568627451,
+      "lossRate": 0.6111111111111112,
+      "delta": -0.13071895424836605
+    },
+    {
+      "id": "rejuvenation",
+      "lift": 0.8484848484848485,
+      "wins": 28,
+      "losses": 5,
+      "total": 33,
+      "winRate": 0.4803921568627451,
+      "lossRate": 0.6111111111111112,
+      "delta": -0.13071895424836605
+    },
+    {
+      "id": "wrath",
+      "lift": 0.95,
+      "wins": 19,
+      "losses": 1,
+      "total": 20,
+      "winRate": 0.2549019607843137,
+      "lossRate": 0.4444444444444444,
+      "delta": -0.1895424836601307
+    },
+    {
+      "id": "starfire",
+      "lift": 0.9523809523809523,
+      "wins": 20,
+      "losses": 1,
+      "total": 21,
+      "winRate": 0.19607843137254902,
+      "lossRate": 0.3888888888888889,
+      "delta": -0.19281045751633988
+    },
+    {
+      "id": "thorns",
+      "lift": 0.85,
+      "wins": 17,
+      "losses": 3,
+      "total": 20,
+      "winRate": 0.17647058823529413,
+      "lossRate": 0.4444444444444444,
+      "delta": -0.26797385620915026
     }
   ]
 }
