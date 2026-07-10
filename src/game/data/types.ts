@@ -1,6 +1,6 @@
-export type ClassId = 'druid' | 'priest';
+export type ClassId = 'druid' | 'priest' | 'shaman';
 
-/** Druid forms + Priest schools (used for card borders / talent matching). */
+/** Druid forms + Priest schools + Shaman schools (card borders / talent matching). */
 export type Form =
   | 'bear'
   | 'cat'
@@ -8,7 +8,10 @@ export type Form =
   | 'tree'
   | 'holy'
   | 'shadow'
-  | 'discipline';
+  | 'discipline'
+  | 'resto'
+  | 'enhance'
+  | 'elemental';
 
 export type TalentTree =
   | 'feral'
@@ -16,12 +19,53 @@ export type TalentTree =
   | 'balance'
   | 'holy'
   | 'shadow'
-  | 'discipline';
+  | 'discipline'
+  | 'restoration'
+  | 'enhancement'
+  | 'elemental';
 
 export type TargetType = 'enemy' | 'allEnemies' | 'self' | 'none';
 
 /** Tags used by typed draws / discard filters. */
 export type CardTypeTag = 'attack' | 'heal' | 'block';
+
+/** Totem element — only one living totem per element. */
+export type TotemElement = 'earth' | 'fire' | 'water' | 'air';
+
+export type TotemAuraKind =
+  | 'strength'
+  | 'spellPower'
+  | 'regen'
+  | 'thorns'
+  | 'blockPerTurn'
+  | 'energyOnTurn';
+
+export interface TotemAura {
+  kind: TotemAuraKind;
+  value: number;
+}
+
+export interface TotemDef {
+  id: string;
+  name: string;
+  element: TotemElement;
+  /** Totems are fragile — typically 8–18 HP. */
+  maxHp: number;
+  art: string;
+  aura: TotemAura;
+  description: string;
+}
+
+export interface TotemCombatant {
+  id: string;
+  defId: string;
+  name: string;
+  element: TotemElement;
+  maxHp: number;
+  hp: number;
+  art: string;
+  aura: TotemAura;
+}
 
 export type EffectKind =
   | 'damage'
@@ -49,7 +93,8 @@ export type EffectKind =
   | 'retrieveDiscard'
   | 'randomDamage'
   | 'recoil'
-  | 'thorns';
+  | 'thorns'
+  | 'summonTotem';
 
 export interface CardEffect {
   kind: EffectKind;
@@ -73,6 +118,8 @@ export interface CardEffect {
   bonusPerDiscard?: number;
   /** Payoff channel for discardFor. */
   payoffKind?: 'damage' | 'heal' | 'block' | 'randomDamage';
+  /** Totem id for summonTotem effects. */
+  totemId?: string;
 }
 
 export interface CardDef {
@@ -155,7 +202,15 @@ export type TalentSpecial =
   /** When you gain Block from a card, also heal (per rank). */
   | { type: 'blockGainHeal'; heal: number }
   /** Damage-over-time from matching cards lasts extra turns (per rank). */
-  | { type: 'dotExtraDuration'; cardIds: string[]; extra: number };
+  | { type: 'dotExtraDuration'; cardIds: string[]; extra: number }
+  /** Totems gain this much max/current HP (per rank). */
+  | { type: 'totemHpBonus'; hp: number }
+  /** Living totem auras are this percent stronger (per rank). */
+  | { type: 'totemAuraPct'; pct: number }
+  /** When a totem dies, gain this much Block (per rank). */
+  | { type: 'totemDeathBlock'; block: number }
+  /** At turn start, deal this much damage per living totem (per rank). */
+  | { type: 'totemTurnDamage'; damage: number };
 
 /** Flat bonuses + optional transformative specials applied per talent rank. */
 export interface TalentModifier {
@@ -273,6 +328,7 @@ export interface MapNode {
  * Opening specialization chosen at run start.
  * Druid: Feral combines Cat + Bear card forms; Boomkin / Tree match card forms.
  * Priest: schools match card forms.
+ * Shaman: Resto / Enhance / Elemental match card forms.
  */
 export type OpeningSpec =
   | 'feral'
@@ -280,7 +336,10 @@ export type OpeningSpec =
   | 'tree'
   | 'holy'
   | 'shadow'
-  | 'discipline';
+  | 'discipline'
+  | 'resto'
+  | 'enhance'
+  | 'elemental';
 
 export interface ClassDef {
   id: ClassId;

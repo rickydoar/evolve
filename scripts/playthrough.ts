@@ -92,6 +92,9 @@ const SPEC_PRIMARY_FORMS: Record<OpeningSpec, Form[]> = {
   holy: ['holy'],
   shadow: ['shadow'],
   discipline: ['discipline'],
+  resto: ['resto'],
+  enhance: ['enhance'],
+  elemental: ['elemental'],
 };
 
 const SPEC_TREE: Record<OpeningSpec, TalentTree> = {
@@ -101,6 +104,9 @@ const SPEC_TREE: Record<OpeningSpec, TalentTree> = {
   holy: 'holy',
   shadow: 'shadow',
   discipline: 'discipline',
+  resto: 'restoration',
+  enhance: 'enhancement',
+  elemental: 'elemental',
 };
 
 const ALL_CONFIGS: Array<{ classId: ClassId; spec: OpeningSpec }> = [
@@ -110,6 +116,9 @@ const ALL_CONFIGS: Array<{ classId: ClassId; spec: OpeningSpec }> = [
   { classId: 'priest', spec: 'holy' },
   { classId: 'priest', spec: 'shadow' },
   { classId: 'priest', spec: 'discipline' },
+  { classId: 'shaman', spec: 'resto' },
+  { classId: 'shaman', spec: 'enhance' },
+  { classId: 'shaman', spec: 'elemental' },
 ];
 
 function card(id: string): CardDef | undefined {
