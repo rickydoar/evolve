@@ -19,14 +19,15 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 4. After victory, pick a reward card and spend a **talent point** in your class trees.
 5. Reach and defeat the **Nightmare of the Grove**.
 
-### Druid forms
+### Druid opening specs
 
-| Form | Style | Signature cards |
+| Spec | Style | Signature cards |
 |------|--------|-----------------|
-| Bear | Tank / AoE | Barkskin, Swipe, Maul |
-| Cat | Single-target DPS | Claw, Rip, Shred |
+| Feral | Claws & hide (Cat + Bear) | Swipe, Maul, Claw, Shred, Rip |
 | Boomkin | Big spells | Wrath, Starfire, Starsurge |
 | Tree | Healing | Decurse, Rejuvenation, Healing Touch |
+
+Individual cards still carry **Bear** or **Cat** form tags for borders and Feral talent matching.
 
 ### Priest schools
 
