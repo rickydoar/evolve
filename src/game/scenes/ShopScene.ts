@@ -13,12 +13,15 @@ import { randomRewards, removeCardAt } from '../data/run';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
 import { fitCardText } from '../ui/fitCardText';
+import { drawOwnedItemsBar } from '../ui/ownedItemsBar';
+import { openDeckView } from './DeckViewScene';
 
 export class ShopScene extends Phaser.Scene {
   private stock: string[] = [];
   private purchased = new Set<number>();
   private goldText!: Phaser.GameObjects.Text;
   private contentRoot!: Phaser.GameObjects.Container;
+  private itemsBar: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super('Shop');
@@ -61,10 +64,25 @@ export class ShopScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const deckBtn = this.add
+      .text(width - 40, 40, 'View Deck', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
+        color: '#e8f5e9',
+        backgroundColor: '#1a2e24',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(1, 0.5)
+      .setInteractive({ useHandCursor: true });
+    deckBtn.on('pointerdown', () => {
+      openDeckView(this);
+    });
+
     this.stock = randomRewards(5, run.classId, run);
     this.contentRoot = this.add.container(0, 0);
 
     this.refreshGold();
+    this.renderOwnedItems();
     this.renderBrowse();
 
     const leave = this.add
@@ -77,6 +95,27 @@ export class ShopScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     leave.on('pointerdown', () => this.finish());
+  }
+
+  private renderOwnedItems(): void {
+    const run = GameRegistry.run!;
+    this.itemsBar?.destroy();
+    this.itemsBar = null;
+    this.add
+      .text(40, GAME_H - 72, 'Your Items', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '13px',
+        color: '#fde68a',
+      })
+      .setOrigin(0, 0.5);
+    this.itemsBar = drawOwnedItemsBar(this, run.items, {
+      x: 130,
+      y: GAME_H - 72,
+      iconSize: 40,
+      gap: 6,
+      showEmptyLabel: true,
+      depth: 30,
+    });
   }
 
   private refreshGold(): void {

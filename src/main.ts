@@ -1,16 +1,17 @@
 import Phaser from 'phaser';
-import { BootScene } from './game/scenes/BootScene';
-import { TitleScene } from './game/scenes/TitleScene';
-import { SpecScene } from './game/scenes/SpecScene';
-import { MapScene } from './game/scenes/MapScene';
-import { CombatScene } from './game/scenes/CombatScene';
-import { ItemRewardScene } from './game/scenes/ItemRewardScene';
-import { RewardScene } from './game/scenes/RewardScene';
-import { RestScene } from './game/scenes/RestScene';
-import { ShopScene } from './game/scenes/ShopScene';
-import { TalentScene } from './game/scenes/TalentScene';
 import { ActTransitionScene } from './game/scenes/ActTransitionScene';
+import { BootScene } from './game/scenes/BootScene';
+import { CombatScene } from './game/scenes/CombatScene';
+import { DeckViewScene } from './game/scenes/DeckViewScene';
 import { GameOverScene } from './game/scenes/GameOverScene';
+import { ItemRewardScene } from './game/scenes/ItemRewardScene';
+import { MapScene } from './game/scenes/MapScene';
+import { RestScene } from './game/scenes/RestScene';
+import { RewardScene } from './game/scenes/RewardScene';
+import { ShopScene } from './game/scenes/ShopScene';
+import { SpecScene } from './game/scenes/SpecScene';
+import { TalentScene } from './game/scenes/TalentScene';
+import { TitleScene } from './game/scenes/TitleScene';
 import { CANVAS_H, CANVAS_W, DPR } from './game/display';
 import './style.css';
 
@@ -53,6 +54,7 @@ const config: Phaser.Types.Core.GameConfig = {
     RestScene,
     ShopScene,
     TalentScene,
+    DeckViewScene,
     ActTransitionScene,
     GameOverScene,
   ],

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
+import { generateAllItemArt } from '../ui/itemArt';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -127,6 +128,7 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     this.createShopIcon();
     this.createProceduralEnemyArt();
+    generateAllItemArt(this);
     this.scene.start('Title');
   }
 

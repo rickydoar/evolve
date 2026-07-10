@@ -5,6 +5,8 @@ import type { MapNode, NodeType } from '../data/types';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
 import { startCombat } from '../systems/CombatSystem';
+import { openDeckView } from './DeckViewScene';
+import { drawOwnedItemsBar } from '../ui/ownedItemsBar';
 
 const NODE_ICONS: Record<NodeType, string> = {
   combat: 'map-combat',
@@ -90,10 +92,25 @@ export class MapScene extends Phaser.Scene {
       this.scene.start('Talent', { returnTo: 'Map' });
     });
 
+    const deckBtn = this.add
+      .text(width - 40, 92, 'View Deck', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
+        color: '#e8f5e9',
+        backgroundColor: '#1a2e24',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(1, 0.5)
+      .setInteractive({ useHandCursor: true });
+    deckBtn.on('pointerdown', () => {
+      openDeckView(this);
+    });
+
+    let nextBtnY = 136;
     if (run.potions > 0) {
       const canDrink = run.hp < run.maxHp;
       const potionBtn = this.add
-        .text(width - 40, 92, canDrink ? `Drink Potion (${run.potions})` : `Potions ${run.potions}`, {
+        .text(width - 40, nextBtnY, canDrink ? `Drink Potion (${run.potions})` : `Potions ${run.potions}`, {
           fontFamily: 'Georgia, serif',
           fontSize: '15px',
           color: canDrink ? '#0b1210' : '#94a3b8',
@@ -101,6 +118,7 @@ export class MapScene extends Phaser.Scene {
           padding: { x: 12, y: 6 },
         })
         .setOrigin(1, 0.5);
+      nextBtnY += 44;
 
       if (canDrink) {
         potionBtn.setInteractive({ useHandCursor: true });
@@ -110,6 +128,24 @@ export class MapScene extends Phaser.Scene {
           }
         });
       }
+    }
+
+    if (run.items.length > 0) {
+      this.add
+        .text(40, height - 56, 'Items', {
+          fontFamily: 'Georgia, serif',
+          fontSize: '13px',
+          color: '#fde68a',
+        })
+        .setOrigin(0, 0.5);
+      drawOwnedItemsBar(this, run.items, {
+        x: 90,
+        y: height - 56,
+        iconSize: 40,
+        gap: 6,
+        showEmptyLabel: false,
+        depth: 30,
+      });
     }
 
     const available = new Set(availableNodes(run).map((n) => n.id));
