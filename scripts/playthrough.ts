@@ -51,6 +51,23 @@ import {
 
 type Policy = 'smart' | 'random' | 'onspec';
 
+interface PlayStats {
+  /** Total card plays across the run. */
+  totalPlays: number;
+  /** Plays per card id. */
+  playCounts: Record<string, number>;
+  /** Unique cards played at least once. */
+  uniquePlayed: number;
+  /** Sum of unique cards played each turn (for avg uniqueness). */
+  uniquePerTurnSum: number;
+  /** Number of player turns with ≥1 play. */
+  turnsWithPlays: number;
+  /** Consecutive play-pair counts ("a>b"). */
+  comboCounts: Record<string, number>;
+  /** Distinct consecutive pairs. */
+  uniqueCombos: number;
+}
+
 interface RunResult {
   classId: ClassId;
   spec: OpeningSpec;
@@ -71,6 +88,7 @@ interface RunResult {
   path: string;
   talents: Record<string, number>;
   turnsFought: number;
+  playStats: PlayStats;
 }
 
 interface Aggregate {
@@ -300,8 +318,38 @@ function scoreCardForCombat(
   return score;
 }
 
-function playSmartTurn(state: CombatState, spec: OpeningSpec): void {
+function emptyPlayStats(): PlayStats {
+  return {
+    totalPlays: 0,
+    playCounts: {},
+    uniquePlayed: 0,
+    uniquePerTurnSum: 0,
+    turnsWithPlays: 0,
+    comboCounts: {},
+    uniqueCombos: 0,
+  };
+}
+
+function recordPlay(tracker: PlayStats, cardId: string, lastPlayed: { id: string | null }): void {
+  tracker.totalPlays += 1;
+  tracker.playCounts[cardId] = (tracker.playCounts[cardId] ?? 0) + 1;
+  if (lastPlayed.id) {
+    const key = `${lastPlayed.id}>${cardId}`;
+    tracker.comboCounts[key] = (tracker.comboCounts[key] ?? 0) + 1;
+  }
+  lastPlayed.id = cardId;
+}
+
+function finalizePlayTurn(tracker: PlayStats, turnPlayed: Set<string>): void {
+  if (!turnPlayed.size) return;
+  tracker.turnsWithPlays += 1;
+  tracker.uniquePerTurnSum += turnPlayed.size;
+}
+
+function playSmartTurn(state: CombatState, spec: OpeningSpec, tracker?: PlayStats): void {
   let safety = 40;
+  const turnPlayed = new Set<string>();
+  const lastPlayed = { id: null as string | null };
   while (state.phase === 'player' && safety-- > 0) {
     let bestIdx = -1;
     let bestScore = -Infinity;
@@ -314,20 +362,28 @@ function playSmartTurn(state: CombatState, spec: OpeningSpec): void {
       }
     }
     if (bestIdx < 0 || bestScore < -100) break;
-    const def = card(state.hand[bestIdx]!);
+    const playedId = state.hand[bestIdx]!;
+    const def = card(playedId);
     if (!def) break;
+    let ok = false;
     if (def.target === 'enemy') {
       const target = lowestEnemy(state);
       if (!target) break;
-      if (!playCardOnEnemy(state, bestIdx, target.id)) break;
+      ok = playCardOnEnemy(state, bestIdx, target.id);
     } else {
-      if (!playCard(state, bestIdx)) break;
+      ok = playCard(state, bestIdx);
     }
+    if (!ok) break;
+    turnPlayed.add(playedId);
+    if (tracker) recordPlay(tracker, playedId, lastPlayed);
   }
+  if (tracker) finalizePlayTurn(tracker, turnPlayed);
 }
 
-function playRandomTurn(state: CombatState): void {
+function playRandomTurn(state: CombatState, tracker?: PlayStats): void {
   let safety = 30;
+  const turnPlayed = new Set<string>();
+  const lastPlayed = { id: null as string | null };
   while (state.phase === 'player' && safety-- > 0) {
     const playable: number[] = [];
     for (let i = 0; i < state.hand.length; i++) {
@@ -337,17 +393,23 @@ function playRandomTurn(state: CombatState): void {
     // Sometimes end early even with plays available
     if (Math.random() < 0.15) break;
     const idx = playable[Math.floor(Math.random() * playable.length)]!;
-    const def = card(state.hand[idx]!);
+    const playedId = state.hand[idx]!;
+    const def = card(playedId);
     if (!def) break;
+    let ok = false;
     if (def.target === 'enemy') {
       const living = livingEnemies(state);
       if (!living.length) break;
       const target = living[Math.floor(Math.random() * living.length)]!;
-      if (!playCardOnEnemy(state, idx, target.id)) break;
+      ok = playCardOnEnemy(state, idx, target.id);
     } else {
-      if (!playCard(state, idx)) break;
+      ok = playCard(state, idx);
     }
+    if (!ok) break;
+    turnPlayed.add(playedId);
+    if (tracker) recordPlay(tracker, playedId, lastPlayed);
   }
+  if (tracker) finalizePlayTurn(tracker, turnPlayed);
 }
 
 function resolveEnemyTurn(state: CombatState): void {
@@ -363,6 +425,7 @@ function fightCombat(
   enemyIds: string[],
   policy: Policy,
   spec: OpeningSpec,
+  tracker?: PlayStats,
 ): { won: boolean; turns: number } {
   const state = startCombat(run, enemyIds);
   let turns = 0;
@@ -370,9 +433,9 @@ function fightCombat(
   while (state.phase === 'player' || state.phase === 'enemy') {
     if (state.phase === 'player') {
       turns += 1;
-      if (policy === 'smart') playSmartTurn(state, spec);
-      else if (policy === 'onspec') playSmartTurn(state, spec);
-      else playRandomTurn(state);
+      if (policy === 'smart') playSmartTurn(state, spec, tracker);
+      else if (policy === 'onspec') playSmartTurn(state, spec, tracker);
+      else playRandomTurn(state, tracker);
       if (state.phase === 'victory' || state.phase === 'defeat') break;
       resolveEnemyTurn(state);
     } else {
@@ -1023,8 +1086,11 @@ function makeResult(
   removed: string[],
   itemsPicked: string[],
   turnsFought: number,
+  playStats: PlayStats,
 ): RunResult {
   const path = detectPath(spec, run.items, run.deck, itemsPicked);
+  playStats.uniquePlayed = Object.keys(playStats.playCounts).length;
+  playStats.uniqueCombos = Object.keys(playStats.comboCounts).length;
   return {
     classId,
     spec,
@@ -1045,6 +1111,7 @@ function makeResult(
     path,
     talents: { ...run.talents },
     turnsFought,
+    playStats,
   };
 }
 
@@ -1058,6 +1125,7 @@ function simulateRun(
   const picked: string[] = [];
   const removed: string[] = [];
   const itemsPicked: string[] = [];
+  const playStats = emptyPlayStats();
   let turnsFought = 0;
   let lastNode: MapNode | null = null;
 
@@ -1149,7 +1217,7 @@ function simulateRun(
       }
 
       // Combat / elite / boss
-      const result = fightCombat(run, node.enemyIds, policy, spec);
+      const result = fightCombat(run, node.enemyIds, policy, spec, playStats);
       turnsFought += result.turns;
       if (!result.won) {
         return makeResult(
@@ -1164,6 +1232,7 @@ function simulateRun(
           removed,
           itemsPicked,
           turnsFought,
+          playStats,
         );
       }
 
@@ -1188,6 +1257,7 @@ function simulateRun(
           removed,
           itemsPicked,
           turnsFought,
+          playStats,
         );
       }
 
@@ -1212,6 +1282,7 @@ function simulateRun(
     removed,
     itemsPicked,
     turnsFought,
+    playStats,
   );
 }
 
@@ -1337,6 +1408,166 @@ function ingest(agg: Aggregate, r: RunResult): void {
   }
 }
 
+/** Shannon entropy of a count map (bits). */
+function shannonEntropy(counts: Record<string, number>): number {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (!total) return 0;
+  let h = 0;
+  for (const n of Object.values(counts)) {
+    if (!n) continue;
+    const p = n / total;
+    h -= p * Math.log2(p);
+  }
+  return h;
+}
+
+function topShare(counts: Record<string, number>, k: number): number {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (!total) return 0;
+  const top = Object.values(counts)
+    .sort((a, b) => b - a)
+    .slice(0, k);
+  return top.reduce((a, b) => a + b, 0) / total;
+}
+
+interface DynamicsBucket {
+  runs: number;
+  wins: number;
+  totalPlays: number;
+  playCounts: Record<string, number>;
+  comboCounts: Record<string, number>;
+  uniquePlayedSum: number;
+  uniquePerTurnSum: number;
+  turnsWithPlays: number;
+  uniqueCombosSum: number;
+  uniqueDeckSum: number;
+  deckSizeSum: number;
+  avgVictoriesSum: number;
+  /** How often the same top-played card is #1 across runs (repetition of "main card"). */
+  topCardVotes: Record<string, number>;
+}
+
+function emptyDynamics(): DynamicsBucket {
+  return {
+    runs: 0,
+    wins: 0,
+    totalPlays: 0,
+    playCounts: {},
+    comboCounts: {},
+    uniquePlayedSum: 0,
+    uniquePerTurnSum: 0,
+    turnsWithPlays: 0,
+    uniqueCombosSum: 0,
+    uniqueDeckSum: 0,
+    deckSizeSum: 0,
+    avgVictoriesSum: 0,
+    topCardVotes: {},
+  };
+}
+
+function ingestDynamics(d: DynamicsBucket, r: RunResult): void {
+  d.runs += 1;
+  if (r.won) d.wins += 1;
+  d.totalPlays += r.playStats.totalPlays;
+  d.uniquePlayedSum += r.playStats.uniquePlayed;
+  d.uniquePerTurnSum += r.playStats.uniquePerTurnSum;
+  d.turnsWithPlays += r.playStats.turnsWithPlays;
+  d.uniqueCombosSum += r.playStats.uniqueCombos;
+  d.uniqueDeckSum += new Set(r.finalDeck.filter((id) => id !== CURSE_CARD_ID)).size;
+  d.deckSizeSum += r.deckSize;
+  d.avgVictoriesSum += r.victories;
+  for (const [id, n] of Object.entries(r.playStats.playCounts)) {
+    d.playCounts[id] = (d.playCounts[id] ?? 0) + n;
+  }
+  for (const [id, n] of Object.entries(r.playStats.comboCounts)) {
+    d.comboCounts[id] = (d.comboCounts[id] ?? 0) + n;
+  }
+  const top = topEntries(r.playStats.playCounts, 1)[0];
+  if (top) d.topCardVotes[top[0]] = (d.topCardVotes[top[0]] ?? 0) + 1;
+}
+
+interface DynamicsReport {
+  key: string;
+  runs: number;
+  winRate: number;
+  avgVictories: number;
+  /** Higher = more varied card mix across the run. */
+  playEntropy: number;
+  /** Share of all plays that are the top 3 cards (higher = more repetitive). */
+  top3Share: number;
+  /** Avg distinct cards played per player turn. */
+  avgUniquePerTurn: number;
+  /** Avg distinct cards played across the whole run. */
+  avgUniquePlayed: number;
+  /** Avg distinct consecutive play-pairs. */
+  avgUniqueCombos: number;
+  /** Combo entropy (higher = more varied sequencing). */
+  comboEntropy: number;
+  /** Share of runs whose #1 played card is the modal #1 (higher = same main card). */
+  mainCardConsensus: number;
+  /** Avg unique non-curse cards in final deck. */
+  avgUniqueDeck: number;
+  topPlays: Array<[string, number]>;
+  topCombos: Array<[string, number]>;
+  /** Composite: high entropy + unique/turn + combos − top3 − consensus. */
+  dynamismScore: number;
+  /** Inverse of dynamism (for ranking repetitive). */
+  repetitionScore: number;
+  /** Rough simplicity: high top3 + consensus + low unique/turn. */
+  simplicityScore: number;
+}
+
+function reportDynamics(key: string, d: DynamicsBucket): DynamicsReport {
+  const playEntropy = shannonEntropy(d.playCounts);
+  const comboEntropy = shannonEntropy(d.comboCounts);
+  const top3Share = topShare(d.playCounts, 3);
+  const avgUniquePerTurn = d.turnsWithPlays ? d.uniquePerTurnSum / d.turnsWithPlays : 0;
+  const avgUniquePlayed = d.runs ? d.uniquePlayedSum / d.runs : 0;
+  const avgUniqueCombos = d.runs ? d.uniqueCombosSum / d.runs : 0;
+  const avgUniqueDeck = d.runs ? d.uniqueDeckSum / d.runs : 0;
+  const winRate = d.runs ? d.wins / d.runs : 0;
+  const avgVictories = d.runs ? d.avgVictoriesSum / d.runs : 0;
+  const topVote = topEntries(d.topCardVotes, 1)[0];
+  const mainCardConsensus = topVote && d.runs ? topVote[1] / d.runs : 0;
+
+  // Normalize-ish composite scores (relative ranking within a batch is what matters).
+  const dynamismScore =
+    playEntropy * 12 +
+    comboEntropy * 6 +
+    avgUniquePerTurn * 18 +
+    avgUniquePlayed * 1.2 +
+    avgUniqueCombos * 0.15 -
+    top3Share * 40 -
+    mainCardConsensus * 25;
+  const repetitionScore =
+    top3Share * 50 + mainCardConsensus * 35 - playEntropy * 8 - avgUniquePerTurn * 12;
+  const simplicityScore =
+    top3Share * 40 +
+    mainCardConsensus * 30 +
+    (3.5 - Math.min(avgUniquePerTurn, 3.5)) * 15 -
+    avgUniqueDeck * 0.8;
+
+  return {
+    key,
+    runs: d.runs,
+    winRate,
+    avgVictories,
+    playEntropy,
+    top3Share,
+    avgUniquePerTurn,
+    avgUniquePlayed,
+    avgUniqueCombos,
+    comboEntropy,
+    mainCardConsensus,
+    avgUniqueDeck,
+    topPlays: topEntries(d.playCounts, 8),
+    topCombos: topEntries(d.comboCounts, 6),
+    dynamismScore,
+    repetitionScore,
+    simplicityScore,
+  };
+}
+
 function pct(n: number, d: number): string {
   if (!d) return '0%';
   return `${((100 * n) / d).toFixed(1)}%`;
@@ -1363,6 +1594,10 @@ async function main(): Promise<void> {
   const randomAggs = new Map<string, Aggregate>();
   /** Combined smart+onspec path stats per spec key (for viability). */
   const pathStatsBySpec = new Map<string, PathStats>();
+  /** Play-feel dynamics: smart+onspec combined per spec. */
+  const dynamicsBySpec = new Map<string, DynamicsBucket>();
+  /** Play-feel dynamics: smart+onspec per spec/path. */
+  const dynamicsByPath = new Map<string, DynamicsBucket>();
   const globalCardPicks: Record<string, number> = {};
   const globalCardSeenInWins: Record<string, number> = {};
   let winRuns = 0;
@@ -1376,6 +1611,15 @@ async function main(): Promise<void> {
   let winDeckN = 0;
   let lossDeckN = 0;
 
+  const trackDynamics = (result: RunResult) => {
+    const specKey = `${result.classId}/${result.spec}`;
+    if (!dynamicsBySpec.has(specKey)) dynamicsBySpec.set(specKey, emptyDynamics());
+    ingestDynamics(dynamicsBySpec.get(specKey)!, result);
+    const pathKey = `${specKey}/${result.path}`;
+    if (!dynamicsByPath.has(pathKey)) dynamicsByPath.set(pathKey, emptyDynamics());
+    ingestDynamics(dynamicsByPath.get(pathKey)!, result);
+  };
+
   for (const { classId, spec } of ALL_CONFIGS) {
     const key = `${classId}/${spec}`;
     const sAgg = emptyAgg();
@@ -1387,6 +1631,7 @@ async function main(): Promise<void> {
       const result = simulateRun(classId, spec, 'smart');
       ingest(sAgg, result);
       ingestPathStats(pathStats, result);
+      trackDynamics(result);
       for (const id of result.cardsPicked) {
         globalCardPicks[id] = (globalCardPicks[id] ?? 0) + 1;
         if (result.won) cardWinPick[id] = (cardWinPick[id] ?? 0) + 1;
@@ -1414,6 +1659,7 @@ async function main(): Promise<void> {
       const result = simulateRun(classId, spec, 'onspec');
       ingest(oAgg, result);
       ingestPathStats(pathStats, result);
+      trackDynamics(result);
     }
 
     for (let i = 0; i < randomRuns; i++) {
@@ -1659,6 +1905,7 @@ async function main(): Promise<void> {
     string,
     Array<{ path: string; item: string; winRate: number; wins: number; runs: number; viable: boolean }>
   > = {};
+  const seededDynamics = new Map<string, DynamicsBucket>();
   const VIABLE_SEED_WR = 0.45;
 
   for (const { classId, spec } of ALL_CONFIGS) {
@@ -1667,9 +1914,12 @@ async function main(): Promise<void> {
     let viableCount = 0;
     for (const seed of PATH_SEEDS[spec]) {
       let wins = 0;
+      const seedKey = `${key}/${seed.path}`;
+      if (!seededDynamics.has(seedKey)) seededDynamics.set(seedKey, emptyDynamics());
       for (let i = 0; i < seedRuns; i++) {
         const r = simulateRun(classId, spec, 'onspec', seed.item);
         if (r.won) wins += 1;
+        ingestDynamics(seededDynamics.get(seedKey)!, r);
       }
       const winRate = wins / seedRuns;
       const viable = winRate >= VIABLE_SEED_WR;
@@ -1688,6 +1938,62 @@ async function main(): Promise<void> {
     }
     console.log(`  → ${key}: ${viableCount} viable seeded paths (need ≥2)\n`);
   }
+
+  // ── Build feel: dynamism / repetition / power / simplicity ──
+  console.log('\n=== BUILD DYNAMICS (smart+onspec play patterns) ===');
+  const specDynamicsReports = [...dynamicsBySpec.entries()]
+    .map(([k, d]) => reportDynamics(k, d))
+    .sort((a, b) => b.dynamismScore - a.dynamismScore);
+
+  for (const r of specDynamicsReports) {
+    console.log(
+      `  ${r.key}: dyn=${r.dynamismScore.toFixed(1)} rep=${r.repetitionScore.toFixed(1)} simp=${r.simplicityScore.toFixed(1)} | ` +
+        `WR=${(100 * r.winRate).toFixed(0)}% H=${r.playEntropy.toFixed(2)} top3=${(100 * r.top3Share).toFixed(0)}% ` +
+        `u/turn=${r.avgUniquePerTurn.toFixed(2)} combos=${r.avgUniqueCombos.toFixed(0)} consensus=${(100 * r.mainCardConsensus).toFixed(0)}%`,
+    );
+    console.log(
+      `    plays: ${r.topPlays
+        .slice(0, 5)
+        .map(([id, n]) => `${id}(${n})`)
+        .join(', ')}`,
+    );
+    console.log(
+      `    combos: ${r.topCombos
+        .slice(0, 4)
+        .map(([id, n]) => `${id}(${n})`)
+        .join(', ')}`,
+    );
+  }
+
+  console.log('\n=== SEEDED PATH DYNAMICS ===');
+  const seededReports = [...seededDynamics.entries()]
+    .map(([k, d]) => reportDynamics(k, d))
+    .filter((r) => r.runs > 0)
+    .sort((a, b) => b.dynamismScore - a.dynamismScore);
+
+  for (const r of seededReports) {
+    console.log(
+      `  ${r.key}: dyn=${r.dynamismScore.toFixed(1)} rep=${r.repetitionScore.toFixed(1)} simp=${r.simplicityScore.toFixed(1)} | ` +
+        `WR=${(100 * r.winRate).toFixed(0)}% H=${r.playEntropy.toFixed(2)} top3=${(100 * r.top3Share).toFixed(0)}% ` +
+        `u/turn=${r.avgUniquePerTurn.toFixed(2)} consensus=${(100 * r.mainCardConsensus).toFixed(0)}%`,
+    );
+  }
+
+  const byDyn = [...seededReports].sort((a, b) => b.dynamismScore - a.dynamismScore);
+  const byRep = [...seededReports].sort((a, b) => b.repetitionScore - a.repetitionScore);
+  const byPower = [...seededReports].sort((a, b) => b.winRate - a.winRate || b.avgVictories - a.avgVictories);
+  const bySimp = [...seededReports].sort((a, b) => b.simplicityScore - a.simplicityScore);
+
+  console.log('\n=== RANKINGS (seeded paths) ===');
+  console.log(`  Most dynamic:    ${byDyn.slice(0, 5).map((r) => `${r.key}(${r.dynamismScore.toFixed(0)})`).join(', ')}`);
+  console.log(`  Most repetitive: ${byRep.slice(0, 5).map((r) => `${r.key}(${r.repetitionScore.toFixed(0)})`).join(', ')}`);
+  console.log(`  Highest power:   ${byPower.slice(0, 5).map((r) => `${r.key}(${(100 * r.winRate).toFixed(0)}%)`).join(', ')}`);
+  console.log(`  Simplest:        ${bySimp.slice(0, 5).map((r) => `${r.key}(${r.simplicityScore.toFixed(0)})`).join(', ')}`);
+
+  const naturalPathReports = [...dynamicsByPath.entries()]
+    .map(([k, d]) => reportDynamics(k, d))
+    .filter((r) => r.runs >= 5)
+    .sort((a, b) => b.dynamismScore - a.dynamismScore);
 
   // Dump JSON summary for further analysis
   const summary = {
@@ -1716,11 +2022,23 @@ async function main(): Promise<void> {
           ]),
           deaths: topEntries(a.deathBuckets, 8),
           onspecDeaths: topEntries(onspecAggs.get(k)?.deathBuckets ?? {}, 8),
+          dynamics: specDynamicsReports.find((r) => r.key === k) ?? null,
         },
       ]),
     ),
     pathBreakdown,
     pathSeedResults,
+    dynamics: {
+      bySpec: specDynamicsReports,
+      byNaturalPath: naturalPathReports,
+      bySeededPath: seededReports,
+      rankings: {
+        mostDynamic: byDyn.slice(0, 8).map((r) => r.key),
+        mostRepetitive: byRep.slice(0, 8).map((r) => r.key),
+        highestPower: byPower.slice(0, 8).map((r) => r.key),
+        simplest: bySimp.slice(0, 8).map((r) => r.key),
+      },
+    },
     overall: {
       smartWin: smartWinTotal / smartN,
       onspecWin: onspecWinTotal / onspecN,
