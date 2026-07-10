@@ -14,6 +14,7 @@ import {
   getCardPlayCost,
   playCardOnEnemy,
   selectCard,
+  type CombatAnnouncement,
   type CombatState,
   type EnemyTurnStep,
 } from '../systems/CombatSystem';
@@ -428,6 +429,7 @@ export class CombatScene extends Phaser.Scene {
       this.selectedHandIndex = null;
     }
     this.refresh();
+    if (result === 'played') this.flushAnnouncements();
     this.handlePhaseChange();
   }
 
@@ -440,8 +442,65 @@ export class CombatScene extends Phaser.Scene {
     if (ok) {
       this.selectedHandIndex = null;
       this.refresh();
+      this.flushAnnouncements();
       this.handlePhaseChange();
     }
+  }
+
+  /** Show pending discard-play / retrieve banners, then clear the queue. */
+  private flushAnnouncements(): void {
+    const combat = GameRegistry.combat!;
+    if (!combat.pendingAnnouncements.length) return;
+    const items = combat.pendingAnnouncements.splice(0);
+    items.forEach((item, i) => {
+      this.time.delayedCall(i * 420, () => this.showAnnouncementBanner(item));
+    });
+  }
+
+  private showAnnouncementBanner(item: CombatAnnouncement): void {
+    const width = GAME_W;
+    const y = 110;
+    const color = item.color ?? '#fde68a';
+    const isPlay = item.kind === 'play';
+
+    const bg = this.add
+      .rectangle(width / 2, y, Math.min(width - 80, 640), isPlay ? 52 : 44, 0x0b1210, 0.82)
+      .setStrokeStyle(2, isPlay ? 0xfbbf24 : 0xfde68a, 0.9)
+      .setDepth(120)
+      .setAlpha(0);
+
+    const label = this.add
+      .text(width / 2, y, item.text, {
+        fontFamily: 'Georgia, serif',
+        fontSize: isPlay ? '22px' : '18px',
+        color,
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: Math.min(width - 120, 600) },
+      })
+      .setOrigin(0.5)
+      .setDepth(121)
+      .setAlpha(0);
+
+    this.tweens.add({
+      targets: [bg, label],
+      alpha: 1,
+      duration: 180,
+      ease: 'Cubic.easeOut',
+    });
+
+    this.tweens.add({
+      targets: [bg, label],
+      y: y - 18,
+      alpha: 0,
+      delay: 1400,
+      duration: 500,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        bg.destroy();
+        label.destroy();
+      },
+    });
   }
 
   private playEnemyTurnSequence(steps: EnemyTurnStep[]): void {
