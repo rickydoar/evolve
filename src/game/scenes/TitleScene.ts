@@ -1,9 +1,7 @@
 import Phaser from 'phaser';
 import { CLASS_ORDER, getClass } from '../data/classes';
-import { createRun } from '../data/run';
 import type { ClassId } from '../data/types';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
-import { GameRegistry } from '../GameRegistry';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -114,7 +112,7 @@ export class TitleScene extends Phaser.Scene {
     const btnColor = classId === 'priest' ? '#f0c75e' : '#4ade80';
     const btnHover = classId === 'priest' ? '#f5d98a' : '#86efac';
     const btn = this.add
-      .text(x + w / 2, y + 370, `▶  Begin as ${cls.name}`, {
+      .text(x + w / 2, y + 370, classId === 'priest' ? 'Choose school →' : 'Choose form →', {
         fontFamily: 'Georgia, serif',
         fontSize: '20px',
         color: '#0b1210',
@@ -127,10 +125,7 @@ export class TitleScene extends Phaser.Scene {
     btn.on('pointerover', () => btn.setStyle({ backgroundColor: btnHover }));
     btn.on('pointerout', () => btn.setStyle({ backgroundColor: btnColor }));
     btn.on('pointerdown', () => {
-      GameRegistry.run = createRun(classId);
-      GameRegistry.combat = null;
-      GameRegistry.pendingNodeId = null;
-      this.scene.start('Map');
+      this.scene.start('Spec', { classId });
     });
   }
 }
