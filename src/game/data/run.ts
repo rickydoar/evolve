@@ -7,12 +7,16 @@ import {
 } from './cards';
 import { getClass } from './classes';
 import {
+  ACT_NAMES,
+  BARRENS_BOSS_ID,
+  BARRENS_ELITE_POOL,
+  BARRENS_ENCOUNTER_TABLE,
   ELITE_ENCOUNTERS,
   ENCOUNTER_TABLE,
   ENEMIES,
   LATE_ELITE_ENCOUNTERS,
 } from './enemies';
-import type { ClassId, MapNode, NodeType, OpeningSpec, RunState } from './types';
+import type { ActId, ClassId, MapNode, NodeType, OpeningSpec, RunState } from './types';
 
 function uid(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
@@ -23,7 +27,7 @@ function pick<T>(arr: T[]): T {
 }
 
 function defaultSpec(classId: ClassId): OpeningSpec {
-  return classId === 'priest' ? 'holy' : 'bear';
+  return classId === 'priest' ? 'holy' : 'feral';
 }
 
 export function createRun(
@@ -32,7 +36,7 @@ export function createRun(
 ): RunState {
   const cls = getClass(classId);
   const spec = openingSpec ?? defaultSpec(classId);
-  const map = generateMap();
+  const map = generateMap(1);
   return {
     classId,
     openingSpec: spec,
@@ -40,6 +44,7 @@ export function createRun(
     maxHp: cls.maxHp,
     gold: cls.startingGold,
     floor: 0,
+    act: 1,
     deck: buildStarterDeck(classId, spec),
     discard: [],
     drawPile: [],
@@ -54,12 +59,28 @@ export function createRun(
     shopRerollCount: 0,
     potions: 0,
     cardsRemoved: 0,
+    items: [],
   };
 }
 
-export function generateMap(): MapNode[] {
+/** Advance from Grove into The Barrens after the Act 1 boss. */
+export function advanceToBarrens(run: RunState): void {
+  run.act = 2;
+  run.map = generateMap(2);
+  run.currentNodeId = null;
+  run.floor = 0;
+  // Soft heal between acts so the climb into Barrens is fair
+  run.hp = Math.min(run.maxHp, Math.max(run.hp, Math.floor(run.maxHp * 0.6)));
+  run.shopRerollCount = 0;
+}
+
+export function actName(act: ActId): string {
+  return ACT_NAMES[act];
+}
+
+export function generateMap(act: ActId = 1): MapNode[] {
   const nodes: MapNode[] = [];
-  // Floors 0–7: original path; 8–9: harder late path; 10: boss
+  // Floors 0–7: path; 8–9: harder late path; 10: boss
   const floors = 11;
   const perFloor = [1, 2, 3, 2, 3, 2, 2, 1, 2, 1, 1];
 
@@ -72,11 +93,15 @@ export function generateMap(): MapNode[] {
         floor,
         index: i,
         type,
-        enemyIds: enemiesFor(type, floor),
+        enemyIds: [],
         connections: [],
         cleared: false,
       });
     }
+  }
+
+  for (const node of nodes) {
+    node.enemyIds = enemiesFor(node.type, node.floor, act);
   }
 
   // Connect each floor to the next using lane proximity (no far cross-jumps).
@@ -164,17 +189,20 @@ function nodeTypeFor(floor: number, index: number, count: number): NodeType {
   return 'combat';
 }
 
-function enemiesFor(type: NodeType, floor: number): string[] {
-  if (type === 'boss') return ['nightmare'];
+function enemiesFor(type: NodeType, floor: number, act: ActId): string[] {
   if (type === 'rest' || type === 'treasure' || type === 'shop') return [];
+  if (type === 'boss') {
+    return act === 2 ? [BARRENS_BOSS_ID] : ['nightmare'];
+  }
   if (type === 'elite') {
+    if (act === 2) return [pick(BARRENS_ELITE_POOL)];
     const pool = floor >= 8 ? LATE_ELITE_ENCOUNTERS : ELITE_ENCOUNTERS;
     return [...pick(pool)];
   }
-  const idx = Math.min(floor, ENCOUNTER_TABLE.length - 1);
-  // Mix nearby encounters
-  const pool = ENCOUNTER_TABLE.slice(Math.max(0, idx - 1), idx + 2);
-  return [...pick(pool.length ? pool : ENCOUNTER_TABLE)];
+  const table = act === 2 ? BARRENS_ENCOUNTER_TABLE : ENCOUNTER_TABLE;
+  const idx = Math.min(floor, table.length - 1);
+  const pool = table.slice(Math.max(0, idx - 1), idx + 2);
+  return [...pick(pool.length ? pool : table)];
 }
 
 export function availableNodes(run: RunState): MapNode[] {
@@ -196,11 +224,16 @@ export function getEnemy(id: string) {
 
 function rewardFloor(run?: RunState | null): number {
   if (!run) return 0;
+  let floor = 0;
   if (run.currentNodeId) {
     const node = run.map.find((n) => n.id === run.currentNodeId);
-    if (node) return node.floor;
+    if (node) floor = node.floor;
+    else floor = Math.max(run.floor, run.victories);
+  } else {
+    floor = Math.max(run.floor, run.victories);
   }
-  return Math.max(run.floor, run.victories);
+  // Act 2 rewards use late-game rarity weights
+  return run.act === 2 ? floor + 10 : floor;
 }
 
 function pickWeightedRarity(

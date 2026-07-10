@@ -488,10 +488,10 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     form: 'tree',
     cost: 1,
     description:
-      'Gain 8 Block. Heal 5. Whenever you gain Block this turn, deal 3 to a random enemy.',
+      'Gain 8 Block. Heal 5. Whenever you gain Block this turn, deal 2 to a random enemy.',
     target: 'self',
     effects: [
-      { kind: 'echo', value: 3, echoFrom: 'block', echoTo: 'attack', duration: 1 },
+      { kind: 'echo', value: 2, echoFrom: 'block', echoTo: 'attack', duration: 1 },
       { kind: 'block', value: 8 },
       { kind: 'heal', value: 5 },
     ],
@@ -573,34 +573,33 @@ export const DRUID_STARTER_CORE: string[] = [
 ];
 
 /**
- * Form packages (5 cards) swapped onto the core at run start.
+ * Spec packages (5 cards) swapped onto the core at run start.
  * Specialization starts at minute one — not after two removes.
+ * Feral mixes Bear tank tools with Cat tempo / finishers.
  */
-export const DRUID_SPEC_PACKAGE: Record<'bear' | 'cat' | 'boomkin' | 'tree', string[]> = {
-  bear: ['swipe', 'maul', 'thrash', 'mangle', 'ironfur'],
-  cat: ['claw', 'shred', 'rip', 'rake', 'ferocious_bite'],
+export const DRUID_SPEC_PACKAGE: Record<'feral' | 'boomkin' | 'tree', string[]> = {
+  feral: ['swipe', 'maul', 'claw', 'shred', 'rip'],
   boomkin: ['wrath', 'starfire', 'starsurge', 'thorns', 'hurricane'],
   tree: ['rejuvenation', 'healing_touch', 'wild_growth', 'lifebloom', 'swiftmend'],
 };
 
 /** Cards removed from the core when a form package is applied (keeps deck lean). */
-export const DRUID_SPEC_TRIM: Record<'bear' | 'cat' | 'boomkin' | 'tree', string[]> = {
-  bear: ['moonfire', 'decurse', 'wrath', 'claw'],
-  cat: ['moonfire', 'decurse', 'wrath', 'healing_touch'],
+export const DRUID_SPEC_TRIM: Record<'feral' | 'boomkin' | 'tree', string[]> = {
+  feral: ['moonfire', 'decurse', 'wrath', 'healing_touch'],
   boomkin: ['decurse', 'claw', 'barkskin', 'healing_touch'],
   tree: ['moonfire', 'claw', 'wrath', 'barkskin'],
 };
 
 export function buildDruidStarter(spec: OpeningSpec): string[] {
-  const form: 'bear' | 'cat' | 'boomkin' | 'tree' =
-    spec === 'cat' || spec === 'boomkin' || spec === 'tree' ? spec : 'bear';
+  const form: 'feral' | 'boomkin' | 'tree' =
+    spec === 'boomkin' || spec === 'tree' ? spec : 'feral';
   const trim = new Set(DRUID_SPEC_TRIM[form]);
   const core = DRUID_STARTER_CORE.filter((id) => !trim.has(id));
   return [...core, ...DRUID_SPEC_PACKAGE[form]];
 }
 
-/** Fallback / legacy flat starter (Bear-leaning). Prefer buildDruidStarter. */
-export const STARTER_DECK: string[] = buildDruidStarter('bear');
+/** Fallback / legacy flat starter (Feral). Prefer buildDruidStarter. */
+export const STARTER_DECK: string[] = buildDruidStarter('feral');
 
 export const REWARD_POOL: string[] = [
   'barkskin',
@@ -663,6 +662,7 @@ export const REWARD_POOLS: Record<ClassId, string[]> = {
 };
 
 export const FORM_COLORS: Record<string, number> = {
+  feral: 0xc9a227,
   bear: 0x8b5a2b,
   cat: 0xc9a227,
   boomkin: 0x5b7cfa,
@@ -673,6 +673,7 @@ export const FORM_COLORS: Record<string, number> = {
 };
 
 export const FORM_LABELS: Record<string, string> = {
+  feral: 'Feral',
   bear: 'Bear',
   cat: 'Cat',
   boomkin: 'Boomkin',
@@ -683,8 +684,7 @@ export const FORM_LABELS: Record<string, string> = {
 };
 
 export const SPEC_BLURBS: Record<OpeningSpec, string> = {
-  bear: 'Tank & control — Swipe Weak, Ironfur discard, Barkskin echo',
-  cat: 'Claws & risk — typed draws, recoil bites, discard cycles',
+  feral: 'Claws & hide — Swipe Weak, Maul discard, shred cycles, Rip',
   boomkin: 'Spells & Thorns — random Wrath, double SP, reflect',
   tree: 'Grove engine — heal echoes, discard heals, discard plays',
   holy: 'Heals with teeth — typed draws, discard hymns, echoes',

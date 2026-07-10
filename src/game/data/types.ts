@@ -269,8 +269,18 @@ export interface MapNode {
   cleared: boolean;
 }
 
-/** Opening form (Druid) or school (Priest) chosen at run start. */
-export type OpeningSpec = Form;
+/**
+ * Opening specialization chosen at run start.
+ * Druid: Feral combines Cat + Bear card forms; Boomkin / Tree match card forms.
+ * Priest: schools match card forms.
+ */
+export type OpeningSpec =
+  | 'feral'
+  | 'boomkin'
+  | 'tree'
+  | 'holy'
+  | 'shadow'
+  | 'discipline';
 
 export interface ClassDef {
   id: ClassId;
@@ -287,6 +297,9 @@ export interface ClassDef {
   openingSpecs: OpeningSpec[];
 }
 
+/** Act / zone within a run. 1 = Grove, 2 = Barrens. */
+export type ActId = 1 | 2;
+
 export interface RunState {
   classId: ClassId;
   /** Form/school chosen at run start; shapes the starter deck. */
@@ -295,6 +308,8 @@ export interface RunState {
   maxHp: number;
   gold: number;
   floor: number;
+  /** Current act/zone (Grove → Barrens). */
+  act: ActId;
   deck: string[];
   discard: string[];
   drawPile: string[];
@@ -314,4 +329,6 @@ export interface RunState {
   potions: number;
   /** Cards removed at shops this run (drives escalating remove cost). */
   cardsRemoved: number;
+  /** Passive item ids collected this run (elite rewards). */
+  items: string[];
 }

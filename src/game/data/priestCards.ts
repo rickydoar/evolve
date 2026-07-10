@@ -98,10 +98,10 @@ export const PRIEST_CARDS: Record<string, CardDef> = {
     name: 'Atonement',
     form: 'discipline',
     cost: 1,
-    description: 'Deal 8 damage. Whenever you deal damage this turn, also Heal 3.',
+    description: 'Deal 8 damage. Whenever you deal damage this turn, also Heal 2.',
     target: 'enemy',
     effects: [
-      { kind: 'echo', value: 3, echoFrom: 'attack', echoTo: 'heal', duration: 1 },
+      { kind: 'echo', value: 2, echoFrom: 'attack', echoTo: 'heal', duration: 1 },
       { kind: 'damage', value: 8 },
     ],
     art: 'card-smite',

@@ -140,11 +140,19 @@ export class CombatScene extends Phaser.Scene {
   }
 
   private drawBg(width: number, height: number): void {
-    if (this.textures.exists('bg-forest')) {
+    const run = GameRegistry.run;
+    const bgKey = run?.act === 2 ? 'bg-barrens' : 'bg-forest';
+    if (this.textures.exists(bgKey)) {
+      this.add.image(width / 2, height / 2, bgKey).setDisplaySize(width, height).setAlpha(0.5);
+    } else if (this.textures.exists('bg-forest')) {
       this.add.image(width / 2, height / 2, 'bg-forest').setDisplaySize(width, height).setAlpha(0.5);
     } else {
       const g = this.add.graphics();
-      g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a3328, 0x102018, 1);
+      if (run?.act === 2) {
+        g.fillGradientStyle(0x1a1208, 0x1a1208, 0x3d2a14, 0x2a1c0c, 1);
+      } else {
+        g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a3328, 0x102018, 1);
+      }
       g.fillRect(0, 0, width, height);
     }
   }
@@ -770,7 +778,13 @@ export class CombatScene extends Phaser.Scene {
         const node = run.map.find((n) => n.id === GameRegistry.pendingNodeId);
         if (node) node.cleared = true;
         if (node?.type === 'boss') {
-          this.scene.start('GameOver', { victory: true });
+          if (run.act === 1) {
+            this.scene.start('ActTransition');
+          } else {
+            this.scene.start('GameOver', { victory: true });
+          }
+        } else if (node?.type === 'elite') {
+          this.scene.start('ItemReward');
         } else {
           this.scene.start('Reward');
         }
