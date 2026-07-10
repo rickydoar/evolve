@@ -490,13 +490,13 @@ export const SHAMAN_STARTER_CORE: string[] = [
 ];
 
 export const SHAMAN_SPEC_PACKAGE: Record<'resto' | 'enhance' | 'elemental', string[]> = {
-  resto: ['healing_wave', 'riptide', 'chain_heal', 'healing_surge', 'healing_stream_totem'],
+  resto: ['lightning_bolt', 'lightning_bolt', 'chain_heal', 'healing_surge', 'healing_stream_totem'],
   enhance: ['stormstrike', 'lava_lash', 'windfury', 'frost_shock', 'strength_of_earth_totem'],
   elemental: ['lightning_bolt', 'flame_shock', 'lava_burst', 'chain_lightning', 'searing_totem'],
 };
 
 export const SHAMAN_SPEC_TRIM: Record<'resto' | 'enhance' | 'elemental', string[]> = {
-  resto: ['stormstrike', 'flame_shock', 'lightning_bolt', 'earth_shock'],
+  resto: ['stormstrike', 'flame_shock', 'earth_shock', 'purge'],
   enhance: ['healing_wave', 'riptide', 'flame_shock', 'purge'],
   elemental: ['stormstrike', 'healing_wave', 'riptide', 'purge'],
 };
