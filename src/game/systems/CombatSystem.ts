@@ -338,6 +338,36 @@ function applyCardEffects(
   card: CardDef,
   target?: Combatant,
 ): void {
+  // Penance: damage and heal scale with half current Block (armor).
+  if (card.id === 'penance') {
+    const halfBlock = Math.floor(state.player.block / 2);
+    const dmgEffect = card.effects.find((e) => e.kind === 'damage');
+    const healEffect = card.effects.find((e) => e.kind === 'heal');
+    if (dmgEffect && target) {
+      const base = modifyEffectValue(
+        { ...dmgEffect, value: halfBlock },
+        card,
+        state.talents,
+      );
+      const dmg = computeCardDamage(card, base, state, target);
+      const dealt = applyDamage(target, dmg, state, 'player');
+      state.log.push({
+        text: `${card.name}: ${dealt} damage to ${target.name}.`,
+        color: '#ffb347',
+      });
+    }
+    if (healEffect) {
+      const healAmt = modifyEffectValue(
+        { ...healEffect, value: halfBlock },
+        card,
+        state.talents,
+      );
+      const healed = heal(state.player, healAmt);
+      state.log.push({ text: `Healed ${healed} HP.`, color: '#86efac' });
+    }
+    return;
+  }
+
   for (const effect of card.effects) {
     const value = modifyEffectValue(effect, card, state.talents);
     switch (effect.kind) {
