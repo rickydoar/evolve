@@ -1355,9 +1355,17 @@ function effectDescription(effect: CardEffect, card: CardDef, talents: Record<st
     }
     case 'retrieveDiscard': {
       const mode = effect.retrieveMode ?? 'hand';
-      if (mode === 'play') return 'Play a random card from your discard.';
-      if (mode === 'top') return 'Put a random discard card on top of your draw pile.';
-      return 'Add a random card from your discard to your hand.';
+      const typeLabel =
+        effect.cardType === 'attack'
+          ? 'Attack '
+          : effect.cardType === 'heal'
+            ? 'Heal '
+            : effect.cardType === 'block'
+              ? 'Armor '
+              : '';
+      if (mode === 'play') return `Play a random ${typeLabel}card from your discard.`;
+      if (mode === 'top') return `Put a random ${typeLabel}discard card on top of your draw pile.`;
+      return `Add a random ${typeLabel}card from your discard to your hand.`;
     }
     case 'thorns':
       return `Gain Thorns ${value} for ${effect.duration ?? 3} turns.`;

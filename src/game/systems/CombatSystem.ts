@@ -48,6 +48,14 @@ export interface CombatLogEntry {
   color?: string;
 }
 
+/** Short-lived UI callouts for notable card effects (consumed by CombatScene). */
+export interface CombatAnnouncement {
+  text: string;
+  color?: string;
+  /** 'play' = bonus card resolved from discard; 'retrieve' = returned to hand/draw. */
+  kind?: 'play' | 'retrieve';
+}
+
 export interface CombatState {
   player: Combatant;
   enemies: Combatant[];
@@ -60,6 +68,8 @@ export interface CombatState {
   phase: CombatPhase;
   turn: number;
   log: CombatLogEntry[];
+  /** UI banners for discard plays / retrieves; cleared after CombatScene shows them. */
+  pendingAnnouncements: CombatAnnouncement[];
   selectedCardId: string | null;
   awaitingTarget: boolean;
   spellPowerBonus: number;
@@ -165,6 +175,7 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
     phase: 'player',
     turn: 1,
     log: [{ text: 'Combat begins. The grove stirs...', color: '#a8e6cf' }],
+    pendingAnnouncements: [],
     selectedCardId: null,
     awaitingTarget: false,
     spellPowerBonus: run.spellPowerBonus + talentSp,
@@ -563,15 +574,29 @@ function pickFromDiscard(
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
 
+function announce(
+  state: CombatState,
+  text: string,
+  color: string,
+  kind?: CombatAnnouncement['kind'],
+): void {
+  state.log.push({ text, color });
+  state.pendingAnnouncements.push({ text, color, kind });
+}
+
 function retrieveFromDiscard(
   state: CombatState,
   mode: 'hand' | 'play' | 'top',
   preferType?: CardTypeTag,
   sourceCard?: CardDef,
 ): void {
+  const source = sourceCard?.name;
   const pick = pickFromDiscard(state, preferType);
   if (!pick) {
-    state.log.push({ text: 'No cards in discard to retrieve.', color: '#9aa5b1' });
+    const emptyText = source
+      ? `${source}: no cards in discard to retrieve.`
+      : 'No cards in discard to retrieve.';
+    announce(state, emptyText, '#9aa5b1', 'retrieve');
     return;
   }
   const [id] = state.discardPile.splice(pick.index, 1);
@@ -580,32 +605,32 @@ function retrieveFromDiscard(
   if (mode === 'hand') {
     if (state.hand.length >= 10) {
       state.drawPile.push(id);
-      state.log.push({
-        text: `Hand full — ${card.name} goes on top of your draw pile.`,
-        color: '#e2e8f0',
-      });
+      const text = source
+        ? `${source}: hand full — ${card.name} goes on top of your draw pile.`
+        : `Hand full — ${card.name} goes on top of your draw pile.`;
+      announce(state, text, '#e2e8f0', 'retrieve');
     } else {
       state.hand.push(id);
-      state.log.push({
-        text: `Added ${card.name} from discard to your hand.`,
-        color: '#e2e8f0',
-      });
+      const text = source
+        ? `${source} returns ${card.name} from discard to your hand!`
+        : `Added ${card.name} from discard to your hand.`;
+      announce(state, text, '#fde68a', 'retrieve');
     }
     return;
   }
   if (mode === 'top') {
     state.drawPile.push(id);
-    state.log.push({
-      text: `Put ${card.name} on top of your draw pile.`,
-      color: '#e2e8f0',
-    });
+    const text = source
+      ? `${source} puts ${card.name} on top of your draw pile!`
+      : `Put ${card.name} on top of your draw pile.`;
+    announce(state, text, '#fde68a', 'retrieve');
     return;
   }
   // play immediately
-  state.log.push({
-    text: `Playing ${card.name} from discard!`,
-    color: '#fde68a',
-  });
+  const playText = source
+    ? `${source} plays ${card.name} from discard!`
+    : `Playing ${card.name} from discard!`;
+  announce(state, playText, '#fbbf24', 'play');
   let target: Combatant | undefined;
   if (card.target === 'enemy') {
     const living = state.enemies.filter((e) => e.hp > 0);
@@ -618,9 +643,15 @@ function retrieveFromDiscard(
     } finally {
       effectDepth -= 1;
     }
+  } else {
+    announce(
+      state,
+      `${card.name} fizzles — too many chained plays.`,
+      '#9aa5b1',
+      'play',
+    );
   }
   state.discardPile.push(id);
-  void sourceCard;
 }
 
 function anyEnemyBleeding(state: CombatState): boolean {
