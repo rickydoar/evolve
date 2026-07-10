@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   allocateTalent,
   canAllocateTalent,
+  formatTalentDescription,
   getTalentNodeState,
   getTalentRank,
   POINTS_PER_TIER,
@@ -394,11 +395,11 @@ export class TalentScene extends Phaser.Scene {
     const hex = `#${color.toString(16).padStart(6, '0')}`;
 
     const tipW = 240;
-    let body = talent.description;
+    let body = formatTalentDescription(talent, rank);
     if (state === 'locked') {
       body += `\n\n${talentUnlockHint(run.talents, talent)}`;
     } else if (rank > 0 && rank < talent.maxRanks) {
-      body += `\n\nNext rank: same bonus again`;
+      body += `\n\nNext rank: ${formatTalentDescription(talent, rank + 1)}`;
     }
 
     const container = this.add.container(0, 0);

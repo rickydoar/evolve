@@ -174,7 +174,7 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     id: 'tigers_fury',
     name: "Tiger's Fury",
     form: 'cat',
-    cost: 1,
+    cost: 0,
     description: 'Gain 4 Strength this combat.',
     target: 'self',
     effects: [{ kind: 'strength', value: 4 }],

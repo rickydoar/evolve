@@ -458,6 +458,34 @@ export function getTalentRank(talents: Record<string, number>, id: string): numb
   return talents[id] ?? 0;
 }
 
+/**
+ * Talent tooltip text with flat/percent bonuses scaled by current ranks.
+ * Rank 0 shows the per-rank values; rank N shows the additive total (e.g. +4 × 3 = +12).
+ */
+export function formatTalentDescription(talent: TalentDef, ranks: number): string {
+  const scale = ranks > 0 ? ranks : 1;
+  if (scale === 1) return talent.description;
+
+  const mod = talent.modifiers;
+  const pairs: Array<[number, number]> = [];
+  if (mod.damageBonus) pairs.push([mod.damageBonus, mod.damageBonus * scale]);
+  if (mod.healBonus) pairs.push([mod.healBonus, mod.healBonus * scale]);
+  if (mod.blockBonus) pairs.push([mod.blockBonus, mod.blockBonus * scale]);
+  if (mod.spellPowerBonus) pairs.push([mod.spellPowerBonus, mod.spellPowerBonus * scale]);
+  if (mod.damagePct) pairs.push([mod.damagePct, mod.damagePct * scale]);
+  if (mod.healPct) pairs.push([mod.healPct, mod.healPct * scale]);
+
+  // Larger bases first so e.g. +25 is not partially matched by +2.
+  pairs.sort((a, b) => b[0] - a[0]);
+
+  let desc = talent.description;
+  for (const [base, total] of pairs) {
+    desc = desc.replace(new RegExp(`\\+${base}\\b`, 'g'), `+${total}`);
+    desc = desc.replace(new RegExp(`(?<!\\d)${base}%`, 'g'), `${total}%`);
+  }
+  return desc;
+}
+
 export function totalTalentRanks(talents: Record<string, number>): number {
   return Object.values(talents).reduce((sum, n) => sum + n, 0);
 }
