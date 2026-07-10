@@ -14,6 +14,11 @@ import {
   shopRerollCost,
 } from '../src/game/data/cards.ts';
 import {
+  ITEMS,
+  applyItemPickup,
+  randomItemOffers,
+} from '../src/game/data/items.ts';
+import {
   advanceToBarrens,
   availableNodes,
   createRun,
@@ -60,7 +65,10 @@ interface RunResult {
   curses: number;
   cardsPicked: string[];
   cardsRemoved: string[];
+  itemsPicked: string[];
   finalDeck: string[];
+  finalItems: string[];
+  path: string;
   talents: Record<string, number>;
   turnsFought: number;
 }
@@ -530,6 +538,137 @@ function pickReward(run: RunState, offers: string[], policy: Policy, spec: Openi
   return best;
 }
 
+/** High-value engine items preferred by smart/onspec AI. */
+const ENGINE_ITEMS = new Set([
+  'ironpelt_totem',
+  'verdant_lash',
+  'shield_spike',
+  'void_leech',
+  'celestial_orb',
+  'bloodfang_charm',
+  'radiant_censer',
+  'death_wish',
+  'frenzy_claw',
+  'thornwoven_cloak',
+  'barkbreaker_seed',
+  'swiftroot_charm',
+  'pain_amplifier',
+  'borrowed_timepiece',
+  'astral_battery',
+]);
+
+const HIGH_GENERAL_ITEMS = new Set([
+  'restless_mind',
+  'war_paint',
+  'crow_feather',
+  'focus_band',
+  'adrenaline_vial',
+]);
+
+const LOW_GENERAL_ITEMS = new Set(['lucky_coin', 'scavenger_pouch']);
+
+/** Cards that synergize with a given item. */
+const ITEM_SYNERGY_CARDS: Record<string, string[]> = {
+  bloodfang_charm: ['rake', 'rip', 'ferocious_bite', 'thrash', 'swipe'],
+  ironpelt_totem: ['ironfur', 'barkskin', 'maul', 'thrash', 'thick_hide'],
+  thick_hide_wraps: ['ironfur', 'barkskin', 'maul', 'thrash', 'swipe'],
+  frenzy_claw: ['shred', 'claw', 'tigers_fury', 'predatory_strike'],
+  alpha_mark: ['mangle', 'rake', 'claw', 'shred', 'ferocious_bite'],
+  celestial_orb: ['moonfire', 'starsurge', 'starfire', 'sunfire', 'celestial_alignment'],
+  thornwoven_cloak: ['thorns', 'barkskin'],
+  twin_star: ['wrath', 'starfire', 'starsurge'],
+  hurricane_eye: ['hurricane', 'starfall', 'sunfire'],
+  astral_battery: ['starfire', 'starsurge', 'hurricane', 'starfall', 'incarnation'],
+  verdant_lash: ['lifebloom', 'renew', 'swiftmend', 'tranquility', 'wild_growth', 'rejuvenation'],
+  lifebloom_crown: ['lifebloom', 'rejuvenation', 'wild_growth', 'regrowth'],
+  grove_battery: ['lifebloom', 'swiftmend', 'wild_growth', 'nourish', 'tranquility'],
+  barkbreaker_seed: ['barkskin', 'ironbark', 'wild_growth'],
+  swiftroot_charm: ['lifebloom', 'swiftmend', 'wild_growth', 'nourish', 'tranquility'],
+  radiant_censer: ['flash_heal', 'renew', 'prayer_of_healing', 'holy_word_serenity', 'guardian_spirit', 'divine_hymn'],
+  serenity_bell: ['holy_word_serenity', 'divine_hymn', 'prayer_of_healing', 'guardian_spirit'],
+  sacred_flame: ['holy_fire', 'holy_nova'],
+  martyr_rosary: ['flash_heal', 'renew', 'prayer_of_healing', 'divine_hymn'],
+  hymn_book: ['flash_heal', 'renew', 'holy_word_serenity', 'divine_hymn', 'holy_fire'],
+  void_leech: ['shadow_word_pain', 'vampiric_touch', 'mind_flay', 'devouring_plague'],
+  pain_amplifier: ['shadow_word_pain', 'vampiric_touch', 'devouring_plague'],
+  scream_mask: ['psychic_scream', 'shadow_word_pain'],
+  shadow_absorb: ['shadow_word_death', 'void_eruption', 'shadowfiend'],
+  death_wish: ['shadow_word_death', 'void_eruption', 'mind_blast'],
+  shield_spike: ['power_word_shield', 'power_word_radiance', 'pain_suppression'],
+  penitent_brand: ['penance', 'smite', 'atonement'],
+  borrowed_timepiece: ['power_word_shield', 'power_word_radiance', 'pain_suppression'],
+  smite_echo: ['smite', 'penance', 'atonement', 'holy_fire'],
+  radiance_loop: ['power_word_shield', 'power_word_radiance', 'pain_suppression'],
+};
+
+function scoreItemOffer(run: RunState, itemId: string, spec: OpeningSpec, policy: Policy): number {
+  const def = ITEMS[itemId];
+  if (!def) return -999;
+  let score = 5;
+
+  const isSpec = def.spec === spec;
+  if (isSpec) score += policy === 'onspec' ? 28 : 18;
+  else if (def.spec !== null) score -= 40; // wrong-spec (shouldn't appear)
+
+  if (ENGINE_ITEMS.has(itemId)) score += 30;
+  if (HIGH_GENERAL_ITEMS.has(itemId)) score += 22;
+  if (LOW_GENERAL_ITEMS.has(itemId)) {
+    score += run.gold < 40 ? 8 : -8;
+  }
+
+  score += { common: 2, rare: 10, epic: 16 }[def.rarity];
+
+  const synergy = ITEM_SYNERGY_CARDS[itemId] ?? [];
+  let synergyHits = 0;
+  for (const cid of synergy) {
+    synergyHits += countInDeck(run.deck, cid);
+  }
+  score += Math.min(24, synergyHits * 6);
+
+  // Prefer unowned engines that match cards already in deck
+  if (isSpec && synergyHits >= 2) score += 12;
+
+  // Mild preference for combat engines over pure pickup gold when healthy on gold
+  if (def.effects.every((e) => e.trigger === 'onPickup' && e.kind === 'gold')) {
+    score += run.gold < 50 ? 6 : -10;
+  }
+  if (def.effects.every((e) => e.trigger === 'onPickup' && e.kind === 'potion')) {
+    score += run.potions === 0 ? 10 : -4;
+  }
+
+  return score;
+}
+
+function pickItem(run: RunState, offers: string[], policy: Policy, spec: OpeningSpec): string | null {
+  if (!offers.length) return null;
+  if (policy === 'random') {
+    return offers[Math.floor(Math.random() * offers.length)] ?? null;
+  }
+  let best: string | null = null;
+  let bestScore = -Infinity;
+  for (const id of offers) {
+    const s = scoreItemOffer(run, id, spec, policy);
+    if (s > bestScore) {
+      bestScore = s;
+      best = id;
+    }
+  }
+  return best;
+}
+
+function offerEliteItem(
+  run: RunState,
+  policy: Policy,
+  spec: OpeningSpec,
+  itemsPicked: string[],
+): void {
+  const offers = randomItemOffers(spec, run.items, 3);
+  const chosen = pickItem(run, offers, policy, spec);
+  if (!chosen) return;
+  applyItemPickup(run, chosen);
+  itemsPicked.push(chosen);
+}
+
 function applyRewardSkip(run: RunState, policy: Policy): void {
   if (policy === 'random') {
     const r = Math.random();
@@ -714,6 +853,238 @@ function deathLabel(run: RunState, node: MapNode | null): string {
   return `act${run.act}-f${node.floor}-${node.type}`;
 }
 
+function deckHas(deck: string[], id: string, min = 1): boolean {
+  return countInDeck(deck, id) >= min;
+}
+
+function deckCountAny(deck: string[], ids: string[]): number {
+  return ids.reduce((n, id) => n + countInDeck(deck, id), 0);
+}
+
+function hasItem(items: string[], id: string): boolean {
+  return items.includes(id);
+}
+
+/**
+ * Detect the primary victory path from items + key cards in the final deck.
+ * Returns the strongest matching path id for the specialization.
+ */
+function detectPath(spec: OpeningSpec, items: string[], deck: string[]): string {
+  type Scored = { path: string; score: number };
+  const scores: Scored[] = [];
+
+  const push = (path: string, score: number) => {
+    if (score > 0) scores.push({ path, score });
+  };
+
+  if (spec === 'feral') {
+    const bleedCards = deckCountAny(deck, ['rake', 'rip', 'ferocious_bite']);
+    push(
+      'bleed',
+      (hasItem(items, 'bloodfang_charm') ? 40 : 0) +
+        (bleedCards >= 3 ? 25 : bleedCards >= 2 ? 12 : 0) +
+        (deckHas(deck, 'rake') && deckHas(deck, 'ferocious_bite') ? 10 : 0),
+    );
+    const bearCards = deckCountAny(deck, ['ironfur', 'barkskin', 'maul', 'thrash']);
+    push(
+      'bear_wall',
+      (hasItem(items, 'ironpelt_totem') ? 40 : 0) +
+        (hasItem(items, 'thick_hide_wraps') ? 30 : 0) +
+        (deckHas(deck, 'ironfur') && deckHas(deck, 'barkskin') ? 20 : 0) +
+        (bearCards >= 3 ? 10 : 0),
+    );
+    const zeroCostish = deckCountAny(deck, ['shred', 'claw', 'tigers_fury']);
+    push(
+      'tempo',
+      (hasItem(items, 'frenzy_claw') ? 40 : 0) +
+        (deckCountAny(deck, ['shred']) >= 2 ? 20 : deckHas(deck, 'shred') ? 10 : 0) +
+        (zeroCostish >= 3 ? 12 : 0),
+    );
+    if (!scores.length) return 'hybrid';
+    scores.sort((a, b) => b.score - a.score);
+    const top = scores[0]!;
+    const second = scores[1];
+    // Mixed engines → hybrid
+    if (second && top.score - second.score < 12 && top.score >= 20 && second.score >= 20) {
+      return 'hybrid';
+    }
+    return top.score >= 12 ? top.path : 'hybrid';
+  }
+
+  if (spec === 'boomkin') {
+    push(
+      'celestial',
+      (hasItem(items, 'celestial_orb') ? 40 : 0) +
+        (deckHas(deck, 'celestial_alignment') ? 25 : 0) +
+        (deckCountAny(deck, ['moonfire', 'starsurge', 'starfire']) >= 3 ? 12 : 0),
+    );
+    push(
+      'thorns',
+      (hasItem(items, 'thornwoven_cloak') ? 35 : 0) +
+        (deckHas(deck, 'thorns') ? 30 : 0) +
+        (hasItem(items, 'thornwoven_cloak') && deckHas(deck, 'thorns') ? 15 : 0),
+    );
+    push(
+      'aoe',
+      (hasItem(items, 'hurricane_eye') ? 40 : 0) +
+        (deckCountAny(deck, ['hurricane', 'starfall']) >= 2 ? 25 : 0) +
+        (deckHas(deck, 'hurricane') || deckHas(deck, 'starfall') ? 12 : 0),
+    );
+    push(
+      'twin_star',
+      (hasItem(items, 'twin_star') ? 45 : 0) +
+        (deckCountAny(deck, ['wrath', 'starfire', 'starsurge']) >= 2 ? 10 : 0),
+    );
+  }
+
+  if (spec === 'tree') {
+    push('verdant', hasItem(items, 'verdant_lash') ? 50 : 0);
+    push(
+      'fortress',
+      (hasItem(items, 'lifebloom_crown') ? 35 : 0) +
+        (deckCountAny(deck, ['barkskin', 'ironbark', 'lifebloom', 'tranquility']) >= 3 ? 20 : 0) +
+        (deckHas(deck, 'barkskin') ? 10 : 0),
+    );
+    push('barkbreaker', hasItem(items, 'barkbreaker_seed') ? 50 : 0);
+    push(
+      'swiftroot',
+      (hasItem(items, 'swiftroot_charm') ? 45 : 0) +
+        (hasItem(items, 'grove_battery') ? 15 : 0),
+    );
+  }
+
+  if (spec === 'holy') {
+    push('radiant', hasItem(items, 'radiant_censer') ? 50 : 0);
+    push(
+      'flame',
+      (hasItem(items, 'sacred_flame') ? 40 : 0) +
+        (deckCountAny(deck, ['holy_fire', 'holy_nova']) >= 2 ? 15 : 0),
+    );
+    push(
+      'serenity',
+      (hasItem(items, 'serenity_bell') ? 40 : 0) +
+        (deckHas(deck, 'holy_word_serenity') ? 15 : 0),
+    );
+    push(
+      'hymn',
+      (hasItem(items, 'hymn_book') ? 40 : 0) +
+        (hasItem(items, 'martyr_rosary') ? 30 : 0) +
+        (deckHas(deck, 'divine_hymn') ? 12 : 0),
+    );
+  }
+
+  if (spec === 'shadow') {
+    push('leech', hasItem(items, 'void_leech') ? 50 : 0);
+    push(
+      'pain',
+      (hasItem(items, 'pain_amplifier') ? 40 : 0) +
+        (deckCountAny(deck, ['shadow_word_pain', 'vampiric_touch']) >= 2 ? 15 : 0),
+    );
+    push(
+      'recoil',
+      (hasItem(items, 'death_wish') ? 35 : 0) +
+        (hasItem(items, 'shadow_absorb') ? 35 : 0) +
+        (deckHas(deck, 'shadow_word_death') ? 10 : 0),
+    );
+    push(
+      'scream',
+      (hasItem(items, 'scream_mask') ? 40 : 0) +
+        (deckHas(deck, 'psychic_scream') ? 15 : 0),
+    );
+  }
+
+  if (spec === 'discipline') {
+    push('spike', hasItem(items, 'shield_spike') ? 50 : 0);
+    push(
+      'smite_echo',
+      (hasItem(items, 'smite_echo') ? 40 : 0) +
+        (deckCountAny(deck, ['smite', 'penance']) >= 2 ? 12 : 0),
+    );
+    push(
+      'penance',
+      (hasItem(items, 'penitent_brand') ? 40 : 0) +
+        (deckHas(deck, 'penance', 2) ? 15 : deckHas(deck, 'penance') ? 8 : 0),
+    );
+    push(
+      'radiance',
+      (hasItem(items, 'radiance_loop') ? 35 : 0) +
+        (hasItem(items, 'borrowed_timepiece') ? 35 : 0) +
+        (deckCountAny(deck, ['power_word_shield', 'power_word_radiance']) >= 2 ? 10 : 0),
+    );
+  }
+
+  if (!scores.length) return 'other';
+  scores.sort((a, b) => b.score - a.score);
+  return scores[0]!.score >= 12 ? scores[0]!.path : 'other';
+}
+
+/** Whether a run "attempted" a path (owned key item or enough key cards). */
+function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: string[]): boolean {
+  switch (spec) {
+    case 'feral':
+      if (path === 'bleed')
+        return hasItem(items, 'bloodfang_charm') || deckCountAny(deck, ['rake', 'rip', 'ferocious_bite']) >= 2;
+      if (path === 'bear_wall')
+        return (
+          hasItem(items, 'ironpelt_totem') ||
+          hasItem(items, 'thick_hide_wraps') ||
+          (deckHas(deck, 'ironfur') && deckHas(deck, 'barkskin'))
+        );
+      if (path === 'tempo')
+        return hasItem(items, 'frenzy_claw') || deckCountAny(deck, ['shred']) >= 2;
+      if (path === 'hybrid') return true;
+      break;
+    case 'boomkin':
+      if (path === 'celestial')
+        return hasItem(items, 'celestial_orb') || deckHas(deck, 'celestial_alignment');
+      if (path === 'thorns')
+        return hasItem(items, 'thornwoven_cloak') || deckHas(deck, 'thorns');
+      if (path === 'aoe')
+        return hasItem(items, 'hurricane_eye') || deckHas(deck, 'hurricane') || deckHas(deck, 'starfall');
+      if (path === 'twin_star') return hasItem(items, 'twin_star');
+      break;
+    case 'tree':
+      if (path === 'verdant') return hasItem(items, 'verdant_lash');
+      if (path === 'fortress')
+        return hasItem(items, 'lifebloom_crown') || deckCountAny(deck, ['barkskin', 'lifebloom']) >= 2;
+      if (path === 'barkbreaker') return hasItem(items, 'barkbreaker_seed');
+      if (path === 'swiftroot') return hasItem(items, 'swiftroot_charm');
+      break;
+    case 'holy':
+      if (path === 'radiant') return hasItem(items, 'radiant_censer');
+      if (path === 'flame')
+        return hasItem(items, 'sacred_flame') || deckCountAny(deck, ['holy_fire', 'holy_nova']) >= 1;
+      if (path === 'serenity') return hasItem(items, 'serenity_bell');
+      if (path === 'hymn')
+        return hasItem(items, 'hymn_book') || hasItem(items, 'martyr_rosary');
+      break;
+    case 'shadow':
+      if (path === 'leech') return hasItem(items, 'void_leech');
+      if (path === 'pain') return hasItem(items, 'pain_amplifier');
+      if (path === 'recoil')
+        return hasItem(items, 'death_wish') || hasItem(items, 'shadow_absorb');
+      if (path === 'scream') return hasItem(items, 'scream_mask');
+      break;
+    case 'discipline':
+      if (path === 'spike') return hasItem(items, 'shield_spike');
+      if (path === 'smite_echo') return hasItem(items, 'smite_echo');
+      if (path === 'penance') return hasItem(items, 'penitent_brand') || deckHas(deck, 'penance');
+      if (path === 'radiance')
+        return hasItem(items, 'radiance_loop') || hasItem(items, 'borrowed_timepiece');
+      break;
+  }
+  return false;
+}
+
+const SPEC_PATHS: Record<OpeningSpec, string[]> = {
+  feral: ['bleed', 'bear_wall', 'tempo', 'hybrid'],
+  boomkin: ['celestial', 'thorns', 'aoe', 'twin_star'],
+  tree: ['verdant', 'fortress', 'barkbreaker', 'swiftroot'],
+  holy: ['radiant', 'flame', 'serenity', 'hymn'],
+  shadow: ['leech', 'pain', 'recoil', 'scream'],
+  discipline: ['spike', 'smite_echo', 'penance', 'radiance'],
+};
+
 function makeResult(
   run: RunState,
   classId: ClassId,
@@ -724,8 +1095,10 @@ function makeResult(
   floor: number,
   picked: string[],
   removed: string[],
+  itemsPicked: string[],
   turnsFought: number,
 ): RunResult {
+  const path = detectPath(spec, run.items, run.deck);
   return {
     classId,
     spec,
@@ -740,7 +1113,10 @@ function makeResult(
     curses: countInDeck(run.deck, CURSE_CARD_ID),
     cardsPicked: picked,
     cardsRemoved: removed,
+    itemsPicked: [...itemsPicked],
     finalDeck: [...run.deck],
+    finalItems: [...run.items],
+    path,
     talents: { ...run.talents },
     turnsFought,
   };
@@ -750,6 +1126,7 @@ function simulateRun(classId: ClassId, spec: OpeningSpec, policy: Policy): RunRe
   const run = createRun(classId, spec);
   const picked: string[] = [];
   const removed: string[] = [];
+  const itemsPicked: string[] = [];
   let turnsFought = 0;
   let lastNode: MapNode | null = null;
 
@@ -849,12 +1226,14 @@ function simulateRun(classId: ClassId, spec: OpeningSpec, policy: Policy): RunRe
           node.floor,
           picked,
           removed,
+          itemsPicked,
           turnsFought,
         );
       }
 
       node.cleared = true;
       if (node.type === 'boss') {
+        // Bosses: card/talent rewards only — no item offers (elites only).
         finishFightRewards(true);
         if (run.act === 1) {
           advanceToBarrens(run);
@@ -871,8 +1250,14 @@ function simulateRun(classId: ClassId, spec: OpeningSpec, policy: Policy): RunRe
           node.floor,
           picked,
           removed,
+          itemsPicked,
           turnsFought,
         );
+      }
+
+      // Elite spoils: pick an item before card rewards
+      if (node.type === 'elite') {
+        offerEliteItem(run, policy, spec, itemsPicked);
       }
 
       finishFightRewards(false);
@@ -889,6 +1274,7 @@ function simulateRun(classId: ClassId, spec: OpeningSpec, policy: Policy): RunRe
     lastNode?.floor ?? 0,
     picked,
     removed,
+    itemsPicked,
     turnsFought,
   );
 }
@@ -905,6 +1291,95 @@ function emptyAgg(): Aggregate {
     cardInWinDecks: {},
     winDeckAppearances: 0,
   };
+}
+
+interface PathStats {
+  /** Wins whose detected primary path is this. */
+  winPathCounts: Record<string, number>;
+  /** Runs (win+loss) that attempted this path. */
+  attempted: Record<string, number>;
+  /** Wins among attempted runs. */
+  attemptedWins: Record<string, number>;
+  /** Item pick counts among smart/onspec. */
+  itemPickCounts: Record<string, number>;
+  /** Item presence in winning final inventories. */
+  itemInWins: Record<string, number>;
+  wins: number;
+  runs: number;
+}
+
+function emptyPathStats(): PathStats {
+  return {
+    winPathCounts: {},
+    attempted: {},
+    attemptedWins: {},
+    itemPickCounts: {},
+    itemInWins: {},
+    wins: 0,
+    runs: 0,
+  };
+}
+
+function ingestPathStats(ps: PathStats, r: RunResult): void {
+  ps.runs += 1;
+  if (r.won) {
+    ps.wins += 1;
+    ps.winPathCounts[r.path] = (ps.winPathCounts[r.path] ?? 0) + 1;
+    for (const id of new Set(r.finalItems)) {
+      ps.itemInWins[id] = (ps.itemInWins[id] ?? 0) + 1;
+    }
+  }
+  for (const id of r.itemsPicked) {
+    ps.itemPickCounts[id] = (ps.itemPickCounts[id] ?? 0) + 1;
+  }
+  for (const path of SPEC_PATHS[r.spec]) {
+    if (attemptedPath(r.spec, path, r.finalItems, r.finalDeck)) {
+      ps.attempted[path] = (ps.attempted[path] ?? 0) + 1;
+      if (r.won) ps.attemptedWins[path] = (ps.attemptedWins[path] ?? 0) + 1;
+    }
+  }
+}
+
+function evaluateViablePaths(spec: OpeningSpec, ps: PathStats): {
+  viable: string[];
+  distribution: Record<string, { winShare: number; attemptWinRate: number; winCount: number; attempts: number }>;
+  note: string;
+} {
+  const distribution: Record<
+    string,
+    { winShare: number; attemptWinRate: number; winCount: number; attempts: number }
+  > = {};
+  const viable = new Set<string>();
+
+  for (const path of [...SPEC_PATHS[spec], 'other', 'hybrid']) {
+    const winCount = ps.winPathCounts[path] ?? 0;
+    if (!winCount && !(ps.attempted[path] ?? 0)) continue;
+    const attempts = ps.attempted[path] ?? 0;
+    const attemptWins = ps.attemptedWins[path] ?? 0;
+    const winShare = ps.wins ? winCount / ps.wins : 0;
+    const attemptWinRate = attempts ? attemptWins / attempts : 0;
+    distribution[path] = { winShare, attemptWinRate, winCount, attempts };
+
+    // Viable: >=15% of wins AND attempt win rate >=40%
+    if (winShare >= 0.15 && attemptWinRate >= 0.4) viable.add(path);
+  }
+
+  // Alternate: among wins, >=2–3 distinct paths each representing >=12% of wins
+  const bigPaths = Object.entries(ps.winPathCounts)
+    .filter(([, n]) => ps.wins > 0 && n / ps.wins >= 0.12)
+    .map(([p]) => p);
+  if (bigPaths.length >= 2) {
+    for (const p of bigPaths) viable.add(p);
+  }
+
+  const note =
+    viable.size >= 2
+      ? `${viable.size} viable paths`
+      : viable.size === 1
+        ? '1 viable path (narrow)'
+        : 'no clear viable paths yet';
+
+  return { viable: [...viable], distribution, note };
 }
 
 function ingest(agg: Aggregate, r: RunResult): void {
@@ -950,6 +1425,8 @@ async function main(): Promise<void> {
   const smartAggs = new Map<string, Aggregate>();
   const onspecAggs = new Map<string, Aggregate>();
   const randomAggs = new Map<string, Aggregate>();
+  /** Combined smart+onspec path stats per spec key (for viability). */
+  const pathStatsBySpec = new Map<string, PathStats>();
   const globalCardPicks: Record<string, number> = {};
   const globalCardSeenInWins: Record<string, number> = {};
   let winRuns = 0;
@@ -968,10 +1445,12 @@ async function main(): Promise<void> {
     const sAgg = emptyAgg();
     const oAgg = emptyAgg();
     const rAgg = emptyAgg();
+    const pathStats = emptyPathStats();
 
     for (let i = 0; i < smartRuns; i++) {
       const result = simulateRun(classId, spec, 'smart');
       ingest(sAgg, result);
+      ingestPathStats(pathStats, result);
       for (const id of result.cardsPicked) {
         globalCardPicks[id] = (globalCardPicks[id] ?? 0) + 1;
         if (result.won) cardWinPick[id] = (cardWinPick[id] ?? 0) + 1;
@@ -996,7 +1475,9 @@ async function main(): Promise<void> {
     }
 
     for (let i = 0; i < onspecRuns; i++) {
-      ingest(oAgg, simulateRun(classId, spec, 'onspec'));
+      const result = simulateRun(classId, spec, 'onspec');
+      ingest(oAgg, result);
+      ingestPathStats(pathStats, result);
     }
 
     for (let i = 0; i < randomRuns; i++) {
@@ -1009,6 +1490,7 @@ async function main(): Promise<void> {
     smartAggs.set(key, sAgg);
     onspecAggs.set(key, oAgg);
     randomAggs.set(key, rAgg);
+    pathStatsBySpec.set(key, pathStats);
 
     console.log(`── ${key} ──`);
     console.log(
@@ -1031,7 +1513,21 @@ async function main(): Promise<void> {
     const opicks = topEntries(oAgg.cardPickCounts, 8)
       .map(([k, v]) => `${k}(${v})`)
       .join(', ');
-    console.log(`  Top onspec picks: ${opicks}\n`);
+    console.log(`  Top onspec picks: ${opicks}`);
+    const itemPicks = topEntries(pathStats.itemPickCounts, 8)
+      .map(([k, v]) => `${k}(${v})`)
+      .join(', ');
+    console.log(`  Top items picked: ${itemPicks || '(none)'}`);
+    const pathEval = evaluateViablePaths(spec, pathStats);
+    const pathDist = Object.entries(pathEval.distribution)
+      .sort((a, b) => b[1].winShare - a[1].winShare)
+      .map(
+        ([p, d]) =>
+          `${p}:${(100 * d.winShare).toFixed(0)}%wins/${(100 * d.attemptWinRate).toFixed(0)}%att(${d.winCount}/${d.attempts})`,
+      )
+      .join(', ');
+    console.log(`  Path wins (smart+onspec): ${pathDist || '(no wins)'}`);
+    console.log(`  Viable: [${pathEval.viable.join(', ') || '—'}] (${pathEval.note})\n`);
   }
 
   // Spec tier from smart + onspec win rate
@@ -1136,6 +1632,52 @@ async function main(): Promise<void> {
     console.log(`  ${k}: ${staples}`);
   }
 
+  // Path distribution among wins
+  console.log('\n=== PATH DISTRIBUTION (smart+onspec wins) ===');
+  const pathBreakdown: Record<
+    string,
+    {
+      wins: number;
+      runs: number;
+      viable: string[];
+      note: string;
+      distribution: Record<
+        string,
+        { winShare: number; attemptWinRate: number; winCount: number; attempts: number }
+      >;
+      topItems: Array<[string, number]>;
+      itemsInWins: Array<[string, number]>;
+    }
+  > = {};
+
+  for (const { classId, spec } of ALL_CONFIGS) {
+    const key = `${classId}/${spec}`;
+    const ps = pathStatsBySpec.get(key)!;
+    const evaluated = evaluateViablePaths(spec, ps);
+    pathBreakdown[key] = {
+      wins: ps.wins,
+      runs: ps.runs,
+      viable: evaluated.viable,
+      note: evaluated.note,
+      distribution: evaluated.distribution,
+      topItems: topEntries(ps.itemPickCounts, 12),
+      itemsInWins: topEntries(ps.itemInWins, 12).map(([id, n]) => [
+        id,
+        ps.wins ? n / ps.wins : 0,
+      ]) as Array<[string, number]>,
+    };
+    console.log(`  ${key} (${ps.wins} wins / ${ps.runs} runs) — ${evaluated.note}`);
+    const ordered = Object.entries(evaluated.distribution).sort(
+      (a, b) => b[1].winShare - a[1].winShare,
+    );
+    for (const [path, d] of ordered) {
+      const mark = evaluated.viable.includes(path) ? '*' : ' ';
+      console.log(
+        `   ${mark}${path}: ${(100 * d.winShare).toFixed(1)}% of wins (${d.winCount}) | attempt WR ${(100 * d.attemptWinRate).toFixed(1)}% over ${d.attempts}`,
+      );
+    }
+  }
+
   // Dump JSON summary for further analysis
   const summary = {
     smartRuns,
@@ -1165,6 +1707,7 @@ async function main(): Promise<void> {
         },
       ]),
     ),
+    pathBreakdown,
     overall: {
       smartWin: smartWinTotal / smartN,
       onspecWin: onspecWinTotal / onspecN,
