@@ -18,11 +18,16 @@ export class GameOverScene extends Phaser.Scene {
     g.fillRect(0, 0, width, height);
 
     this.add
-      .text(width / 2, 200, data.victory ? 'The Grove is Restored' : 'Fallen in the Wilds', {
-        fontFamily: 'Georgia, serif',
-        fontSize: '42px',
-        color: data.victory ? '#4ade80' : '#f87171',
-      })
+      .text(
+        width / 2,
+        200,
+        data.victory ? 'The Barrens Fall Silent' : 'Fallen in the Wilds',
+        {
+          fontFamily: 'Georgia, serif',
+          fontSize: '42px',
+          color: data.victory ? '#4ade80' : '#f87171',
+        },
+      )
       .setOrigin(0.5);
 
     this.add
@@ -30,7 +35,7 @@ export class GameOverScene extends Phaser.Scene {
         width / 2,
         280,
         data.victory
-          ? 'You defeated the Nightmare and reclaimed the forest.'
+          ? 'You slew Mutanus the Devourer and ended the nightmare.'
           : `Victories: ${run?.victories ?? 0}  ·  Talent points spent: ${
               run
                 ? Object.values(run.talents).reduce((a, b) => a + b, 0)

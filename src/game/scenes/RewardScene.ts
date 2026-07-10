@@ -51,12 +51,16 @@ export class RewardScene extends Phaser.Scene {
     g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a2e24, 0x102018, 1);
     g.fillRect(0, 0, width, height);
 
-    const title = data.treasure ? 'Treasure of the Grove' : 'Victory — Choose Cards';
+    const title = data.treasure
+      ? run.act === 2
+        ? 'Buried Barrens Cache'
+        : 'Treasure of the Grove'
+      : 'Victory — Choose Cards';
     this.add
       .text(width / 2, 70, title, {
         fontFamily: 'Georgia, serif',
         fontSize: '36px',
-        color: '#e8f5e9',
+        color: run.act === 2 ? '#fde68a' : '#e8f5e9',
       })
       .setOrigin(0.5);
 

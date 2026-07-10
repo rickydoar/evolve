@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FORM_LABELS } from '../data/cards';
-import { availableNodes, usePotion } from '../data/run';
+import { actName, availableNodes, usePotion } from '../data/run';
 import type { MapNode, NodeType } from '../data/types';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
@@ -50,24 +50,27 @@ export class MapScene extends Phaser.Scene {
     const height = GAME_H;
     this.drawBackground(width, height);
 
+    const zoneTitle = actName(run.act);
+    const titleColor = run.act === 2 ? '#fde68a' : '#e8f5e9';
     this.add
-      .text(40, 28, 'The Corrupted Grove', {
+      .text(40, 28, zoneTitle, {
         fontFamily: 'Georgia, serif',
         fontSize: '32px',
-        color: '#e8f5e9',
+        color: titleColor,
       });
 
     const specLabel = FORM_LABELS[run.openingSpec] ?? run.openingSpec;
     const potionBit = run.potions > 0 ? `   ·   Potions ${run.potions}` : '';
+    const hudColor = run.act === 2 ? '#fcd34d' : '#a8e6cf';
     this.add
       .text(
         40,
         70,
-        `HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}${potionBit}`,
+        `Act ${run.act}   ·   HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}${potionBit}`,
         {
           fontFamily: 'Georgia, serif',
           fontSize: '16px',
-          color: '#a8e6cf',
+          color: hudColor,
         },
       );
 
@@ -158,11 +161,19 @@ export class MapScene extends Phaser.Scene {
   }
 
   private drawBackground(width: number, height: number): void {
-    if (this.textures.exists('bg-forest')) {
+    const run = GameRegistry.run;
+    const bgKey = run?.act === 2 ? 'bg-barrens' : 'bg-forest';
+    if (this.textures.exists(bgKey)) {
+      this.add.image(width / 2, height / 2, bgKey).setDisplaySize(width, height).setAlpha(0.35);
+    } else if (this.textures.exists('bg-forest')) {
       this.add.image(width / 2, height / 2, 'bg-forest').setDisplaySize(width, height).setAlpha(0.35);
     } else {
       const g = this.add.graphics();
-      g.fillGradientStyle(0x0b1210, 0x0b1210, 0x14261c, 0x0f1c16, 1);
+      if (run?.act === 2) {
+        g.fillGradientStyle(0x1a1208, 0x1a1208, 0x3d2a14, 0x2a1c0c, 1);
+      } else {
+        g.fillGradientStyle(0x0b1210, 0x0b1210, 0x14261c, 0x0f1c16, 1);
+      }
       g.fillRect(0, 0, width, height);
     }
   }

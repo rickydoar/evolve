@@ -96,8 +96,28 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-colossus', '/assets/enemies/enemy-colossus.png');
     this.load.image('enemy-boss', '/assets/enemies/enemy-boss.png');
 
+    // Barrens enemies
+    this.load.image('enemy-razormane', '/assets/enemies/enemy-razormane.png');
+    this.load.image('enemy-thunder-lizard', '/assets/enemies/enemy-thunder-lizard.png');
+    this.load.image('enemy-raptor', '/assets/enemies/enemy-raptor.png');
+    this.load.image('enemy-savannah', '/assets/enemies/enemy-savannah.png');
+    this.load.image('enemy-kolkar', '/assets/enemies/enemy-kolkar.png');
+    this.load.image('enemy-witchwing', '/assets/enemies/enemy-witchwing.png');
+    this.load.image('enemy-scorpion', '/assets/enemies/enemy-scorpion.png');
+    this.load.image('enemy-python', '/assets/enemies/enemy-python.png');
+    this.load.image('enemy-kodo', '/assets/enemies/enemy-kodo.png');
+    this.load.image('enemy-anacondra', '/assets/enemies/enemy-anacondra.png');
+    this.load.image('enemy-cobrahn', '/assets/enemies/enemy-cobrahn.png');
+    this.load.image('enemy-pythas', '/assets/enemies/enemy-pythas.png');
+    this.load.image('enemy-serpentis', '/assets/enemies/enemy-serpentis.png');
+    this.load.image('enemy-kresh', '/assets/enemies/enemy-kresh.png');
+    this.load.image('enemy-skum', '/assets/enemies/enemy-skum.png');
+    this.load.image('enemy-verdan', '/assets/enemies/enemy-verdan.png');
+    this.load.image('enemy-mutanus', '/assets/enemies/enemy-mutanus.png');
+
     // UI
     this.load.image('bg-forest', '/assets/ui/bg-forest.png');
+    this.load.image('bg-barrens', '/assets/ui/bg-barrens.png');
     this.load.image('map-combat', '/assets/ui/map-combat.png');
     this.load.image('map-elite', '/assets/ui/map-elite.png');
     this.load.image('map-rest', '/assets/ui/map-rest.png');
