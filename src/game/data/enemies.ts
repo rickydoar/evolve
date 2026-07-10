@@ -337,27 +337,6 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { type: 'attack', value: 24, label: 'Lightning 24' },
     ],
   },
-  /** Balanced fanglord — steady pressure and sleep. */
-  lord_serpentis: {
-    id: 'lord_serpentis',
-    name: 'Lord Serpentis',
-    maxHp: 160,
-    art: 'enemy-serpentis',
-    isElite: true,
-    intents: [
-      { type: 'attack', value: 22, label: 'Lightning 22' },
-      { type: 'debuff', value: 2, label: 'Slumber' },
-      { type: 'heal', value: 18, label: 'Healing Touch 18' },
-      { type: 'attack', value: 16, label: 'Staff 16' },
-      { type: 'defend', value: 16, label: 'Coil 16' },
-    ],
-    enrageIntents: [
-      { type: 'attack', value: 30, label: 'Lightning 30' },
-      { type: 'heal', value: 24, label: 'Healing Touch 24' },
-      { type: 'debuff', value: 3, label: 'Slumber' },
-      { type: 'buff', value: 5, label: 'Fang Power +5' },
-    ],
-  },
   /** Turtle tank — crushing bite shreds armor; huge block. */
   kresh: {
     id: 'kresh',
@@ -503,13 +482,12 @@ export const BARRENS_ENCOUNTER_TABLE: string[][] = [
 
 /**
  * Wailing Caverns bosses used as Barrens elites.
- * Each elite node in a run picks a distinct boss when possible.
+ * Each elite node randomly picks one from this pool (repeats allowed).
  */
 export const BARRENS_ELITE_POOL: string[] = [
   'lady_anacondra',
   'lord_cobrahn',
   'lord_pythas',
-  'lord_serpentis',
   'kresh',
   'skum',
   'verdan',

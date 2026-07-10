@@ -108,20 +108,8 @@ export function generateMap(act: ActId = 1): MapNode[] {
     }
   }
 
-  // Assign encounters (Barrens elites are unique WC bosses when possible)
-  const barrensElites =
-    act === 2 ? shuffle([...BARRENS_ELITE_POOL]) : [];
-  let eliteIdx = 0;
-
   for (const node of nodes) {
-    node.enemyIds = enemiesFor(node.type, node.floor, act, () => {
-      if (act === 2) {
-        const id = barrensElites[eliteIdx % barrensElites.length]!;
-        eliteIdx += 1;
-        return [id];
-      }
-      return [];
-    });
+    node.enemyIds = enemiesFor(node.type, node.floor, act);
   }
 
   // Connect each floor to next
@@ -168,18 +156,13 @@ function nodeTypeFor(floor: number, index: number, count: number): NodeType {
   return 'combat';
 }
 
-function enemiesFor(
-  type: NodeType,
-  floor: number,
-  act: ActId,
-  nextBarrensElite: () => string[],
-): string[] {
+function enemiesFor(type: NodeType, floor: number, act: ActId): string[] {
   if (type === 'rest' || type === 'treasure' || type === 'shop') return [];
   if (type === 'boss') {
     return act === 2 ? [BARRENS_BOSS_ID] : ['nightmare'];
   }
   if (type === 'elite') {
-    if (act === 2) return nextBarrensElite();
+    if (act === 2) return [pick(BARRENS_ELITE_POOL)];
     const pool = floor >= 8 ? LATE_ELITE_ENCOUNTERS : ELITE_ENCOUNTERS;
     return [...pick(pool)];
   }

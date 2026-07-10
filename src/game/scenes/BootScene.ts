@@ -109,7 +109,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-anacondra', '/assets/enemies/enemy-anacondra.png');
     this.load.image('enemy-cobrahn', '/assets/enemies/enemy-cobrahn.png');
     this.load.image('enemy-pythas', '/assets/enemies/enemy-pythas.png');
-    this.load.image('enemy-serpentis', '/assets/enemies/enemy-serpentis.png');
     this.load.image('enemy-kresh', '/assets/enemies/enemy-kresh.png');
     this.load.image('enemy-skum', '/assets/enemies/enemy-skum.png');
     this.load.image('enemy-verdan', '/assets/enemies/enemy-verdan.png');
