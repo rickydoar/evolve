@@ -38,5 +38,14 @@ Random play remains ~0% — skill still required.
 ## Reproduce
 
 ```bash
-SMART_RUNS=20 ONSPEC_RUNS=20 RANDOM_RUNS=10 SEED_RUNS=30 npx tsx scripts/playthrough.ts
+SMART_RUNS=40 ONSPEC_RUNS=40 RANDOM_RUNS=15 SEED_RUNS=40 npx tsx scripts/playthrough.ts
 ```
+
+## Build feel (dynamism / power / simplicity)
+
+See **[BUILD_DYNAMICS.md](./BUILD_DYNAMICS.md)** for the full categorization.
+
+- **Most dynamic:** Tree (Verdant / Barkbreaker) — ~4 unique cards/turn, widest combo variety
+- **Most repetitive:** Discipline (Radiance) — PW:Shield is ~⅓ of all plays
+- **Strongest / simplest:** Holy & Discipline (98–100% seeded WR, solved turn loops)
+- **Best power + interest:** Tree Barkbreaker / Verdant, Feral Bleed
