@@ -147,6 +147,19 @@ export class ShopScene extends Phaser.Scene {
         );
       }
 
+      // Energy cost gem
+      container.add(this.add.circle(-CARD_W / 2 + 16, -CARD_H / 2 + 16, 14, 0x1d4ed8));
+      container.add(
+        this.add
+          .text(-CARD_W / 2 + 16, -CARD_H / 2 + 16, String(card.cost), {
+            fontFamily: 'Georgia, serif',
+            fontSize: '16px',
+            color: '#fff',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5),
+      );
+
       container.add(
         fitCardText(this, 0, 18, card.name, CARD_W - 16, 24, {
           color: sold ? '#64748b' : '#e8f5e9',
@@ -169,8 +182,10 @@ export class ShopScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
 
+      const descTop = 60;
+      const descMaxH = CARD_H / 2 - descTop - 8;
       container.add(
-        fitCardText(this, 0, 60, description, CARD_W - 16, 70, {
+        fitCardText(this, 0, descTop, description, CARD_W - 16, descMaxH, {
           color: sold ? '#64748b' : '#cbd5e1',
           fontSize: 11,
           minFontSize: 9,
@@ -184,7 +199,7 @@ export class ShopScene extends Phaser.Scene {
           ? `${cost}g`
           : `${cost}g (need more)`;
       const price = this.add
-        .text(0, CARD_H / 2 - 18, priceLabel, {
+        .text(0, CARD_H / 2 + 16, priceLabel, {
           fontFamily: 'Georgia, serif',
           fontSize: '14px',
           color: sold ? '#64748b' : canAfford ? '#fbbf24' : '#f87171',
@@ -208,7 +223,7 @@ export class ShopScene extends Phaser.Scene {
     });
 
     const rerollBtn = this.add
-      .text(width / 2 - 140, 460, `Reroll — ${rerollCost}g`, {
+      .text(width / 2 - 140, 480, `Reroll — ${rerollCost}g`, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: canReroll ? '#0b1210' : '#64748b',
@@ -224,7 +239,7 @@ export class ShopScene extends Phaser.Scene {
     this.contentRoot.add(rerollBtn);
 
     const removeBtn = this.add
-      .text(width / 2 + 140, 460, `Remove a Card — ${CARD_REMOVE_COST}g`, {
+      .text(width / 2 + 140, 480, `Remove a Card — ${CARD_REMOVE_COST}g`, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: run.gold >= CARD_REMOVE_COST && run.deck.length > 1 ? '#0b1210' : '#64748b',

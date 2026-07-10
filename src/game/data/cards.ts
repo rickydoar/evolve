@@ -11,7 +11,7 @@ export const CARD_BUY_COST: Record<CardDef['rarity'], number> = {
 /** Gold cost to remove one card from the deck. */
 export const CARD_REMOVE_COST = 50;
 
-/** Base shop reroll cost; each reroll in a visit chain costs +1g until a fight resets it. */
+/** Base card-offer reroll cost; each reroll costs +1g until a fight resets the counter. */
 export const SHOP_REROLL_BASE_COST = 1;
 
 export function shopRerollCost(rerollCount: number): number {
@@ -295,7 +295,7 @@ export const CARDS: Record<string, CardDef> = {
     name: 'Celestial Alignment',
     form: 'boomkin',
     cost: 1,
-    description: 'Gain 5 Spell Power this combat.',
+    description: 'Gain 5 Spell Power this combat (spells only).',
     target: 'self',
     effects: [{ kind: 'spellPower', value: 5 }],
     art: 'card-celestial-alignment',
@@ -306,7 +306,7 @@ export const CARDS: Record<string, CardDef> = {
     name: 'Incarnation',
     form: 'boomkin',
     cost: 2,
-    description: 'Gain 8 Spell Power. Deal 12 damage. Draw 2 cards.',
+    description: 'Gain 8 Spell Power (spells only). Deal 12 damage. Draw 2 cards.',
     target: 'enemy',
     effects: [
       { kind: 'spellPower', value: 8 },

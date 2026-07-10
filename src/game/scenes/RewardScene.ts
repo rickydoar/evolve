@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CARDS, FORM_COLORS, FORM_LABELS, cardBuyCost } from '../data/cards';
+import { CARDS, FORM_COLORS, FORM_LABELS, cardBuyCost, shopRerollCost } from '../data/cards';
 import { getCardDescription } from '../data/talents';
 import { randomRewards } from '../data/run';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
@@ -12,6 +12,7 @@ export class RewardScene extends Phaser.Scene {
   private goldText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
   private rewards: string[] = [];
+  private contentRoot!: Phaser.GameObjects.Container;
 
   constructor() {
     super('Reward');
@@ -74,18 +75,20 @@ export class RewardScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.statusText = this.add
-      .text(width / 2, 178, 'First card is free. Extra cards cost gold.', {
+      .text(width / 2, 178, '', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: '#9aa5b1',
       })
       .setOrigin(0.5);
 
+    this.contentRoot = this.add.container(0, 0);
     this.rewards = randomRewards(3);
+    this.refreshHud();
     this.renderCards();
 
     const done = this.add
-      .text(width / 2, height - 60, 'Continue', {
+      .text(width / 2, height - 40, 'Continue', {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: '#94a3b8',
@@ -100,30 +103,41 @@ export class RewardScene extends Phaser.Scene {
     const run = GameRegistry.run!;
     this.goldText.setText(`Gold ${run.gold}`);
     if (!this.freePickUsed) {
-      this.statusText.setText('First card is free. Extra cards cost gold.');
+      this.statusText.setText(
+        'First card is free. Extra cards cost gold. Reroll cost rises until your next fight.',
+      );
     } else {
-      this.statusText.setText('Buy more cards with gold, or continue.');
+      this.statusText.setText('Buy more cards with gold, reroll, or continue.');
     }
   }
 
+  private rerollRewards(): void {
+    const run = GameRegistry.run!;
+    const cost = shopRerollCost(run.shopRerollCount);
+    if (run.gold < cost) return;
+    run.gold -= cost;
+    run.shopRerollCount += 1;
+    this.rewards = randomRewards(3);
+    this.taken = new Set();
+    this.refreshHud();
+    this.renderCards();
+  }
+
   private renderCards(): void {
+    this.contentRoot.removeAll(true);
     const run = GameRegistry.run!;
     const width = GAME_W;
     const spacing = 220;
     const startX = width / 2 - spacing;
     const REWARD_W = 180;
-    const REWARD_H = 280;
-    const REWARD_PAD = 10;
-
-    // Destroy previous card containers by tagging them
-    this.children.list
-      .filter((c) => (c as Phaser.GameObjects.Container).getData?.('rewardCard'))
-      .forEach((c) => c.destroy());
+    const REWARD_H = 260;
+    const rerollCost = shopRerollCost(run.shopRerollCount);
+    const canReroll = run.gold >= rerollCost;
 
     this.rewards.forEach((id, i) => {
       const card = CARDS[id]!;
       const x = startX + i * spacing;
-      const y = 360;
+      const y = 340;
       const formColor = FORM_COLORS[card.form];
       const description = getCardDescription(card, run.talents);
       const taken = this.taken.has(i);
@@ -132,7 +146,7 @@ export class RewardScene extends Phaser.Scene {
       const canTake = !taken && (isFree || run.gold >= cost);
 
       const container = this.add.container(x, y);
-      container.setData('rewardCard', true);
+      this.contentRoot.add(container);
 
       const frame = this.add.rectangle(0, 0, REWARD_W, REWARD_H, 0x0f1a14, taken ? 0.45 : 0.95);
       frame.setStrokeStyle(2, taken ? 0x475569 : formColor);
@@ -140,9 +154,22 @@ export class RewardScene extends Phaser.Scene {
 
       if (this.textures.exists(card.art)) {
         container.add(
-          this.add.image(0, -58, card.art).setDisplaySize(150, 120).setAlpha(taken ? 0.4 : 1),
+          this.add.image(0, -52, card.art).setDisplaySize(140, 110).setAlpha(taken ? 0.4 : 1),
         );
       }
+
+      // Energy cost gem
+      container.add(this.add.circle(-REWARD_W / 2 + 16, -REWARD_H / 2 + 16, 14, 0x1d4ed8));
+      container.add(
+        this.add
+          .text(-REWARD_W / 2 + 16, -REWARD_H / 2 + 16, String(card.cost), {
+            fontFamily: 'Georgia, serif',
+            fontSize: '16px',
+            color: '#fff',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5),
+      );
 
       container.add(
         fitCardText(this, 0, 22, card.name, REWARD_W - 20, 28, {
@@ -167,7 +194,7 @@ export class RewardScene extends Phaser.Scene {
       );
 
       const descTop = 72;
-      const descMaxH = REWARD_H / 2 - descTop - REWARD_PAD - 10;
+      const descMaxH = REWARD_H / 2 - descTop - 8;
       container.add(
         fitCardText(this, 0, descTop, description, REWARD_W - 20, descMaxH, {
           color: taken ? '#64748b' : '#cbd5e1',
@@ -194,7 +221,7 @@ export class RewardScene extends Phaser.Scene {
 
       container.add(
         this.add
-          .text(0, REWARD_H / 2 - 18, priceLabel, {
+          .text(0, REWARD_H / 2 + 16, priceLabel, {
             fontFamily: 'Georgia, serif',
             fontSize: '15px',
             color: priceColor,
@@ -221,6 +248,22 @@ export class RewardScene extends Phaser.Scene {
         });
       }
     });
+
+    const rerollBtn = this.add
+      .text(width / 2, 520, `Reroll — ${rerollCost}g`, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '18px',
+        color: canReroll ? '#0b1210' : '#64748b',
+        backgroundColor: canReroll ? '#86efac' : '#1e293b',
+        padding: { x: 16, y: 10 },
+      })
+      .setOrigin(0.5);
+
+    if (canReroll) {
+      rerollBtn.setInteractive({ useHandCursor: true });
+      rerollBtn.on('pointerdown', () => this.rerollRewards());
+    }
+    this.contentRoot.add(rerollBtn);
   }
 
   private finishNode(): void {

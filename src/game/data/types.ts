@@ -50,10 +50,12 @@ export interface TalentModifier {
   damageBonus?: number;
   healBonus?: number;
   blockBonus?: number;
-  /** Permanent spell power granted at combat start (per rank). */
+  /** Permanent spell power granted at combat start (per rank). Boomkin spells only. */
   spellPowerBonus?: number;
   /** Multiplicative heal bonus as percent (e.g. 20 = +20%). */
   healPct?: number;
+  /** Multiplicative damage bonus as percent (e.g. 15 = +15%). */
+  damagePct?: number;
 }
 
 export interface TalentDef {
@@ -62,6 +64,14 @@ export interface TalentDef {
   tree: TalentTree;
   description: string;
   maxRanks: number;
+  /** Row in the tree (0 = top). Unlocking requires tier * POINTS_PER_TIER points in this tree. */
+  tier: number;
+  /** Column within the tree (0–2) for layout. */
+  column: number;
+  /** Talent that must have ≥1 rank before this can be taken. */
+  requires?: string;
+  /** Short glyph shown in the talent node (1–2 chars). */
+  glyph: string;
   modifiers: TalentModifier;
 }
 

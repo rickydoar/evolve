@@ -30,13 +30,17 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 
 ### Talent trees
 
-| Tree | Affects | Examples |
-|------|---------|----------|
-| **Feral** | Cat & Bear cards | Predatory Strikes, Brutal Maul, Improved Swipe |
-| **Restoration** | Healing & Decurse | Improved Healing Touch, Natural Ward, Living Spirit |
-| **Balance** | Boomkin spells | Wrath of Elune, Lunar Guidance, Gale Force |
+Classic-style trees: spend points in a tree to unlock deeper tiers (3 points per tier). Prerequisites chain key talents. Capstones reward specialization.
 
-Open **Talents** from the map (or after a fight) to allocate points. Card text updates to show talent bonuses.
+| Tree | Affects | Path |
+|------|---------|------|
+| **Feral** | Cat & Bear | Instinct → Predatory / Maul / Swipe → Shred / Rip → **King of the Jungle** |
+| **Restoration** | Healing & Block | Healing Touch / Naturalist → HoTs & Wards → Living Spirit → **Tree of Life** |
+| **Balance** | Boomkin spells | Wrath / Moonfury → Moonfire / Hurricane / Starsurge → Lunar Guidance → **Eclipse** |
+
+**Spell Power** only boosts Boomkin spells — never Bear or Cat attacks.
+
+Open **Talents** from the map (or after a fight) to allocate points. Hover nodes for details; card text updates to show talent bonuses.
 
 ## Stack
 

@@ -176,9 +176,10 @@ function computeCardDamage(
   state: CombatState,
   target?: Combatant,
 ): number {
-  let dmg = base + state.spellPowerBonus;
+  // Spell power only scales Boomkin spells — never Bear/Cat physical attacks.
+  let dmg = base;
   if (card.form === 'boomkin') {
-    dmg += Math.floor(state.spellPowerBonus * 0.5);
+    dmg += state.spellPowerBonus + Math.floor(state.spellPowerBonus * 0.5);
   }
   if (
     (card.id === 'starfire' || card.id === 'wrath') &&
