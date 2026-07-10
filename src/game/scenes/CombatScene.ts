@@ -270,22 +270,23 @@ export class CombatScene extends Phaser.Scene {
         );
       }
 
-      const statusParts = enemy.statuses.map((s) =>
+      const statusLines = enemy.statuses.map((s) =>
         s.kind === 'earthAndMoon'
           ? `${s.name} +${s.value}%`
-          : `${s.name}:${s.value}(${s.duration})`,
+          : `${s.name}: ${s.value}/turn (${s.duration})`,
       );
-      if (enemy.enraged) statusParts.unshift('ENRAGED');
-      const statusStr = statusParts.join(' ');
-      if (statusStr) {
+      if (enemy.enraged) statusLines.unshift('ENRAGED');
+      if (statusLines.length) {
         container.add(
           this.add
-            .text(0, 115, statusStr, {
+            .text(0, 115, statusLines.join('\n'), {
               fontFamily: 'Georgia, serif',
               fontSize: '10px',
               color: enemy.enraged ? '#fb923c' : '#f87171',
+              align: 'center',
+              lineSpacing: 2,
             })
-            .setOrigin(0.5),
+            .setOrigin(0.5, 0),
         );
       }
 

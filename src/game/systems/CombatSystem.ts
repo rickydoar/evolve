@@ -244,13 +244,13 @@ function applyBleed(
   sourceName: string,
 ): void {
   const perTick = Math.floor(total / Math.max(1, duration));
-  addStatus(target, {
+  // Keep each DoT as its own status so they display and tick independently.
+  target.statuses.push({
     id: uid('bleed'),
     name: sourceName,
     kind: 'bleed',
     value: perTick,
     duration,
-    stacks: true,
   });
   state.log.push({
     text: `${sourceName}: ${perTick}/turn for ${duration} turns on ${target.name}.`,
