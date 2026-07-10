@@ -162,14 +162,22 @@ function formAffinity(spec: OpeningSpec, form: Form): number {
   const primary = SPEC_PRIMARY_FORMS[spec];
   if (primary.includes(form)) return 1.4;
   // Damage specs: only mild splash for defense
-  if (spec === 'feral' || spec === 'boomkin' || spec === 'shadow') {
-    if (form === 'bear' || form === 'discipline') return 0.7;
+  if (spec === 'feral' || spec === 'boomkin' || spec === 'shadow' || spec === 'enhance' || spec === 'elemental') {
+    if (form === 'bear' || form === 'discipline' || form === 'resto') return 0.7;
     if (form === 'tree' || form === 'holy') return 0.45;
     return 0.35;
   }
   // Sustain specs: splash damage forms freely
-  if (spec === 'tree' || spec === 'holy') {
-    if (form === 'bear' || form === 'cat' || form === 'boomkin' || form === 'shadow' || form === 'discipline')
+  if (spec === 'tree' || spec === 'holy' || spec === 'resto') {
+    if (
+      form === 'bear' ||
+      form === 'cat' ||
+      form === 'boomkin' ||
+      form === 'shadow' ||
+      form === 'discipline' ||
+      form === 'enhance' ||
+      form === 'elemental'
+    )
       return 1.05;
     return 0.6;
   }
@@ -273,6 +281,15 @@ function scoreCardForCombat(
       case 'discardRandom':
         score -= fx.value * 3;
         break;
+      case 'summonTotem': {
+        const living = state.totems.filter((t) => t.hp > 0);
+        const already = living.some((t) => t.id === fx.totemId);
+        // Prefer dropping missing totems; mild penalty for replacing a healthy one
+        score += already ? 6 : 26;
+        if (living.length === 0) score += 10;
+        if (netThreatNeedsTotem(incoming, block, state.player.hp)) score += 18;
+        break;
+      }
       default:
         break;
     }
@@ -287,11 +304,16 @@ function scoreCardForCombat(
   // Survival when lethal incoming
   const netThreat = incoming - block;
   if (netThreat >= state.player.hp) {
-    if (def.effects.some((e) => e.kind === 'block' || e.kind === 'heal' || e.kind === 'thorns')) {
+    if (
+      def.effects.some(
+        (e) => e.kind === 'block' || e.kind === 'heal' || e.kind === 'thorns' || e.kind === 'summonTotem',
+      )
+    ) {
       score += 50;
     }
   } else if (netThreat > 15 && missing > 25) {
-    if (def.effects.some((e) => e.kind === 'block' || e.kind === 'heal')) score += 20;
+    if (def.effects.some((e) => e.kind === 'block' || e.kind === 'heal' || e.kind === 'summonTotem'))
+      score += 20;
   }
 
   // Don't overheal when healthy and enemies alive
@@ -299,14 +321,18 @@ function scoreCardForCombat(
     score -= 30;
   }
 
-  // Tree/Holy: bias toward damage until board is clearable
-  if ((spec === 'tree' || spec === 'holy') && missing < 20) {
+  // Tree/Holy/Resto: bias toward damage until board is clearable
+  if ((spec === 'tree' || spec === 'holy' || spec === 'resto') && missing < 20) {
     if (def.effects.some((e) => ['damage', 'aoeDamage', 'damageOverTime', 'randomDamage'].includes(e.kind))) {
       score += 15;
     }
   }
 
   return score;
+}
+
+function netThreatNeedsTotem(incoming: number, block: number, hp: number): boolean {
+  return incoming - block > Math.max(8, hp * 0.25);
 }
 
 function playSmartTurn(state: CombatState, spec: OpeningSpec): void {
@@ -416,8 +442,12 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
     if (!primary.includes(def.form)) {
       // Allow a little defensive splash only
       const defensive =
-        def.effects.some((e) => e.kind === 'block' || e.kind === 'echo') &&
-        (def.form === 'bear' || def.form === 'discipline' || def.form === 'tree' || def.form === 'holy');
+        def.effects.some((e) => e.kind === 'block' || e.kind === 'echo' || e.kind === 'summonTotem') &&
+        (def.form === 'bear' ||
+          def.form === 'discipline' ||
+          def.form === 'tree' ||
+          def.form === 'holy' ||
+          def.form === 'resto');
       if (!defensive) score -= 40;
       else score -= 10;
     } else {
@@ -434,10 +464,12 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
     score += 18;
   if (def.effects.some((e) => e.kind === 'energy')) score += 16;
   if (def.effects.some((e) => e.kind === 'thorns')) score += 12;
+  if (def.effects.some((e) => e.kind === 'summonTotem')) score += 16;
   if (def.effects.some((e) => e.kind === 'shuffleCurse')) score -= 12;
 
   // Diminishing returns on duplicates of non-engines
-  if (copies >= 2 && !def.effects.some((e) => e.kind === 'echo')) score -= 10 * copies;
+  if (copies >= 2 && !def.effects.some((e) => e.kind === 'echo' || e.kind === 'summonTotem'))
+    score -= 10 * copies;
 
   // Spec-specific staples
   const staples: Record<OpeningSpec, string[]> = {
@@ -498,11 +530,50 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
       'power_word_radiance',
       'smite',
     ],
+    resto: [
+      'riptide',
+      'spirit_link',
+      'chain_heal',
+      'healing_stream_totem',
+      'stoneskin_totem',
+      'grounding_totem',
+      'mana_tide_totem',
+      'purge',
+      // Resto needs kill power from other schools
+      'lightning_bolt',
+      'flame_shock',
+      'lava_burst',
+      'stormstrike',
+      'frost_shock',
+      'earth_shock',
+    ],
+    enhance: [
+      'stormstrike',
+      'windfury',
+      'crash_lightning',
+      'feral_spirit',
+      'strength_of_earth_totem',
+      'windfury_totem',
+      'frost_shock',
+      'lava_lash',
+      'ascendance',
+    ],
+    elemental: [
+      'flame_shock',
+      'lava_burst',
+      'chain_lightning',
+      'totem_of_wrath',
+      'searing_totem',
+      'thunderstorm',
+      'lightning_bolt',
+      'earth_shock',
+      'elemental_blast',
+    ],
   };
   if (staples[spec].includes(cardId)) score += 20;
 
-  // Tree/Holy: heavily value any real damage package
-  if (spec === 'tree' || spec === 'holy') {
+  // Tree/Holy/Resto: heavily value any real damage package
+  if (spec === 'tree' || spec === 'holy' || spec === 'resto') {
     const hasDmg = def.effects.some((e) =>
       ['damage', 'aoeDamage', 'damageOverTime', 'randomDamage'].includes(e.kind),
     );
@@ -525,7 +596,11 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
     def.effects.every((e) =>
       ['heal', 'healOverTime', 'discardRandom', 'cleanse', 'drawTyped', 'block'].includes(e.kind),
     ) && !def.effects.some((e) => e.kind === 'echo' || e.kind === 'damage' || e.kind === 'aoeDamage');
-  if (isHealOnly && (spec === 'feral' || spec === 'boomkin' || spec === 'shadow')) score -= 15;
+  if (
+    isHealOnly &&
+    (spec === 'feral' || spec === 'boomkin' || spec === 'shadow' || spec === 'enhance' || spec === 'elemental')
+  )
+    score -= 15;
 
   return score;
 }
@@ -564,6 +639,14 @@ const ENGINE_ITEMS = new Set([
   'pain_amplifier',
   'borrowed_timepiece',
   'astral_battery',
+  // Shaman engines
+  'tidal_charm',
+  'spirit_water',
+  'stormforged_ring',
+  'windfury_idol',
+  'lightning_rod',
+  'elemental_focus_stone',
+  'stormcaller_eye',
 ]);
 
 const HIGH_GENERAL_ITEMS = new Set([
@@ -608,6 +691,22 @@ const ITEM_SYNERGY_CARDS: Record<string, string[]> = {
   borrowed_timepiece: ['power_word_shield', 'power_word_radiance', 'pain_suppression'],
   smite_echo: ['smite', 'penance', 'atonement', 'holy_fire'],
   radiance_loop: ['power_word_shield', 'power_word_radiance', 'pain_suppression'],
+  // Shaman
+  tidal_charm: ['healing_wave', 'riptide', 'healing_surge', 'chain_heal', 'spirit_link'],
+  stream_crystal: ['riptide', 'healing_stream_totem', 'healing_wave'],
+  ancestral_coin: ['healing_wave', 'chain_heal', 'healing_surge', 'spirit_link'],
+  spirit_water: ['riptide', 'spirit_link', 'stoneskin_totem', 'grounding_totem'],
+  grounding_charm: ['stoneskin_totem', 'grounding_totem', 'spirit_link', 'healing_surge'],
+  stormforged_ring: ['stormstrike', 'lava_lash', 'frost_shock', 'crash_lightning', 'windfury'],
+  windfury_idol: ['windfury', 'stormstrike', 'crash_lightning', 'ascendance'],
+  lava_lash_brand: ['lava_lash', 'stormstrike', 'frost_shock', 'feral_spirit'],
+  earthbind_fetish: ['stormstrike', 'lava_lash', 'strength_of_earth_totem', 'frost_shock'],
+  wolf_spirit_fang: ['feral_spirit', 'crash_lightning', 'ascendance', 'stormstrike'],
+  lightning_rod: ['lightning_bolt', 'lava_burst', 'chain_lightning', 'flame_shock'],
+  lava_core: ['flame_shock', 'lava_burst'],
+  stormcaller_eye: ['chain_lightning', 'thunderstorm', 'flame_shock', 'elemental_blast'],
+  elemental_focus_stone: ['lava_burst', 'lightning_bolt', 'chain_lightning', 'totem_of_wrath'],
+  shock_totem_shard: ['flame_shock', 'lava_burst', 'earth_shock'],
 };
 
 function scoreItemOffer(run: RunState, itemId: string, spec: OpeningSpec, policy: Policy): number {
@@ -753,13 +852,18 @@ function scoreRemoval(run: RunState, cardId: string, spec: OpeningSpec): number 
   score += (1.2 - formAffinity(spec, def.form)) * 20;
   // Pure heals in damage decks
   if (
-    (spec === 'feral' || spec === 'boomkin' || spec === 'shadow') &&
+    (spec === 'feral' ||
+      spec === 'boomkin' ||
+      spec === 'shadow' ||
+      spec === 'enhance' ||
+      spec === 'elemental') &&
     def.effects.every((e) => ['heal', 'healOverTime', 'discardRandom'].includes(e.kind))
   ) {
     score += 40;
   }
   // Keep engines
   if (def.effects.some((e) => e.kind === 'echo')) score -= 80;
+  if (def.effects.some((e) => e.kind === 'summonTotem')) score -= 40;
   if (def.rarity === 'legendary' || def.rarity === 'epic') score -= 30;
   // Duplicates of mediocre commons
   if (countInDeck(run.deck, cardId) >= 3) score += 25;
@@ -915,6 +1019,24 @@ const SPEC_ITEM_PATH: Record<string, string> = {
   penitent_brand: 'penance',
   radiance_loop: 'radiance',
   borrowed_timepiece: 'radiance',
+  // Resto shaman
+  tidal_charm: 'tidal',
+  stream_crystal: 'stream',
+  ancestral_coin: 'ancestral',
+  spirit_water: 'spirit_wall',
+  grounding_charm: 'spirit_wall',
+  // Enhance
+  stormforged_ring: 'storm',
+  windfury_idol: 'windfury',
+  lava_lash_brand: 'tempo',
+  earthbind_fetish: 'earthbind',
+  wolf_spirit_fang: 'wolves',
+  // Elemental
+  lightning_rod: 'stormcaller',
+  lava_core: 'lava',
+  stormcaller_eye: 'chain',
+  elemental_focus_stone: 'focus',
+  shock_totem_shard: 'lava',
 };
 
 function detectPath(
@@ -950,6 +1072,22 @@ function detectPath(
   if (spec === 'holy') return 'radiant';
   if (spec === 'shadow') return 'pain';
   if (spec === 'discipline') return 'spike';
+  if (spec === 'resto') {
+    if (deckHas(deck, 'riptide') && deckHas(deck, 'spirit_link')) return 'spirit_wall';
+    if (deckCountAny(deck, ['healing_stream_totem', 'stoneskin_totem', 'grounding_totem']) >= 2)
+      return 'stream';
+    return 'tidal';
+  }
+  if (spec === 'enhance') {
+    if (deckHas(deck, 'windfury') || deckHas(deck, 'windfury_totem')) return 'windfury';
+    if (deckHas(deck, 'strength_of_earth_totem')) return 'earthbind';
+    return 'storm';
+  }
+  if (spec === 'elemental') {
+    if (deckHas(deck, 'flame_shock') && deckHas(deck, 'lava_burst')) return 'lava';
+    if (deckHas(deck, 'chain_lightning') || deckHas(deck, 'thunderstorm')) return 'chain';
+    return 'stormcaller';
+  }
   return 'other';
 }
 
@@ -1007,6 +1145,42 @@ function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: s
       if (path === 'radiance')
         return hasItem(items, 'radiance_loop') || hasItem(items, 'borrowed_timepiece');
       break;
+    case 'resto':
+      if (path === 'tidal') return hasItem(items, 'tidal_charm');
+      if (path === 'stream')
+        return (
+          hasItem(items, 'stream_crystal') ||
+          deckCountAny(deck, ['healing_stream_totem', 'riptide']) >= 2
+        );
+      if (path === 'ancestral') return hasItem(items, 'ancestral_coin');
+      if (path === 'spirit_wall')
+        return (
+          hasItem(items, 'spirit_water') ||
+          hasItem(items, 'grounding_charm') ||
+          deckHas(deck, 'spirit_link')
+        );
+      break;
+    case 'enhance':
+      if (path === 'storm') return hasItem(items, 'stormforged_ring');
+      if (path === 'windfury')
+        return hasItem(items, 'windfury_idol') || deckHas(deck, 'windfury');
+      if (path === 'tempo') return hasItem(items, 'lava_lash_brand');
+      if (path === 'earthbind')
+        return hasItem(items, 'earthbind_fetish') || deckHas(deck, 'strength_of_earth_totem');
+      if (path === 'wolves') return hasItem(items, 'wolf_spirit_fang');
+      break;
+    case 'elemental':
+      if (path === 'stormcaller') return hasItem(items, 'lightning_rod');
+      if (path === 'lava')
+        return (
+          hasItem(items, 'lava_core') ||
+          hasItem(items, 'shock_totem_shard') ||
+          deckHas(deck, 'flame_shock')
+        );
+      if (path === 'chain')
+        return hasItem(items, 'stormcaller_eye') || deckHas(deck, 'chain_lightning');
+      if (path === 'focus') return hasItem(items, 'elemental_focus_stone');
+      break;
   }
   return false;
 }
@@ -1018,6 +1192,9 @@ const SPEC_PATHS: Record<OpeningSpec, string[]> = {
   holy: ['radiant', 'flame', 'serenity', 'hymn'],
   shadow: ['leech', 'pain', 'recoil', 'scream'],
   discipline: ['spike', 'smite_echo', 'penance', 'radiance'],
+  resto: ['tidal', 'stream', 'ancestral', 'spirit_wall'],
+  enhance: ['storm', 'windfury', 'tempo', 'earthbind', 'wolves'],
+  elemental: ['stormcaller', 'lava', 'chain', 'focus'],
 };
 
 function makeResult(
@@ -1660,6 +1837,24 @@ async function main(): Promise<void> {
       { path: 'smite_echo', item: 'smite_echo' },
       { path: 'penance', item: 'penitent_brand' },
       { path: 'radiance', item: 'borrowed_timepiece' },
+    ],
+    resto: [
+      { path: 'tidal', item: 'tidal_charm' },
+      { path: 'stream', item: 'stream_crystal' },
+      { path: 'ancestral', item: 'ancestral_coin' },
+      { path: 'spirit_wall', item: 'spirit_water' },
+    ],
+    enhance: [
+      { path: 'storm', item: 'stormforged_ring' },
+      { path: 'windfury', item: 'windfury_idol' },
+      { path: 'tempo', item: 'lava_lash_brand' },
+      { path: 'earthbind', item: 'earthbind_fetish' },
+    ],
+    elemental: [
+      { path: 'stormcaller', item: 'lightning_rod' },
+      { path: 'lava', item: 'lava_core' },
+      { path: 'chain', item: 'stormcaller_eye' },
+      { path: 'focus', item: 'elemental_focus_stone' },
     ],
   };
 
