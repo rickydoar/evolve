@@ -9,6 +9,7 @@ import {
   beginPlayerTurn,
   cancelTarget,
   canPlayCard,
+  commitPendingDeckCards,
   endPlayerTurn,
   playCardOnEnemy,
   selectCard,
@@ -327,8 +328,8 @@ export class CombatScene extends Phaser.Scene {
       const selected = this.selectedHandIndex === index;
 
       // Card frame
-      const formColor = FORM_COLORS[card.form] ?? 0x334155;
-      const bg = this.add.rectangle(0, 0, CARD_W, CARD_H, 0x0f1a14, 0.95);
+      const formColor = card.curse ? 0x4c1d95 : (FORM_COLORS[card.form] ?? 0x334155);
+      const bg = this.add.rectangle(0, 0, CARD_W, CARD_H, card.curse ? 0x1a1025 : 0x0f1a14, 0.95);
       bg.setStrokeStyle(selected ? 3 : 2, selected ? 0xfbbf24 : formColor);
       container.add(bg);
 
@@ -369,10 +370,10 @@ export class CombatScene extends Phaser.Scene {
       container.add(nameText);
 
       const formLabel = this.add
-        .text(0, 48, FORM_LABELS[card.form] ?? '', {
+        .text(0, 48, card.curse ? 'Curse' : (FORM_LABELS[card.form] ?? ''), {
           fontFamily: 'Georgia, serif',
           fontSize: '11px',
-          color: `#${formColor.toString(16).padStart(6, '0')}`,
+          color: card.curse ? '#c4b5fd' : `#${formColor.toString(16).padStart(6, '0')}`,
         })
         .setOrigin(0.5);
       container.add(formLabel);
@@ -699,6 +700,7 @@ export class CombatScene extends Phaser.Scene {
       this.time.delayedCall(800, () => {
         const run = GameRegistry.run!;
         run.hp = combat.player.hp;
+        commitPendingDeckCards(run, combat);
         run.victories += 1;
         run.talentPoints += 1;
         run.shopRerollCount = 0;
