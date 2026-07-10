@@ -125,14 +125,16 @@ export class MapScene extends Phaser.Scene {
       positions.set(node.id, { x, y });
     }
 
-    // Connections
+    // Connections — green only for exits from your current node (matches selectable set)
     const g = this.add.graphics();
     for (const node of run.map) {
       const from = positions.get(node.id)!;
+      const fromCurrent =
+        node.id === run.currentNodeId ||
+        (!run.currentNodeId && node.floor === 0);
       for (const toId of node.connections) {
         const to = positions.get(toId)!;
-        const active =
-          available.has(toId) && (node.cleared || node.id === run.currentNodeId || (!run.currentNodeId && node.floor === 0));
+        const active = fromCurrent && available.has(toId);
         g.lineStyle(2, active ? 0x4ade80 : 0x334155, active ? 0.9 : 0.35);
         g.lineBetween(from.x, from.y, to.x, to.y);
       }

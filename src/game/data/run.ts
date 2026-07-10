@@ -22,15 +22,6 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
 }
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
-}
-
 function defaultSpec(classId: ClassId): OpeningSpec {
   return classId === 'priest' ? 'holy' : 'bear';
 }
@@ -88,28 +79,69 @@ export function generateMap(): MapNode[] {
     }
   }
 
-  // Connect each floor to next
+  // Connect each floor to the next using lane proximity (no far cross-jumps).
   for (let floor = 0; floor < floors - 1; floor++) {
     const curr = nodes.filter((n) => n.floor === floor);
     const next = nodes.filter((n) => n.floor === floor + 1);
-    for (const c of curr) {
-      if (next.length === 1) {
-        c.connections = [next[0]!.id];
-      } else {
-        const targets = shuffle(next).slice(0, Math.min(2, next.length));
-        c.connections = targets.map((t) => t.id);
-      }
-    }
-    // Ensure every next node is reachable
-    for (const n of next) {
-      const hasIncoming = curr.some((c) => c.connections.includes(n.id));
-      if (!hasIncoming) {
-        pick(curr).connections.push(n.id);
-      }
-    }
+    connectFloors(curr, next);
   }
 
   return nodes;
+}
+
+/** Horizontal lane position in [0, 1] for proximity matching across floors. */
+function lanePos(index: number, count: number): number {
+  if (count <= 1) return 0.5;
+  return index / (count - 1);
+}
+
+function laneDist(a: MapNode, aCount: number, b: MapNode, bCount: number): number {
+  return Math.abs(lanePos(a.index, aCount) - lanePos(b.index, bCount));
+}
+
+/**
+ * Wire curr → next so each node only links to nearby lanes.
+ * Guarantees every next-floor node has at least one incoming edge.
+ */
+function connectFloors(curr: MapNode[], next: MapNode[]): void {
+  if (!curr.length || !next.length) return;
+
+  if (next.length === 1) {
+    for (const c of curr) c.connections = [next[0]!.id];
+    return;
+  }
+
+  // How far (in normalized lane space) a connection may jump.
+  // ~0.55 covers same-side + center when floors differ in width (2↔3).
+  const maxDist = 0.55;
+
+  for (const c of curr) {
+    const ranked = [...next].sort(
+      (a, b) =>
+        laneDist(c, curr.length, a, next.length) -
+        laneDist(c, curr.length, b, next.length),
+    );
+    const nearby = ranked.filter(
+      (n) => laneDist(c, curr.length, n, next.length) <= maxDist,
+    );
+    const pool = nearby.length > 0 ? nearby : ranked.slice(0, 1);
+    const linkCount = pool.length > 1 && Math.random() < 0.55 ? 2 : 1;
+    c.connections = pool.slice(0, linkCount).map((t) => t.id);
+  }
+
+  // Ensure every next node is reachable — attach from the closest current node.
+  for (const n of next) {
+    const hasIncoming = curr.some((c) => c.connections.includes(n.id));
+    if (hasIncoming) continue;
+    const closest = [...curr].sort(
+      (a, b) =>
+        laneDist(a, curr.length, n, next.length) -
+        laneDist(b, curr.length, n, next.length),
+    )[0]!;
+    if (!closest.connections.includes(n.id)) {
+      closest.connections.push(n.id);
+    }
+  }
 }
 
 function nodeTypeFor(floor: number, index: number, count: number): NodeType {
