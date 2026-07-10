@@ -20,6 +20,9 @@ export type TalentTree =
 
 export type TargetType = 'enemy' | 'allEnemies' | 'self' | 'none';
 
+/** Tags used by typed draws / discard filters. */
+export type CardTypeTag = 'attack' | 'heal' | 'block';
+
 export type EffectKind =
   | 'damage'
   | 'aoeDamage'
@@ -33,7 +36,20 @@ export type EffectKind =
   | 'draw'
   | 'strength'
   | 'vulnerable'
-  | 'energy';
+  | 'energy'
+  | 'copyCard'
+  | 'shuffleCurse'
+  | 'weaken'
+  | 'doubleBuffs'
+  | 'drawTyped'
+  | 'echo'
+  | 'discardRandom'
+  | 'discardDraw'
+  | 'discardFor'
+  | 'retrieveDiscard'
+  | 'randomDamage'
+  | 'recoil'
+  | 'thorns';
 
 export interface CardEffect {
   kind: EffectKind;
@@ -41,6 +57,22 @@ export interface CardEffect {
   duration?: number;
   /** Max enemies hit for aoe (e.g. swipe hits 4) */
   maxTargets?: number;
+  /** Typed draw / echo / discard-for filters. */
+  cardType?: CardTypeTag;
+  /** Echo: trigger when this happens… */
+  echoFrom?: CardTypeTag;
+  /** Echo: …also do this (must differ from echoFrom). */
+  echoTo?: CardTypeTag;
+  /** retrieveDiscard destination. */
+  retrieveMode?: 'hand' | 'play' | 'top';
+  /** Secondary count (e.g. cards drawn by discardDraw). */
+  drawValue?: number;
+  /** Cards to discard for discardFor / discardDraw. */
+  discardCount?: number;
+  /** Extra payoff per discarded card (discardFor). */
+  bonusPerDiscard?: number;
+  /** Payoff channel for discardFor. */
+  payoffKind?: 'damage' | 'heal' | 'block' | 'randomDamage';
 }
 
 export interface CardDef {
@@ -53,6 +85,10 @@ export interface CardDef {
   effects: CardEffect[];
   art: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  /** Cannot be played from hand (curses). */
+  unplayable?: boolean;
+  /** Curse card — deals damage when drawn, clogs the hand. */
+  curse?: boolean;
 }
 
 /**
@@ -173,10 +209,14 @@ export interface StatusEffect {
     | 'spellPower'
     | 'earthAndMoon'
     | 'strength'
-    | 'weak';
+    | 'weak'
+    | 'thorns'
+    | 'echo';
   value: number;
   duration: number;
   stacks?: boolean;
+  echoFrom?: CardTypeTag;
+  echoTo?: CardTypeTag;
 }
 
 export interface EnemyIntent {

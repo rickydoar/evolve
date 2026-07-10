@@ -1105,7 +1105,13 @@ function effectKindMatches(
   if (mod.effectKinds?.length) return mod.effectKinds.includes(kind);
 
   if (bonusField === 'damageBonus' || bonusField === 'damagePct') {
-    return kind === 'damage' || kind === 'aoeDamage' || kind === 'damageOverTime';
+    return (
+      kind === 'damage' ||
+      kind === 'aoeDamage' ||
+      kind === 'damageOverTime' ||
+      kind === 'randomDamage' ||
+      kind === 'thorns'
+    );
   }
   if (bonusField === 'healBonus' || bonusField === 'healPct') {
     return kind === 'heal' || kind === 'healOverTime';
@@ -1225,20 +1231,31 @@ export function modifyEffectValue(
   if (
     effect.kind === 'damage' ||
     effect.kind === 'aoeDamage' ||
-    effect.kind === 'damageOverTime'
+    effect.kind === 'damageOverTime' ||
+    effect.kind === 'randomDamage' ||
+    effect.kind === 'thorns' ||
+    (effect.kind === 'discardFor' &&
+      (effect.payoffKind === 'damage' || effect.payoffKind === 'randomDamage'))
   ) {
     value += talentDamageBonus(talents, card, effect.kind);
     const pct = talentDamagePct(talents, card, effect.kind);
     if (pct > 0) value = Math.floor(value * (1 + pct / 100));
   }
 
-  if (effect.kind === 'heal' || effect.kind === 'healOverTime') {
+  if (
+    effect.kind === 'heal' ||
+    effect.kind === 'healOverTime' ||
+    (effect.kind === 'discardFor' && effect.payoffKind === 'heal')
+  ) {
     value += talentHealBonus(talents, card, effect.kind);
     const pct = talentHealPct(talents, card, effect.kind);
     if (pct > 0) value = Math.floor(value * (1 + pct / 100));
   }
 
-  if (effect.kind === 'block') {
+  if (
+    effect.kind === 'block' ||
+    (effect.kind === 'discardFor' && effect.payoffKind === 'block')
+  ) {
     value += talentBlockBonus(talents, card);
     const pct = talentBlockPct(talents, card);
     if (pct > 0) value = Math.floor(value * (1 + pct / 100));
@@ -1248,464 +1265,183 @@ export function modifyEffectValue(
 }
 
 /** Build a description that reflects current talent bonuses. */
+function effectDescription(effect: CardEffect, card: CardDef, talents: Record<string, number>): string {
+  const value = modifyEffectValue(effect, card, talents);
+  switch (effect.kind) {
+    case 'damage':
+      return `Deal ${value} damage.`;
+    case 'aoeDamage':
+      return effect.maxTargets
+        ? `Deal ${value} damage to up to ${effect.maxTargets} enemies.`
+        : `Deal ${value} damage to ALL enemies.`;
+    case 'randomDamage':
+      return `Deal ${value} damage to a random enemy.`;
+    case 'recoil':
+      return `Take ${value} recoil.`;
+    case 'block':
+      return `Gain ${value} Block.`;
+    case 'heal':
+      return `Heal ${value} health.`;
+    case 'healOverTime': {
+      const extra = talentHotExtraDuration(talents, card.id);
+      const dur = (effect.duration ?? 1) + extra;
+      return `Heal ${value} health over ${dur} turns.`;
+    }
+    case 'damageOverTime': {
+      const extra = talentDotExtraDuration(talents, card.id);
+      const dur = (effect.duration ?? 1) + extra;
+      return `Deal ${value} damage over ${dur} turns.`;
+    }
+    case 'cleanse':
+      return 'Remove all debuffs from yourself.';
+    case 'earthAndMoon':
+      return `Apply Earth and Moon: next Wrath or Starfire deals +${value}% damage.`;
+    case 'draw':
+      return `Draw ${value} card${value === 1 ? '' : 's'}.`;
+    case 'drawTyped': {
+      const label =
+        effect.cardType === 'heal' ? 'Heal' : effect.cardType === 'block' ? 'Armor' : 'Attack';
+      return `Draw ${value} random ${label} card${value === 1 ? '' : 's'}.`;
+    }
+    case 'spellPower':
+      return `Spell power +${value} (spells only).`;
+    case 'strength':
+      return `Gain ${value} Strength this combat.`;
+    case 'vulnerable':
+      return `Apply Vulnerable for ${effect.duration ?? 2} turns.`;
+    case 'weaken':
+      return `Apply Weak for ${effect.duration ?? 2} turns (enemies deal 25% less).`;
+    case 'energy':
+      return `Gain ${value} Energy.`;
+    case 'copyCard':
+      return `Copy ${value} random card${value === 1 ? '' : 's'} into your draw pile.`;
+    case 'shuffleCurse':
+      return `Shuffle ${value} Nightmare into your deck.`;
+    case 'doubleBuffs':
+      return 'Double your current buffs.';
+    case 'echo': {
+      const from =
+        effect.echoFrom === 'heal'
+          ? 'Heal'
+          : effect.echoFrom === 'block'
+            ? 'gain Block'
+            : 'deal damage';
+      const to =
+        effect.echoTo === 'heal'
+          ? `Heal ${value}`
+          : effect.echoTo === 'block'
+            ? `gain ${value} Block`
+            : `deal ${value} damage to a random enemy`;
+      return `Whenever you ${from}, also ${to}.`;
+    }
+    case 'discardRandom':
+      return `Discard ${value} card${value === 1 ? '' : 's'}.`;
+    case 'discardDraw': {
+      const d = effect.discardCount ?? value;
+      const draw = effect.drawValue ?? value;
+      return `Discard ${d}: Draw ${draw}.`;
+    }
+    case 'discardFor': {
+      const d = effect.discardCount ?? 1;
+      const bonus = effect.bonusPerDiscard ?? 0;
+      const kind = effect.payoffKind ?? 'block';
+      const payoff =
+        kind === 'heal'
+          ? `Heal ${value}`
+          : kind === 'damage' || kind === 'randomDamage'
+            ? `Deal ${value} damage`
+            : `Gain ${value} Block`;
+      return `Discard up to ${d} cards. ${payoff}${bonus ? ` + ${bonus} per discarded` : ''}.`;
+    }
+    case 'retrieveDiscard': {
+      const mode = effect.retrieveMode ?? 'hand';
+      if (mode === 'play') return 'Play a random card from your discard.';
+      if (mode === 'top') return 'Put a random discard card on top of your draw pile.';
+      return 'Add a random card from your discard to your hand.';
+    }
+    case 'thorns':
+      return `Gain Thorns ${value} for ${effect.duration ?? 3} turns.`;
+    default:
+      return '';
+  }
+}
+
+function talentDescriptionNotes(card: CardDef, talents: Record<string, number>): string {
+  const notes: string[] = [];
+  if (card.id === 'shred') {
+    const exhaustDraw = talentShredExhaustDraw(talents);
+    if (exhaustDraw != null) notes.push(`Exhaust. Draw ${exhaustDraw} (talent).`);
+  }
+  if (card.id === 'ferocious_bite' && hasTalentSpecial(talents, 'bleedBiteFree')) {
+    notes.push('Costs 0 while an enemy is bleeding.');
+  }
+  if (card.id === 'void_eruption' && hasTalentSpecial(talents, 'voidDetonateDots')) {
+    notes.push('Detonate all DoTs for their remaining damage.');
+  }
+  if (card.id === 'starsurge') {
+    if (hasTalentSpecial(talents, 'earthAndMoonPersistent')) {
+      notes.push('Earth and Moon is not consumed.');
+    }
+    if (talentCardCostReduce(talents, 'starsurge') > 0) notes.push('Costs 1 less.');
+  }
+  if (card.id === 'shadow_word_death' && talentCardCostReduce(talents, 'shadow_word_death') > 0) {
+    notes.push('Costs 0.');
+  }
+  if (card.id === 'swiftmend' && talentCardCostReduce(talents, 'swiftmend') > 0) {
+    notes.push('Costs 0.');
+  }
+  const tickBlock = talentHotTickBlock(talents, card.name);
+  if (tickBlock > 0 && card.effects.some((e) => e.kind === 'healOverTime')) {
+    notes.push(`Also gain ${tickBlock} Block each HoT tick.`);
+  }
+  if (card.id === 'ferocious_bite') {
+    const dmgFx = card.effects.find((e) => e.kind === 'damage');
+    if (dmgFx) {
+      // bleed bonus is hardcoded in combat; keep note in special-case below
+    }
+  }
+  return notes.length ? ' ' + notes.join(' ') : '';
+}
+
 export function getCardDescription(card: CardDef, talents: Record<string, number>): string {
   const hasTalents = Object.values(talents).some((r) => r > 0);
   if (!hasTalents) return card.description;
 
-  // Rebuild from effects when we can; fall back to base description.
-  const parts: string[] = [];
-  for (const effect of card.effects) {
-    const value = modifyEffectValue(effect, card, talents);
-    switch (effect.kind) {
-      case 'damage':
-        parts.push(`Deal ${value} damage.`);
-        break;
-      case 'aoeDamage':
-        if (effect.maxTargets) {
-          parts.push(`Deal ${value} damage to up to ${effect.maxTargets} enemies.`);
-        } else {
-          parts.push(`Deal ${value} damage to ALL enemies.`);
-        }
-        break;
-      case 'block':
-        parts.push(`Gain ${value} Block.`);
-        break;
-      case 'heal':
-        parts.push(`Heal ${value} health.`);
-        break;
-      case 'healOverTime':
-        parts.push(`Heal ${value} health over ${effect.duration} turns.`);
-        break;
-      case 'damageOverTime':
-        parts.push(`Deal ${value} damage over ${effect.duration} turns.`);
-        break;
-      case 'cleanse':
-        parts.push('Remove all debuffs from yourself.');
-        break;
-      case 'earthAndMoon':
-        parts.push(
-          `Apply Earth and Moon: next Wrath or Starfire deals +${value}% damage.`,
-        );
-        break;
-      case 'draw':
-        parts.push(`Draw ${value} card${value === 1 ? '' : 's'}.`);
-        break;
-      case 'spellPower':
-        parts.push(`Spell power +${value} (spells only).`);
-        break;
-      case 'strength':
-        parts.push(`Gain ${value} Strength this combat.`);
-        break;
-      case 'vulnerable':
-        parts.push(
-          `Apply Vulnerable for ${effect.duration ?? 2} turns (enemy takes 50% more damage).`,
-        );
-        break;
-      case 'energy':
-        parts.push(`Gain ${value} Energy.`);
-        break;
-    }
+  if (card.id === 'penance') {
+    return 'Deal damage and Heal equal to half your current Block.';
   }
-
-  // Special-case cards with hardcoded extra behavior
+  if (card.id === 'ferocious_bite') {
+    const dmg = modifyEffectValue(card.effects.find((e) => e.kind === 'damage')!, card, talents);
+    const recoil = card.effects.find((e) => e.kind === 'recoil')?.value ?? 6;
+    const free = hasTalentSpecial(talents, 'bleedBiteFree')
+      ? ' Costs 0 while an enemy is bleeding.'
+      : '';
+    return `Deal ${dmg} damage (+10 if bleeding). Take ${recoil} recoil.${free}`;
+  }
+  if (card.id === 'shadow_word_death') {
+    const dmg = modifyEffectValue(card.effects.find((e) => e.kind === 'damage')!, card, talents);
+    const recoil = card.effects.find((e) => e.kind === 'recoil')?.value ?? 5;
+    const costNote =
+      talentCardCostReduce(talents, 'shadow_word_death') > 0 ? ' Costs 0.' : '';
+    return `Deal ${dmg} damage (+12 if below half HP). Take ${recoil} recoil.${costNote}`;
+  }
   if (card.id === 'shred') {
-    const dmg = modifyEffectValue(card.effects[0]!, card, talents);
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damage')!,
+      card,
+      talents,
+    );
     const exhaustDraw = talentShredExhaustDraw(talents);
     if (exhaustDraw != null) {
       return `Deal ${dmg} damage. Exhaust. Draw ${exhaustDraw}.`;
     }
-    return `Deal ${dmg} damage. Draw 1 card.`;
-  }
-  if (card.id === 'ferocious_bite') {
-    const dmg = modifyEffectValue(card.effects[0]!, card, talents);
-    const free = hasTalentSpecial(talents, 'bleedBiteFree')
-      ? ' Costs 0 while an enemy is bleeding.'
-      : '';
-    return `Deal ${dmg} damage. Deals +10 if the target is bleeding.${free}`;
-  }
-  if (card.id === 'rejuvenation') {
-    const hot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'healOverTime')!,
-      card,
-      talents,
-    );
-    const dur =
-      (card.effects.find((e) => e.kind === 'healOverTime')?.duration ?? 3) +
-      talentHotExtraDuration(talents, 'rejuvenation');
-    const tickBlock = talentHotTickBlock(talents, 'Rejuvenation');
-    const blockNote = tickBlock > 0 ? ` Also gain ${tickBlock} Block each tick.` : '';
-    return `Heal ${hot} over ${dur} turns.${blockNote}`;
-  }
-  if (card.id === 'renew') {
-    const hot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'healOverTime')!,
-      card,
-      talents,
-    );
-    const dur = card.effects.find((e) => e.kind === 'healOverTime')?.duration ?? 3;
-    const tickBlock = talentHotTickBlock(talents, 'Renew');
-    const blockNote = tickBlock > 0 ? ` Also gain ${tickBlock} Block each tick.` : '';
-    return `Heal ${hot} over ${dur} turns.${blockNote}`;
-  }
-  if (card.id === 'void_eruption') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'aoeDamage')!,
-      card,
-      talents,
-    );
-    const detonate = hasTalentSpecial(talents, 'voidDetonateDots')
-      ? ' Detonate all DoTs for their remaining damage.'
-      : '';
-    return `Deal ${dmg} damage to ALL enemies.${detonate}`;
-  }
-  if (card.id === 'starsurge') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const persist = hasTalentSpecial(talents, 'earthAndMoonPersistent')
-      ? ' Earth and Moon is not consumed.'
-      : '';
-    const costNote =
-      talentCardCostReduce(talents, 'starsurge') > 0 ? ' Costs 1 less.' : '';
-    return `Deal ${dmg} damage. Apply Earth and Moon: next Wrath or Starfire deals +50% damage.${persist}${costNote}`;
-  }
-  if (card.id === 'decurse') {
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    const drawNote =
-      talentPlayDrawAmount(talents, card, false) > 0 ? ' Draw 1.' : '';
-    return `Remove all debuffs from yourself. Gain ${block} Block.${drawNote}`;
-  }
-  if (card.id === 'moonfire') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const dot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damageOverTime')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage + ${dot} over 3 turns.`;
-  }
-  if (card.id === 'rake') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const dot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damageOverTime')!,
-      card,
-      talents,
-    );
-    const dur =
-      (card.effects.find((e) => e.kind === 'damageOverTime')?.duration ?? 3) +
-      talentDotExtraDuration(talents, 'rake');
-    return `Deal ${dmg} damage + ${dot} bleed over ${dur} turns.`;
-  }
-  if (card.id === 'thrash') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'aoeDamage')!,
-      card,
-      talents,
-    );
-    const dot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damageOverTime')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage to ALL enemies. Apply ${dot} bleed over 3 turns.`;
-  }
-  if (card.id === 'sunfire') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'aoeDamage')!,
-      card,
-      talents,
-    );
-    const dot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damageOverTime')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage to ALL enemies + ${dot} burn over 3 turns to each.`;
-  }
-  if (card.id === 'maul') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    const vuln =
-      talentAlsoVulnerable(talents, 'maul') != null
-        ? ' Apply Vulnerable.'
-        : '';
-    return `Deal ${dmg} damage. Gain ${block} Block.${vuln}`;
-  }
-  if (card.id === 'barkskin') {
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    return `Gain ${block} Block.`;
-  }
-  if (card.id === 'wild_growth' || card.id === 'ironbark' || card.id === 'survival_instincts') {
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    const heal = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Gain ${block} Block. Heal ${heal}.`;
-  }
-  if (card.id === 'starfire') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage. Draw 1 card.`;
-  }
-  if (card.id === 'starfall') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'aoeDamage')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage to ALL enemies. Draw 1 card.`;
-  }
-  if (card.id === 'swiftmend') {
-    const heal = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    const costNote =
-      talentCardCostReduce(talents, 'swiftmend') > 0 ? ' Costs 0.' : '';
-    return `Heal ${heal}. Draw 1 card.${costNote}`;
-  }
-  if (card.id === 'lifebloom') {
-    const heal = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    const hotEffect = card.effects.find((e) => e.kind === 'healOverTime')!;
-    const hot = modifyEffectValue(hotEffect, card, talents);
-    const dur =
-      (hotEffect.duration ?? 4) + talentHotExtraDuration(talents, 'lifebloom');
-    return `Heal ${heal} now. Heal ${hot} over ${dur} turns.`;
-  }
-  if (card.id === 'tranquility') {
-    const heal = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    return `Heal ${heal}. Gain ${block} Block. Remove all debuffs.`;
-  }
-  if (card.id === 'predatory_strike') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage. Draw 1. Gain 1 Energy.`;
-  }
-  if (card.id === 'incarnation') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    return `Gain 8 Spell Power (spells only). Deal ${dmg} damage. Draw 2 cards.`;
-  }
-  if (card.id === 'mangle') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage. Apply Vulnerable (enemy takes 50% more damage).`;
-  }
-  if (card.id === 'celestial_alignment') {
-    return 'Spell power +5 (spells only).';
   }
 
-  // Priest special-cases
-  if (card.id === 'penance') {
-    return 'Deal damage and Heal equal to half your current Block.';
-  }
-  if (card.id === 'atonement') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage. Heal ${healAmt}.`;
-  }
-  if (card.id === 'power_word_radiance' || card.id === 'guardian_spirit') {
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Gain ${block} Block. Heal ${healAmt}.`;
-  }
-  if (card.id === 'shadow_word_pain' || card.id === 'holy_fire') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const dot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damageOverTime')!,
-      card,
-      talents,
-    );
-    const suffix = card.id === 'holy_fire' ? 'burn' : '';
-    return suffix
-      ? `Deal ${dmg} damage + ${dot} ${suffix} over 3 turns.`
-      : `Deal ${dmg} damage + ${dot} over 3 turns.`;
-  }
-  if (card.id === 'vampiric_touch') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    const dot = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damageOverTime')!,
-      card,
-      talents,
-    );
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage + ${dot} over 3 turns. Heal ${healAmt}.`;
-  }
-  if (card.id === 'shadow_word_death') {
-    const dmg = modifyEffectValue(card.effects[0]!, card, talents);
-    const costNote =
-      talentCardCostReduce(talents, 'shadow_word_death') > 0 ? ' Costs 0.' : '';
-    return `Deal ${dmg} damage. Deals +12 if the target is below half HP.${costNote}`;
-  }
-  if (card.id === 'psychic_scream') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'aoeDamage')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage to ALL enemies. Apply Vulnerable.`;
-  }
-  if (card.id === 'holy_nova') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'aoeDamage')!,
-      card,
-      talents,
-    );
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage to ALL enemies. Heal ${healAmt}.`;
-  }
-  if (card.id === 'prayer_of_healing') {
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    return `Heal ${healAmt}. Gain ${block} Block.`;
-  }
-  if (card.id === 'holy_word_serenity') {
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Heal ${healAmt}. Draw 1 card.`;
-  }
-  if (card.id === 'divine_hymn') {
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    return `Heal ${healAmt}. Gain ${block} Block. Remove all debuffs.`;
-  }
-  if (card.id === 'purify' || card.id === 'dispersion') {
-    const block = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'block')!,
-      card,
-      talents,
-    );
-    return card.id === 'dispersion'
-      ? `Gain ${block} Block. Remove all debuffs.`
-      : `Remove all debuffs from yourself. Gain ${block} Block.`;
-  }
-  if (card.id === 'shadowfiend') {
-    const dmg = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'damage')!,
-      card,
-      talents,
-    );
-    return `Deal ${dmg} damage. Draw 1. Gain 1 Energy.`;
-  }
-  if (card.id === 'archangel') {
-    const healAmt = modifyEffectValue(
-      card.effects.find((e) => e.kind === 'heal')!,
-      card,
-      talents,
-    );
-    return `Gain 6 Spell Power. Heal ${healAmt}. Draw 1 card.`;
-  }
-
-  return parts.length ? parts.join(' ') : card.description;
+  const parts = card.effects
+    .map((effect) => effectDescription(effect, card, talents))
+    .filter(Boolean);
+  const base = parts.length ? parts.join(' ') : card.description;
+  return base + talentDescriptionNotes(card, talents);
 }
 
 export function canAllocateTalent(
