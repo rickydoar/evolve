@@ -4,6 +4,12 @@ import {
   PRIEST_STARTER_BY_SPEC,
   PRIEST_STARTER_DECK,
 } from './priestCards';
+import {
+  SHAMAN_CARDS,
+  SHAMAN_REWARD_POOL,
+  SHAMAN_STARTER_BY_SPEC,
+  SHAMAN_STARTER_DECK,
+} from './shamanCards';
 import type { CardDef, ClassId, OpeningSpec } from './types';
 
 /** Gold cost to purchase a card by rarity (shop + extra reward picks). */
@@ -641,6 +647,7 @@ export const REWARD_POOL: string[] = [
 export const CARDS: Record<string, CardDef> = {
   ...DRUID_CARDS,
   ...PRIEST_CARDS,
+  ...SHAMAN_CARDS,
   ...CURSE_CARDS,
 };
 
@@ -648,17 +655,22 @@ export function buildStarterDeck(classId: ClassId, spec: OpeningSpec): string[] 
   if (classId === 'priest') {
     return [...(PRIEST_STARTER_BY_SPEC[spec] ?? PRIEST_STARTER_BY_SPEC.holy)];
   }
+  if (classId === 'shaman') {
+    return [...(SHAMAN_STARTER_BY_SPEC[spec] ?? SHAMAN_STARTER_BY_SPEC.resto)];
+  }
   return buildDruidStarter(spec);
 }
 
 export const STARTER_DECKS: Record<ClassId, string[]> = {
   druid: STARTER_DECK,
   priest: PRIEST_STARTER_DECK,
+  shaman: SHAMAN_STARTER_DECK,
 };
 
 export const REWARD_POOLS: Record<ClassId, string[]> = {
   druid: REWARD_POOL,
   priest: PRIEST_REWARD_POOL,
+  shaman: SHAMAN_REWARD_POOL,
 };
 
 export const FORM_COLORS: Record<string, number> = {
@@ -670,6 +682,9 @@ export const FORM_COLORS: Record<string, number> = {
   holy: 0xf0c75e,
   shadow: 0x7c3aed,
   discipline: 0xe8e0d0,
+  resto: 0x38bdf8,
+  enhance: 0xf97316,
+  elemental: 0x818cf8,
 };
 
 export const FORM_LABELS: Record<string, string> = {
@@ -681,6 +696,9 @@ export const FORM_LABELS: Record<string, string> = {
   holy: 'Holy',
   shadow: 'Shadow',
   discipline: 'Discipline',
+  resto: 'Resto',
+  enhance: 'Enhance',
+  elemental: 'Elemental',
 };
 
 export const SPEC_BLURBS: Record<OpeningSpec, string> = {
@@ -690,6 +708,9 @@ export const SPEC_BLURBS: Record<OpeningSpec, string> = {
   holy: 'Heals with teeth — typed draws, discard hymns, echoes',
   shadow: 'Void gambits — weaken, recoil Death, Nightmare power',
   discipline: 'Shields that answer — block echoes, discard armor, Penance',
+  resto: 'Tides & totems — HoTs, stream regen, grounding walls',
+  enhance: 'Storm strikes — Strength totems, Windfury, dual shocks',
+  elemental: 'Lightning & lava — shocks, Chain Lightning, Wrath totem',
 };
 
 export const RARITY_LABELS: Record<CardDef['rarity'], string> = {

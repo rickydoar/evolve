@@ -25,6 +25,13 @@ export class SpecScene extends Phaser.Scene {
     const cls = getClass(classId);
     const specs = openingSpecsForClass(classId);
     const isPriest = classId === 'priest';
+    const isShaman = classId === 'shaman';
+    const accent = isPriest ? '#f0c75e' : isShaman ? '#38bdf8' : '#4ade80';
+    const heading = isPriest
+      ? 'Choose your opening school'
+      : isShaman
+        ? 'Choose your opening path'
+        : 'Choose your opening specialization';
 
     const g = this.add.graphics();
     g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a2e24, 0x102018, 1);
@@ -34,12 +41,12 @@ export class SpecScene extends Phaser.Scene {
       .text(width / 2, 56, cls.name, {
         fontFamily: 'Georgia, serif',
         fontSize: '28px',
-        color: isPriest ? '#f0c75e' : '#4ade80',
+        color: accent,
       })
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 96, isPriest ? 'Choose your opening school' : 'Choose your opening specialization', {
+      .text(width / 2, 96, heading, {
         fontFamily: 'Georgia, serif',
         fontSize: '32px',
         color: '#e8f5e9',

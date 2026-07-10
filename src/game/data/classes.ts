@@ -28,9 +28,22 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     talentTrees: ['holy', 'shadow', 'discipline'],
     openingSpecs: ['holy', 'shadow', 'discipline'],
   },
+  shaman: {
+    id: 'shaman',
+    name: 'Shaman',
+    subtitle: 'Master of the Elements',
+    blurb: 'Resto · Enhance · Elemental',
+    heroArt: 'hero-shaman',
+    maxHp: 70,
+    startingGold: 50,
+    starterDeck: STARTER_DECKS.shaman,
+    rewardPool: REWARD_POOLS.shaman,
+    talentTrees: ['restoration', 'enhancement', 'elemental'],
+    openingSpecs: ['resto', 'enhance', 'elemental'],
+  },
 };
 
-export const CLASS_ORDER: ClassId[] = ['druid', 'priest'];
+export const CLASS_ORDER: ClassId[] = ['druid', 'priest', 'shaman'];
 
 export function getClass(id: ClassId): ClassDef {
   return CLASSES[id];

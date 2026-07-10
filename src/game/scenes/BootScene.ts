@@ -84,9 +84,40 @@ export class BootScene extends Phaser.Scene {
     this.load.image('card-divine-hymn', '/assets/cards/divine-hymn.png');
     this.load.image('card-purify', '/assets/cards/purify.png');
 
+    // Shaman cards
+    this.load.image('card-lightning-bolt', '/assets/cards/lightning-bolt.png');
+    this.load.image('card-earth-shock', '/assets/cards/earth-shock.png');
+    this.load.image('card-flame-shock', '/assets/cards/flame-shock.png');
+    this.load.image('card-lava-burst', '/assets/cards/lava-burst.png');
+    this.load.image('card-chain-lightning', '/assets/cards/chain-lightning.png');
+    this.load.image('card-thunderstorm', '/assets/cards/thunderstorm.png');
+    this.load.image('card-searing-totem', '/assets/cards/searing-totem.png');
+    this.load.image('card-totem-of-wrath', '/assets/cards/totem-of-wrath.png');
+    this.load.image('card-elemental-blast', '/assets/cards/elemental-blast.png');
+    this.load.image('card-stormstrike', '/assets/cards/stormstrike.png');
+    this.load.image('card-lava-lash', '/assets/cards/lava-lash.png');
+    this.load.image('card-frost-shock', '/assets/cards/frost-shock.png');
+    this.load.image('card-windfury', '/assets/cards/windfury.png');
+    this.load.image('card-crash-lightning', '/assets/cards/crash-lightning.png');
+    this.load.image('card-feral-spirit', '/assets/cards/feral-spirit.png');
+    this.load.image('card-strength-of-earth-totem', '/assets/cards/strength-of-earth-totem.png');
+    this.load.image('card-windfury-totem', '/assets/cards/windfury-totem.png');
+    this.load.image('card-ascendance', '/assets/cards/ascendance.png');
+    this.load.image('card-healing-wave', '/assets/cards/healing-wave.png');
+    this.load.image('card-riptide', '/assets/cards/riptide.png');
+    this.load.image('card-healing-surge', '/assets/cards/healing-surge.png');
+    this.load.image('card-chain-heal', '/assets/cards/chain-heal.png');
+    this.load.image('card-spirit-link', '/assets/cards/spirit-link.png');
+    this.load.image('card-purge', '/assets/cards/purge.png');
+    this.load.image('card-healing-stream-totem', '/assets/cards/healing-stream-totem.png');
+    this.load.image('card-stoneskin-totem', '/assets/cards/stoneskin-totem.png');
+    this.load.image('card-grounding-totem', '/assets/cards/grounding-totem.png');
+    this.load.image('card-mana-tide-totem', '/assets/cards/mana-tide-totem.png');
+
     // Hero & enemies
     this.load.image('hero-druid', '/assets/hero/hero-druid.png');
     this.load.image('hero-priest', '/assets/hero/hero-priest.png');
+    this.load.image('hero-shaman', '/assets/hero/hero-shaman.png');
     this.load.image('enemy-wolf', '/assets/enemies/enemy-wolf.png');
     this.load.image('enemy-spider', '/assets/enemies/enemy-spider.png');
     this.load.image('enemy-treant', '/assets/enemies/enemy-treant.png');

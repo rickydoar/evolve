@@ -28,6 +28,7 @@ const PLAYER_X = 160;
 const PLAYER_Y = 280;
 
 export class CombatScene extends Phaser.Scene {
+  private totemContainers: Phaser.GameObjects.Container[] = [];
   private handContainers: Phaser.GameObjects.Container[] = [];
   private enemyContainers: Map<string, Phaser.GameObjects.Container> = new Map();
   private hudText!: Phaser.GameObjects.Text;
@@ -175,6 +176,7 @@ export class CombatScene extends Phaser.Scene {
     this.logText.setText(recent);
 
     this.drawPlayerHp(combat);
+    this.drawTotems(combat);
     this.drawEnemies(combat);
     this.drawHand(combat);
 
@@ -197,9 +199,60 @@ export class CombatScene extends Phaser.Scene {
       this.playerHpBar.strokeRoundedRect(px - 70, py + 140, 140, 14, 4);
     }
     const statuses = p.statuses.map((s) => `${s.name}(${s.duration})`).join(' · ');
+    const totemStr = combat.totems
+      .filter((t) => t.hp > 0)
+      .map((t) => `${t.name[0]}:${t.hp}`)
+      .join(' ');
     this.playerHpLabel.setText(
-      `HP ${p.hp}/${p.maxHp}${p.block ? `  🛡${p.block}` : ''}${statuses ? `\n${statuses}` : ''}`,
+      `HP ${p.hp}/${p.maxHp}${p.block ? `  🛡${p.block}` : ''}${statuses ? `\n${statuses}` : ''}${totemStr ? `\nTotems ${totemStr}` : ''}`,
     );
+  }
+
+  private drawTotems(combat: CombatState): void {
+    for (const c of this.totemContainers) c.destroy();
+    this.totemContainers = [];
+
+    const totems = combat.totems.filter((t) => t.hp > 0);
+    if (!totems.length) return;
+
+    const elementColor: Record<string, number> = {
+      earth: 0xa16207,
+      fire: 0xea580c,
+      water: 0x0284c7,
+      air: 0x94a3b8,
+    };
+
+    totems.forEach((totem, i) => {
+      const x = PLAYER_X - 40 + (i % 2) * 80;
+      const y = PLAYER_Y - 110 - Math.floor(i / 2) * 70;
+      const container = this.add.container(x, y);
+      const color = elementColor[totem.element] ?? 0x67e8f9;
+
+      if (this.textures.exists(totem.art)) {
+        container.add(this.add.image(0, 0, totem.art).setDisplaySize(48, 48));
+      } else {
+        const g = this.add.graphics();
+        g.fillStyle(color, 0.9);
+        g.fillTriangle(0, -22, -18, 18, 18, 18);
+        g.lineStyle(2, 0xf8fafc, 0.8);
+        g.strokeTriangle(0, -22, -18, 18, 18, 18);
+        container.add(g);
+      }
+
+      container.add(
+        this.add
+          .text(0, 28, `${totem.name.split(' ')[0]} ${totem.hp}`, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '10px',
+            color: '#e2e8f0',
+            backgroundColor: '#0f172a',
+            padding: { x: 4, y: 2 },
+          })
+          .setOrigin(0.5),
+      );
+
+      this.totemContainers.push(container);
+    });
   }
 
   private drawEnemies(combat: CombatState): void {

@@ -27,7 +27,9 @@ function pick<T>(arr: T[]): T {
 }
 
 function defaultSpec(classId: ClassId): OpeningSpec {
-  return classId === 'priest' ? 'holy' : 'feral';
+  if (classId === 'priest') return 'holy';
+  if (classId === 'shaman') return 'resto';
+  return 'feral';
 }
 
 export function createRun(
