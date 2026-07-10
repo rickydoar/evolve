@@ -92,6 +92,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-treant', '/assets/enemies/enemy-treant.png');
     this.load.image('enemy-harpy', '/assets/enemies/enemy-harpy.png');
     this.load.image('enemy-bog', '/assets/enemies/enemy-bog.png');
+    this.load.image('enemy-stag', '/assets/enemies/enemy-stag.png');
+    this.load.image('enemy-colossus', '/assets/enemies/enemy-colossus.png');
     this.load.image('enemy-boss', '/assets/enemies/enemy-boss.png');
 
     // UI
@@ -140,27 +142,6 @@ export class BootScene extends Phaser.Scene {
       g.generateTexture('enemy-wisp', 128, 128);
       g.destroy();
     }
-    // Blight Stag — antlered silhouette in sickly green
-    {
-      const g = this.make.graphics({ x: 0, y: 0 });
-      g.fillStyle(0x365314, 1);
-      g.fillEllipse(64, 78, 70, 50);
-      g.fillStyle(0x4d7c0f, 1);
-      g.fillCircle(64, 48, 28);
-      g.lineStyle(5, 0xa3e635, 1);
-      g.lineBetween(48, 28, 28, 8);
-      g.lineBetween(28, 8, 20, 18);
-      g.lineBetween(80, 28, 100, 8);
-      g.lineBetween(100, 8, 108, 18);
-      g.fillStyle(0x14532d, 1);
-      g.fillTriangle(40, 100, 55, 100, 40, 120);
-      g.fillTriangle(88, 100, 73, 100, 88, 120);
-      g.fillStyle(0x86efac, 1);
-      g.fillCircle(54, 44, 4);
-      g.fillCircle(74, 44, 4);
-      g.generateTexture('enemy-stag', 128, 128);
-      g.destroy();
-    }
     // Mycelium Queen — layered mushroom cap
     {
       const g = this.make.graphics({ x: 0, y: 0 });
@@ -175,24 +156,6 @@ export class BootScene extends Phaser.Scene {
       g.fillStyle(0x78350f, 1);
       g.fillEllipse(64, 72, 40, 14);
       g.generateTexture('enemy-mycelium', 128, 128);
-      g.destroy();
-    }
-    // Thorn Colossus — bulky spiked form
-    {
-      const g = this.make.graphics({ x: 0, y: 0 });
-      g.fillStyle(0x3f6212, 1);
-      g.fillRoundedRect(28, 40, 72, 70, 12);
-      g.fillStyle(0x65a30d, 1);
-      g.fillTriangle(40, 40, 64, 4, 88, 40);
-      g.fillTriangle(20, 60, 28, 40, 36, 70);
-      g.fillTriangle(108, 60, 100, 40, 92, 70);
-      g.fillStyle(0xa3e635, 1);
-      g.fillTriangle(50, 55, 58, 30, 66, 55);
-      g.fillTriangle(70, 70, 78, 42, 86, 70);
-      g.fillStyle(0x14532d, 1);
-      g.fillCircle(50, 72, 5);
-      g.fillCircle(78, 72, 5);
-      g.generateTexture('enemy-colossus', 128, 128);
       g.destroy();
     }
   }
