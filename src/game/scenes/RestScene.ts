@@ -18,19 +18,28 @@ export class RestScene extends Phaser.Scene {
     const width = GAME_W;
     const height = GAME_H;
     const g = this.add.graphics();
-    g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a3328, 0x102018, 1);
+    if (run.act === 2) {
+      g.fillGradientStyle(0x1a1208, 0x1a1208, 0x3d2a14, 0x2a1c0c, 1);
+    } else {
+      g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a3328, 0x102018, 1);
+    }
     g.fillRect(0, 0, width, height);
 
+    const restTitle = run.act === 2 ? 'Oasis Camp' : 'Sacred Grove';
+    const restBlurb =
+      run.act === 2
+        ? 'Rest in the shade of a lonely oasis.'
+        : 'Rest beneath the ancient boughs.';
     this.add
-      .text(width / 2, 120, 'Sacred Grove', {
+      .text(width / 2, 120, restTitle, {
         fontFamily: 'Georgia, serif',
         fontSize: '40px',
-        color: '#a8e6cf',
+        color: run.act === 2 ? '#fde68a' : '#a8e6cf',
       })
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 180, 'Rest beneath the ancient boughs.', {
+      .text(width / 2, 180, restBlurb, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: '#9aa5b1',

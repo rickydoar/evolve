@@ -8,11 +8,12 @@ import { RewardScene } from './game/scenes/RewardScene';
 import { RestScene } from './game/scenes/RestScene';
 import { ShopScene } from './game/scenes/ShopScene';
 import { TalentScene } from './game/scenes/TalentScene';
+import { ActTransitionScene } from './game/scenes/ActTransitionScene';
 import { GameOverScene } from './game/scenes/GameOverScene';
 import { CANVAS_H, CANVAS_W, DPR } from './game/display';
 import './style.css';
 
-// Phaser Text is a bitmap; match texture density to the HiDPI canvas + camera zoom
+// Phaser text is a bitmap; match texture density to the HiDPI canvas + camera zoom
 const originalText = Phaser.GameObjects.GameObjectFactory.prototype.text;
 Phaser.GameObjects.GameObjectFactory.prototype.text = function (
   this: Phaser.GameObjects.GameObjectFactory,
@@ -50,6 +51,7 @@ const config: Phaser.Types.Core.GameConfig = {
     RestScene,
     ShopScene,
     TalentScene,
+    ActTransitionScene,
     GameOverScene,
   ],
 };

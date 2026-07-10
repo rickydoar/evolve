@@ -1536,7 +1536,28 @@ function resolveIntent(
       break;
     }
     case 'debuff': {
-      if (intent.label.toLowerCase().includes('venom') || intent.value >= 4) {
+      const label = intent.label.toLowerCase();
+      const isPoison =
+        label.includes('venom') || label.includes('poison');
+      const isWeak =
+        label.includes('curse') ||
+        label.includes('slumber') ||
+        label.includes('sleep') ||
+        label.includes('screech') ||
+        label.includes('daze') ||
+        label.includes('nightmare') ||
+        label.includes('grasping') ||
+        label.includes('vines');
+      const isVuln =
+        label.includes('crush') ||
+        label.includes('thunderclap') ||
+        label.includes('terrify') ||
+        label.includes('tear') ||
+        label.includes('mark') ||
+        label.includes('static') ||
+        label.includes('pin');
+
+      if (isPoison || (!isWeak && !isVuln && intent.value >= 4)) {
         addStatus(state.player, {
           id: uid('poison'),
           name: 'Poison',
@@ -1549,13 +1570,13 @@ function resolveIntent(
           text: `${enemy.name} poisons you (${intent.value}/turn).`,
           color: '#a3e635',
         });
-      } else if (intent.label.toLowerCase().includes('curse')) {
+      } else if (isWeak) {
         addStatus(state.player, {
           id: uid('weak'),
           name: 'Weak',
           kind: 'weak',
           value: 1,
-          duration: intent.value || 2,
+          duration: Math.max(2, intent.value || 2),
         });
         state.log.push({
           text: `${enemy.name} weakens you.`,

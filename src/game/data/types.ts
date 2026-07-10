@@ -297,6 +297,9 @@ export interface ClassDef {
   openingSpecs: OpeningSpec[];
 }
 
+/** Act / zone within a run. 1 = Grove, 2 = Barrens. */
+export type ActId = 1 | 2;
+
 export interface RunState {
   classId: ClassId;
   /** Form/school chosen at run start; shapes the starter deck. */
@@ -305,6 +308,8 @@ export interface RunState {
   maxHp: number;
   gold: number;
   floor: number;
+  /** Current act/zone (Grove → Barrens). */
+  act: ActId;
   deck: string[];
   discard: string[];
   drawPile: string[];

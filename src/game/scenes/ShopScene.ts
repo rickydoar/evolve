@@ -43,11 +43,13 @@ export class ShopScene extends Phaser.Scene {
     g.fillGradientStyle(0x0b1210, 0x0b1210, 0x1a2818, 0x102014, 1);
     g.fillRect(0, 0, width, height);
 
+    const shopTitle =
+      run.act === 2 ? 'Ratchet Trader' : 'Merchant of the Grove';
     this.add
-      .text(width / 2, 48, 'Merchant of the Grove', {
+      .text(width / 2, 48, shopTitle, {
         fontFamily: 'Georgia, serif',
         fontSize: '36px',
-        color: '#e8f5e9',
+        color: run.act === 2 ? '#fde68a' : '#e8f5e9',
       })
       .setOrigin(0.5);
 
