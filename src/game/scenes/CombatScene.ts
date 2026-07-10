@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CARDS, FORM_COLORS, FORM_LABELS } from '../data/cards';
+import { getClass } from '../data/classes';
 import { getCardDescription } from '../data/talents';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
@@ -44,7 +45,8 @@ export class CombatScene extends Phaser.Scene {
 
   create(): void {
     const combat = GameRegistry.combat;
-    if (!combat || !GameRegistry.run) {
+    const run = GameRegistry.run;
+    if (!combat || !run) {
       this.scene.start('Title');
       return;
     }
@@ -81,13 +83,15 @@ export class CombatScene extends Phaser.Scene {
     });
 
     // Player portrait
-    if (this.textures.exists('hero-druid')) {
-      this.playerPortrait = this.add.image(PLAYER_X, PLAYER_Y, 'hero-druid').setDisplaySize(160, 160);
+    const cls = getClass(run.classId);
+    const heroArt = combat.player.art ?? cls.heroArt;
+    if (this.textures.exists(heroArt)) {
+      this.playerPortrait = this.add.image(PLAYER_X, PLAYER_Y, heroArt).setDisplaySize(160, 160);
     } else {
       this.playerPortrait = this.add.circle(PLAYER_X, PLAYER_Y, 70, 0x3d9b6a);
     }
     this.add
-      .text(PLAYER_X, PLAYER_Y + 100, 'Druid', {
+      .text(PLAYER_X, PLAYER_Y + 100, combat.player.name, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: '#e8f5e9',

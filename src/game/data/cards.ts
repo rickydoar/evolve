@@ -1,4 +1,5 @@
-import type { CardDef } from './types';
+import { PRIEST_CARDS, PRIEST_REWARD_POOL, PRIEST_STARTER_DECK } from './priestCards';
+import type { CardDef, ClassId } from './types';
 
 /** Gold cost to purchase a card by rarity (shop + extra reward picks). */
 export const CARD_BUY_COST: Record<CardDef['rarity'], number> = {
@@ -18,7 +19,7 @@ export function shopRerollCost(rerollCount: number): number {
   return SHOP_REROLL_BASE_COST + Math.max(0, rerollCount);
 }
 
-export const CARDS: Record<string, CardDef> = {
+export const DRUID_CARDS: Record<string, CardDef> = {
   // ── Bear ────────────────────────────────────────────────────────
   barkskin: {
     id: 'barkskin',
@@ -480,11 +481,30 @@ export const REWARD_POOL: string[] = [
   'tranquility',
 ];
 
+/** All cards across classes (ids must be unique). */
+export const CARDS: Record<string, CardDef> = {
+  ...DRUID_CARDS,
+  ...PRIEST_CARDS,
+};
+
+export const STARTER_DECKS: Record<ClassId, string[]> = {
+  druid: STARTER_DECK,
+  priest: PRIEST_STARTER_DECK,
+};
+
+export const REWARD_POOLS: Record<ClassId, string[]> = {
+  druid: REWARD_POOL,
+  priest: PRIEST_REWARD_POOL,
+};
+
 export const FORM_COLORS: Record<string, number> = {
   bear: 0x8b5a2b,
   cat: 0xc9a227,
   boomkin: 0x5b7cfa,
   tree: 0x3d9b6a,
+  holy: 0xf0c75e,
+  shadow: 0x7c3aed,
+  discipline: 0xe8e0d0,
 };
 
 export const FORM_LABELS: Record<string, string> = {
@@ -492,6 +512,9 @@ export const FORM_LABELS: Record<string, string> = {
   cat: 'Cat',
   boomkin: 'Boomkin',
   tree: 'Tree',
+  holy: 'Holy',
+  shadow: 'Shadow',
+  discipline: 'Discipline',
 };
 
 export const RARITY_LABELS: Record<CardDef['rarity'], string> = {

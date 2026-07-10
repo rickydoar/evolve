@@ -83,7 +83,7 @@ export class RewardScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.contentRoot = this.add.container(0, 0);
-    this.rewards = randomRewards(3);
+    this.rewards = randomRewards(3, run.classId);
     this.refreshHud();
     this.renderCards();
 
@@ -117,7 +117,7 @@ export class RewardScene extends Phaser.Scene {
     if (run.gold < cost) return;
     run.gold -= cost;
     run.shopRerollCount += 1;
-    this.rewards = randomRewards(3);
+    this.rewards = randomRewards(3, run.classId);
     this.taken = new Set();
     this.refreshHud();
     this.renderCards();

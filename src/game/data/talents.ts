@@ -1,5 +1,16 @@
-import type { CardDef, CardEffect, EffectKind, Form, TalentDef, TalentTree } from './types';
+import { talentTreesForClass } from './classes';
+import { PRIEST_TALENTS } from './priestTalents';
+import type {
+  CardDef,
+  CardEffect,
+  ClassId,
+  EffectKind,
+  Form,
+  TalentDef,
+  TalentTree,
+} from './types';
 
+/** @deprecated Prefer talentTreesForClass(run.classId) — kept for Druid-only callers. */
 export const TALENT_TREES: TalentTree[] = ['feral', 'resto', 'balance'];
 
 /** Points spent in a tree required to unlock each tier (tier 0 = free). */
@@ -9,25 +20,34 @@ export const TALENT_TREE_LABELS: Record<TalentTree, string> = {
   feral: 'Feral',
   resto: 'Restoration',
   balance: 'Balance',
+  holy: 'Holy',
+  shadow: 'Shadow',
+  discipline: 'Discipline',
 };
 
 export const TALENT_TREE_COLORS: Record<TalentTree, number> = {
   feral: 0xc9a227,
   resto: 0x3d9b6a,
   balance: 0x5b7cfa,
+  holy: 0xf0c75e,
+  shadow: 0x7c3aed,
+  discipline: 0xe8e0d0,
 };
 
 export const TALENT_TREE_BLURBS: Record<TalentTree, string> = {
   feral: 'Claws, fangs & hide',
   resto: 'Healing & resilience',
   balance: 'Arcane & nature spells',
+  holy: 'Radiant healing light',
+  shadow: 'Void & mind magic',
+  discipline: 'Shields & atonement',
 };
 
 /**
  * Classic-style talent trees: spend points in a tree to unlock deeper tiers.
  * Prerequisites chain key talents. Capstones reward specialization.
  */
-export const TALENTS: Record<string, TalentDef> = {
+export const DRUID_TALENTS: Record<string, TalentDef> = {
   // ════════════════════════════════════════════════════════════════
   // FERAL — Cat & Bear
   // ════════════════════════════════════════════════════════════════
@@ -405,20 +425,34 @@ export const TALENTS: Record<string, TalentDef> = {
   },
 };
 
-/** Capstone Tree of Life: also boost block via a dedicated path in modifyEffectValue. */
+/** Capstone Tree of Life / Evangelism: also boost block via a dedicated path in modifyEffectValue. */
 const TREE_OF_LIFE_BLOCK_PCT = 25;
+const EVANGELISM_BLOCK_PCT = 25;
+
+/** All talents across classes (ids must be unique). */
+export const TALENTS: Record<string, TalentDef> = {
+  ...DRUID_TALENTS,
+  ...PRIEST_TALENTS,
+};
+
+function talentsForTree(tree: TalentTree): TalentDef[] {
+  return Object.values(TALENTS)
+    .filter((t) => t.tree === tree)
+    .sort((a, b) => a.tier - b.tier || a.column - b.column);
+}
 
 export const TALENTS_BY_TREE: Record<TalentTree, TalentDef[]> = {
-  feral: Object.values(TALENTS)
-    .filter((t) => t.tree === 'feral')
-    .sort((a, b) => a.tier - b.tier || a.column - b.column),
-  resto: Object.values(TALENTS)
-    .filter((t) => t.tree === 'resto')
-    .sort((a, b) => a.tier - b.tier || a.column - b.column),
-  balance: Object.values(TALENTS)
-    .filter((t) => t.tree === 'balance')
-    .sort((a, b) => a.tier - b.tier || a.column - b.column),
+  feral: talentsForTree('feral'),
+  resto: talentsForTree('resto'),
+  balance: talentsForTree('balance'),
+  holy: talentsForTree('holy'),
+  shadow: talentsForTree('shadow'),
+  discipline: talentsForTree('discipline'),
 };
+
+export function talentTreesForRun(classId: ClassId): TalentTree[] {
+  return talentTreesForClass(classId);
+}
 
 export function getTalentRank(talents: Record<string, number>, id: string): number {
   return talents[id] ?? 0;
@@ -624,6 +658,10 @@ export function modifyEffectValue(
     // Tree of Life capstone: +25% block on tree cards
     if (getTalentRank(talents, 'tree_of_life') > 0 && card.form === 'tree') {
       value = Math.floor(value * (1 + TREE_OF_LIFE_BLOCK_PCT / 100));
+    }
+    // Evangelism capstone: +25% block on discipline cards
+    if (getTalentRank(talents, 'evangelism') > 0 && card.form === 'discipline') {
+      value = Math.floor(value * (1 + EVANGELISM_BLOCK_PCT / 100));
     }
   }
 
@@ -878,6 +916,166 @@ export function getCardDescription(card: CardDef, talents: Record<string, number
     return 'Spell power +5 (spells only).';
   }
 
+  // Priest special-cases
+  if (card.id === 'penance') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damage')!,
+      card,
+      talents,
+    );
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Deal ${dmg} damage. Heal ${healAmt}.`;
+  }
+  if (card.id === 'atonement') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damage')!,
+      card,
+      talents,
+    );
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Deal ${dmg} damage. Heal ${healAmt}.`;
+  }
+  if (card.id === 'power_word_radiance' || card.id === 'guardian_spirit') {
+    const block = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'block')!,
+      card,
+      talents,
+    );
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Gain ${block} Block. Heal ${healAmt}.`;
+  }
+  if (card.id === 'shadow_word_pain' || card.id === 'holy_fire') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damage')!,
+      card,
+      talents,
+    );
+    const dot = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damageOverTime')!,
+      card,
+      talents,
+    );
+    const suffix = card.id === 'holy_fire' ? 'burn' : '';
+    return suffix
+      ? `Deal ${dmg} damage + ${dot} ${suffix} over 3 turns.`
+      : `Deal ${dmg} damage + ${dot} over 3 turns.`;
+  }
+  if (card.id === 'vampiric_touch') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damage')!,
+      card,
+      talents,
+    );
+    const dot = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damageOverTime')!,
+      card,
+      talents,
+    );
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Deal ${dmg} damage + ${dot} over 3 turns. Heal ${healAmt}.`;
+  }
+  if (card.id === 'shadow_word_death') {
+    const dmg = modifyEffectValue(card.effects[0]!, card, talents);
+    return `Deal ${dmg} damage. Deals +12 if the target is below half HP.`;
+  }
+  if (card.id === 'psychic_scream') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'aoeDamage')!,
+      card,
+      talents,
+    );
+    return `Deal ${dmg} damage to ALL enemies. Apply Vulnerable.`;
+  }
+  if (card.id === 'holy_nova') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'aoeDamage')!,
+      card,
+      talents,
+    );
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Deal ${dmg} damage to ALL enemies. Heal ${healAmt}.`;
+  }
+  if (card.id === 'prayer_of_healing') {
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    const block = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'block')!,
+      card,
+      talents,
+    );
+    return `Heal ${healAmt}. Gain ${block} Block.`;
+  }
+  if (card.id === 'holy_word_serenity') {
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Heal ${healAmt}. Draw 1 card.`;
+  }
+  if (card.id === 'divine_hymn') {
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    const block = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'block')!,
+      card,
+      talents,
+    );
+    return `Heal ${healAmt}. Gain ${block} Block. Remove all debuffs.`;
+  }
+  if (card.id === 'purify' || card.id === 'dispersion') {
+    const block = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'block')!,
+      card,
+      talents,
+    );
+    return card.id === 'dispersion'
+      ? `Gain ${block} Block. Remove all debuffs.`
+      : `Remove all debuffs from yourself. Gain ${block} Block.`;
+  }
+  if (card.id === 'shadowfiend') {
+    const dmg = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'damage')!,
+      card,
+      talents,
+    );
+    return `Deal ${dmg} damage. Draw 1. Gain 1 Energy.`;
+  }
+  if (card.id === 'archangel') {
+    const healAmt = modifyEffectValue(
+      card.effects.find((e) => e.kind === 'heal')!,
+      card,
+      talents,
+    );
+    return `Gain 6 Spell Power. Heal ${healAmt}. Draw 1 card.`;
+  }
+
   return parts.length ? parts.join(' ') : card.description;
 }
 
@@ -910,7 +1108,10 @@ export function allocateTalent(
 export function treeForForm(form: Form): TalentTree {
   if (form === 'cat' || form === 'bear') return 'feral';
   if (form === 'tree') return 'resto';
-  return 'balance';
+  if (form === 'boomkin') return 'balance';
+  if (form === 'holy') return 'holy';
+  if (form === 'shadow') return 'shadow';
+  return 'discipline';
 }
 
 /** Human-readable unlock hint for locked talents. */

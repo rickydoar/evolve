@@ -1,6 +1,8 @@
-import { CARDS, REWARD_POOL, STARTER_DECK } from './cards';
+import { REWARD_POOLS } from './cards';
+import { getClass } from './classes';
 import { ELITE_ENCOUNTERS, ENCOUNTER_TABLE, ENEMIES } from './enemies';
-import type { MapNode, NodeType, RunState } from './types';
+import type { ClassId, MapNode, NodeType, RunState } from './types';
+import { CARDS } from './cards';
 
 function uid(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
@@ -19,15 +21,16 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export function createRun(): RunState {
+export function createRun(classId: ClassId = 'druid'): RunState {
+  const cls = getClass(classId);
   const map = generateMap();
   return {
-    classId: 'druid',
-    hp: 80,
-    maxHp: 80,
-    gold: 50,
+    classId,
+    hp: cls.maxHp,
+    maxHp: cls.maxHp,
+    gold: cls.startingGold,
     floor: 0,
-    deck: [...STARTER_DECK],
+    deck: [...cls.starterDeck],
     discard: [],
     drawPile: [],
     hand: [],
@@ -132,8 +135,9 @@ export function getEnemy(id: string) {
   return ENEMIES[id];
 }
 
-export function randomRewards(count = 3): string[] {
-  return shuffle([...REWARD_POOL]).slice(0, count);
+export function randomRewards(count = 3, classId: ClassId = 'druid'): string[] {
+  const pool = REWARD_POOLS[classId] ?? REWARD_POOLS.druid;
+  return shuffle([...pool]).slice(0, count);
 }
 
 /** Remove one copy of a card from the run deck by index. */

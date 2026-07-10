@@ -1,4 +1,5 @@
 import { CARDS } from '../data/cards';
+import { getClass } from '../data/classes';
 import { ENEMIES } from '../data/enemies';
 import {
   modifyEffectValue,
@@ -73,16 +74,17 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
   });
 
   const talentSp = talentSpellPowerBonus(run.talents);
+  const cls = getClass(run.classId);
   const state: CombatState = {
     player: {
       id: 'player',
-      name: 'Druid',
+      name: cls.name,
       maxHp: run.maxHp,
       hp: run.hp,
       block: 0,
       statuses: [],
       isPlayer: true,
-      art: 'hero-druid',
+      art: cls.heroArt,
     },
     enemies,
     energy: run.energyMax,
@@ -176,9 +178,14 @@ function computeCardDamage(
   state: CombatState,
   target?: Combatant,
 ): number {
-  // Spell power only scales Boomkin spells — never Bear/Cat physical attacks.
+  // Spell power scales caster schools — Boomkin, Holy, Shadow, Discipline.
   let dmg = base;
-  if (card.form === 'boomkin') {
+  if (
+    card.form === 'boomkin' ||
+    card.form === 'holy' ||
+    card.form === 'shadow' ||
+    card.form === 'discipline'
+  ) {
     dmg += state.spellPowerBonus + Math.floor(state.spellPowerBonus * 0.5);
   }
   if (
@@ -191,6 +198,13 @@ function computeCardDamage(
   }
   if (card.id === 'ferocious_bite' && target && getStatus(target, 'bleed')) {
     dmg += 10;
+  }
+  if (
+    card.id === 'shadow_word_death' &&
+    target &&
+    target.hp < target.maxHp / 2
+  ) {
+    dmg += 12;
   }
   const str = getStatus(state.player, 'strength');
   if (str) dmg += str.value;
@@ -345,13 +359,13 @@ function applyCardEffects(
         const perTick = Math.floor(value / (effect.duration ?? 1));
         addStatus(state.player, {
           id: uid('regen'),
-          name: 'Rejuvenation',
+          name: card.name,
           kind: 'regen',
           value: perTick,
           duration: effect.duration ?? 1,
         });
         state.log.push({
-          text: `Rejuvenation: ${perTick} heal/turn for ${effect.duration} turns.`,
+          text: `${card.name}: ${perTick} heal/turn for ${effect.duration} turns.`,
           color: '#86efac',
         });
         break;
@@ -427,18 +441,26 @@ function applyCardEffects(
         break;
       }
       case 'vulnerable': {
-        if (!target) break;
-        addStatus(target, {
-          id: uid('vuln'),
-          name: 'Vulnerable',
-          kind: 'vulnerable',
-          value: 1,
-          duration: effect.duration ?? 2,
-        });
-        state.log.push({
-          text: `${target.name} is Vulnerable for ${effect.duration ?? 2} turns.`,
-          color: '#fb923c',
-        });
+        const duration = effect.duration ?? 2;
+        const vulnTargets =
+          card.target === 'allEnemies'
+            ? state.enemies.filter((e) => e.hp > 0)
+            : target
+              ? [target]
+              : [];
+        for (const t of vulnTargets) {
+          addStatus(t, {
+            id: uid('vuln'),
+            name: 'Vulnerable',
+            kind: 'vulnerable',
+            value: 1,
+            duration,
+          });
+          state.log.push({
+            text: `${t.name} is Vulnerable for ${duration} turns.`,
+            color: '#fb923c',
+          });
+        }
         break;
       }
       case 'energy': {
