@@ -52,26 +52,37 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function pickIntent(enemyId: string): EnemyIntent {
+const MAX_COMBAT_ENEMIES = 4;
+const ENRAGE_HP_RATIO = 0.4;
+
+function pickIntent(enemyId: string, combatant?: Combatant): EnemyIntent {
   const def = ENEMIES[enemyId]!;
-  return { ...def.intents[Math.floor(Math.random() * def.intents.length)]! };
+  const enraged =
+    !!combatant &&
+    !!def.enrageIntents?.length &&
+    combatant.hp / combatant.maxHp <= ENRAGE_HP_RATIO;
+  const pool = enraged ? def.enrageIntents! : def.intents;
+  const chosen = pool[Math.floor(Math.random() * pool.length)]!;
+  return { ...chosen };
+}
+
+function createEnemyCombatant(enemyDefId: string): Combatant {
+  const def = ENEMIES[enemyDefId]!;
+  return {
+    id: uid(enemyDefId),
+    name: def.name,
+    maxHp: def.maxHp,
+    hp: def.maxHp,
+    block: 0,
+    statuses: [],
+    art: def.art,
+    enemyDefId,
+    intent: pickIntent(enemyDefId),
+  };
 }
 
 export function startCombat(run: RunState, enemyIds: string[]): CombatState {
-  const enemies: Combatant[] = enemyIds.map((id) => {
-    const def = ENEMIES[id]!;
-    return {
-      id: uid(id),
-      name: def.name,
-      maxHp: def.maxHp,
-      hp: def.maxHp,
-      block: 0,
-      statuses: [],
-      art: def.art,
-      enemyDefId: id,
-      intent: pickIntent(id),
-    };
-  });
+  const enemies: Combatant[] = enemyIds.map((id) => createEnemyCombatant(id));
 
   const talentSp = talentSpellPowerBonus(run.talents);
   const cls = getClass(run.classId);
@@ -163,7 +174,21 @@ export function applyDamage(
   target.block -= blocked;
   amount -= blocked;
   target.hp = Math.max(0, target.hp - amount);
+  maybeTriggerEnrage(target, state);
   return amount + blocked;
+}
+
+function maybeTriggerEnrage(enemy: Combatant, state: CombatState): void {
+  if (enemy.isPlayer || !enemy.enemyDefId || enemy.enraged || enemy.hp <= 0) return;
+  const def = ENEMIES[enemy.enemyDefId];
+  if (!def?.enrageIntents?.length) return;
+  if (enemy.hp / enemy.maxHp <= ENRAGE_HP_RATIO) {
+    enemy.enraged = true;
+    state.log.push({
+      text: `${enemy.name} enrages!`,
+      color: '#f97316',
+    });
+  }
 }
 
 function heal(target: Combatant, amount: number): number {
@@ -551,7 +576,8 @@ export function applyEnemyTurnStep(state: CombatState, step: EnemyTurnStep): boo
   } else {
     resolveIntent(state, enemy, step.intent);
     if (enemy.hp > 0 && enemy.enemyDefId) {
-      enemy.intent = pickIntent(enemy.enemyDefId);
+      maybeTriggerEnrage(enemy, state);
+      enemy.intent = pickIntent(enemy.enemyDefId, enemy);
     }
   }
 
@@ -667,6 +693,42 @@ function resolveIntent(
       state.log.push({
         text: `${enemy.name} heals ${healed}.`,
         color: '#86efac',
+      });
+      break;
+    }
+    case 'summon': {
+      const living = state.enemies.filter((e) => e.hp > 0).length;
+      const summonId = intent.summonId ?? 'grove_wisp';
+      const summonDef = ENEMIES[summonId];
+      if (!summonDef) {
+        state.log.push({
+          text: `${enemy.name} fails to summon.`,
+          color: '#9aa5b1',
+        });
+        break;
+      }
+      if (living >= MAX_COMBAT_ENEMIES) {
+        // Field is full — siphon life instead so the intent still matters.
+        const healed = heal(enemy, Math.max(8, intent.value * 8));
+        state.log.push({
+          text: `${enemy.name} cannot summon — absorbs ${healed} HP instead.`,
+          color: '#86efac',
+        });
+        break;
+      }
+      const count = Math.max(1, intent.value);
+      let spawned = 0;
+      for (let i = 0; i < count; i++) {
+        if (state.enemies.filter((e) => e.hp > 0).length >= MAX_COMBAT_ENEMIES) break;
+        state.enemies.push(createEnemyCombatant(summonId));
+        spawned += 1;
+      }
+      state.log.push({
+        text:
+          spawned > 1
+            ? `${enemy.name} summons ${spawned} ${summonDef.name}s!`
+            : `${enemy.name} summons a ${summonDef.name}!`,
+        color: '#c4b5fd',
       });
       break;
     }

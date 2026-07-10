@@ -110,9 +110,11 @@ export interface StatusEffect {
 }
 
 export interface EnemyIntent {
-  type: 'attack' | 'defend' | 'buff' | 'debuff' | 'heal';
+  type: 'attack' | 'defend' | 'buff' | 'debuff' | 'heal' | 'summon';
   value: number;
   label: string;
+  /** Enemy id to spawn for summon intents. */
+  summonId?: string;
 }
 
 export interface EnemyDef {
@@ -122,6 +124,12 @@ export interface EnemyDef {
   art: string;
   intents: EnemyIntent[];
   isBoss?: boolean;
+  isElite?: boolean;
+  /**
+   * When HP falls to 40% or below, the enemy switches to this intent pool
+   * (enrage / second phase).
+   */
+  enrageIntents?: EnemyIntent[];
 }
 
 export interface Combatant {
@@ -135,6 +143,8 @@ export interface Combatant {
   isPlayer?: boolean;
   enemyDefId?: string;
   intent?: EnemyIntent;
+  /** True after the enemy has entered its enrage / phase-2 intent pool. */
+  enraged?: boolean;
 }
 
 export type NodeType = 'combat' | 'elite' | 'rest' | 'treasure' | 'shop' | 'boss';

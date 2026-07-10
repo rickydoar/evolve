@@ -104,6 +104,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.createShopIcon();
+    this.createProceduralEnemyArt();
     this.scene.start('Title');
   }
 
@@ -120,5 +121,78 @@ export class BootScene extends Phaser.Scene {
     g.fillCircle(32, 34, 8);
     g.generateTexture('map-shop', 64, 64);
     g.destroy();
+  }
+
+  /** Distinct silhouettes for late-game enemies that lack painted assets. */
+  private createProceduralEnemyArt(): void {
+    // Grove Wisp — pale teal orb with a soft glow ring
+    {
+      const g = this.make.graphics({ x: 0, y: 0 });
+      g.fillStyle(0x0f766e, 0.35);
+      g.fillCircle(64, 64, 58);
+      g.fillStyle(0x5eead4, 1);
+      g.fillCircle(64, 64, 36);
+      g.fillStyle(0xccfbf1, 1);
+      g.fillCircle(52, 52, 12);
+      g.lineStyle(3, 0x99f6e4, 0.9);
+      g.strokeCircle(64, 64, 44);
+      g.generateTexture('enemy-wisp', 128, 128);
+      g.destroy();
+    }
+    // Blight Stag — antlered silhouette in sickly green
+    {
+      const g = this.make.graphics({ x: 0, y: 0 });
+      g.fillStyle(0x365314, 1);
+      g.fillEllipse(64, 78, 70, 50);
+      g.fillStyle(0x4d7c0f, 1);
+      g.fillCircle(64, 48, 28);
+      g.lineStyle(5, 0xa3e635, 1);
+      g.lineBetween(48, 28, 28, 8);
+      g.lineBetween(28, 8, 20, 18);
+      g.lineBetween(80, 28, 100, 8);
+      g.lineBetween(100, 8, 108, 18);
+      g.fillStyle(0x14532d, 1);
+      g.fillTriangle(40, 100, 55, 100, 40, 120);
+      g.fillTriangle(88, 100, 73, 100, 88, 120);
+      g.fillStyle(0x86efac, 1);
+      g.fillCircle(54, 44, 4);
+      g.fillCircle(74, 44, 4);
+      g.generateTexture('enemy-stag', 128, 128);
+      g.destroy();
+    }
+    // Mycelium Queen — layered mushroom cap
+    {
+      const g = this.make.graphics({ x: 0, y: 0 });
+      g.fillStyle(0x7c2d12, 1);
+      g.fillEllipse(64, 88, 36, 50);
+      g.fillStyle(0xb45309, 1);
+      g.fillEllipse(64, 52, 90, 48);
+      g.fillStyle(0xfde68a, 1);
+      g.fillCircle(40, 48, 6);
+      g.fillCircle(64, 40, 5);
+      g.fillCircle(88, 50, 7);
+      g.fillStyle(0x78350f, 1);
+      g.fillEllipse(64, 72, 40, 14);
+      g.generateTexture('enemy-mycelium', 128, 128);
+      g.destroy();
+    }
+    // Thorn Colossus — bulky spiked form
+    {
+      const g = this.make.graphics({ x: 0, y: 0 });
+      g.fillStyle(0x3f6212, 1);
+      g.fillRoundedRect(28, 40, 72, 70, 12);
+      g.fillStyle(0x65a30d, 1);
+      g.fillTriangle(40, 40, 64, 4, 88, 40);
+      g.fillTriangle(20, 60, 28, 40, 36, 70);
+      g.fillTriangle(108, 60, 100, 40, 92, 70);
+      g.fillStyle(0xa3e635, 1);
+      g.fillTriangle(50, 55, 58, 30, 66, 55);
+      g.fillTriangle(70, 70, 78, 42, 86, 70);
+      g.fillStyle(0x14532d, 1);
+      g.fillCircle(50, 72, 5);
+      g.fillCircle(78, 72, 5);
+      g.generateTexture('enemy-colossus', 128, 128);
+      g.destroy();
+    }
   }
 }

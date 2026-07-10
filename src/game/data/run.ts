@@ -1,6 +1,11 @@
 import { REWARD_POOLS } from './cards';
 import { getClass } from './classes';
-import { ELITE_ENCOUNTERS, ENCOUNTER_TABLE, ENEMIES } from './enemies';
+import {
+  ELITE_ENCOUNTERS,
+  ENCOUNTER_TABLE,
+  ENEMIES,
+  LATE_ELITE_ENCOUNTERS,
+} from './enemies';
 import type { ClassId, MapNode, NodeType, RunState } from './types';
 import { CARDS } from './cards';
 
@@ -47,8 +52,9 @@ export function createRun(classId: ClassId = 'druid'): RunState {
 
 export function generateMap(): MapNode[] {
   const nodes: MapNode[] = [];
-  const floors = 9; // 0..7 combat path, 8 boss
-  const perFloor = [1, 2, 3, 2, 3, 2, 2, 1, 1];
+  // Floors 0–7: original path; 8–9: harder late path; 10: boss
+  const floors = 11;
+  const perFloor = [1, 2, 3, 2, 3, 2, 2, 1, 2, 1, 1];
 
   for (let floor = 0; floor < floors; floor++) {
     const count = perFloor[floor]!;
@@ -92,14 +98,14 @@ export function generateMap(): MapNode[] {
 
 function nodeTypeFor(floor: number, index: number, count: number): NodeType {
   if (floor === 0) return 'combat';
-  if (floor === 8) return 'boss';
-  if (floor === 3 || floor === 6) {
+  if (floor === 10) return 'boss';
+  if (floor === 3 || floor === 6 || floor === 8) {
     if (index === 0) return 'elite';
     if (index === count - 1) return 'rest';
   }
   if (floor === 4 && index === 1) return 'treasure';
   if (floor === 5 && index === 0) return 'shop';
-  if (floor === 7) return Math.random() < 0.5 ? 'elite' : 'combat';
+  if (floor === 7 || floor === 9) return Math.random() < 0.55 ? 'elite' : 'combat';
   const roll = Math.random();
   if (roll < 0.1) return 'rest';
   if (roll < 0.16) return 'treasure';
@@ -111,7 +117,10 @@ function nodeTypeFor(floor: number, index: number, count: number): NodeType {
 function enemiesFor(type: NodeType, floor: number): string[] {
   if (type === 'boss') return ['nightmare'];
   if (type === 'rest' || type === 'treasure' || type === 'shop') return [];
-  if (type === 'elite') return [...pick(ELITE_ENCOUNTERS)];
+  if (type === 'elite') {
+    const pool = floor >= 8 ? LATE_ELITE_ENCOUNTERS : ELITE_ENCOUNTERS;
+    return [...pick(pool)];
+  }
   const idx = Math.min(floor, ENCOUNTER_TABLE.length - 1);
   // Mix nearby encounters
   const pool = ENCOUNTER_TABLE.slice(Math.max(0, idx - 1), idx + 2);
