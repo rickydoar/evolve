@@ -3,6 +3,8 @@ import type Phaser from 'phaser';
 /**
  * Create centered card body text that is guaranteed to stay inside a box.
  * Shrinks the font if needed, then clips with fixedWidth/fixedHeight.
+ * The returned text's height matches the visible content (capped at maxHeight),
+ * so callers can stack labels below it without overlap.
  */
 export function fitCardText(
   scene: Phaser.Scene,
@@ -43,7 +45,8 @@ export function fitCardText(
     fontSize -= 1;
   }
 
-  // Hard clip so nothing can paint past the card edge
-  text!.setFixedSize(maxWidth, maxHeight);
+  // Clip to the box, but size to content so stacked layout can use .height
+  const contentHeight = Math.min(text!.height, maxHeight);
+  text!.setFixedSize(maxWidth, Math.ceil(contentHeight));
   return text!;
 }

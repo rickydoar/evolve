@@ -20,8 +20,8 @@ import {
 } from '../systems/CombatSystem';
 import { fitCardText } from '../ui/fitCardText';
 
-const CARD_W = 130;
-const CARD_H = 200;
+const CARD_W = 154;
+const CARD_H = 240;
 /** Bottom padding inside the card frame for description text. */
 const CARD_PAD = 8;
 const PLAYER_X = 160;
@@ -316,10 +316,10 @@ export class CombatScene extends Phaser.Scene {
     const n = combat.hand.length;
     if (n === 0) return;
 
-    const spacing = Math.min(CARD_W + 16, (width - 80) / n);
+    const spacing = Math.min(CARD_W + 12, (width - 60) / n);
     const totalW = (n - 1) * spacing;
     const startX = width / 2 - totalW / 2;
-    const y = height - 120;
+    const y = height - CARD_H / 2 - 14;
 
     combat.hand.forEach((cardId, index) => {
       const card = CARDS[cardId];
@@ -336,60 +336,62 @@ export class CombatScene extends Phaser.Scene {
       container.add(bg);
 
       if (this.textures.exists(card.art)) {
-        const art = this.add.image(0, -36, card.art).setDisplaySize(108, 86);
+        const art = this.add.image(0, -48, card.art).setDisplaySize(128, 100);
         if (!playable) art.setTint(0x666666);
         container.add(art);
       }
 
       // Cost gem
       const playCost = getCardPlayCost(combat, card);
-      container.add(this.add.circle(-CARD_W / 2 + 16, -CARD_H / 2 + 16, 14, 0x1d4ed8));
+      container.add(this.add.circle(-CARD_W / 2 + 18, -CARD_H / 2 + 18, 15, 0x1d4ed8));
       container.add(
         this.add
-          .text(-CARD_W / 2 + 16, -CARD_H / 2 + 16, String(playCost), {
+          .text(-CARD_W / 2 + 18, -CARD_H / 2 + 18, String(playCost), {
             fontFamily: 'Georgia, serif',
-            fontSize: '16px',
+            fontSize: '17px',
             color: '#fff',
             fontStyle: 'bold',
           })
           .setOrigin(0.5),
       );
 
+      const nameTop = 18;
       const nameText = fitCardText(
         this,
         0,
-        24,
+        nameTop,
         card.name,
-        CARD_W - 16,
-        22,
+        CARD_W - 18,
+        36,
         {
           color: playable ? '#e8f5e9' : '#64748b',
           fontSize: 14,
           minFontSize: 11,
           fontStyle: 'bold',
-          lineSpacing: 0,
+          lineSpacing: 1,
         },
       );
       container.add(nameText);
 
+      const formY = nameTop + nameText.height + 3;
       const formLabel = this.add
-        .text(0, 48, card.curse ? 'Curse' : (FORM_LABELS[card.form] ?? ''), {
+        .text(0, formY, card.curse ? 'Curse' : (FORM_LABELS[card.form] ?? ''), {
           fontFamily: 'Georgia, serif',
-          fontSize: '11px',
+          fontSize: '12px',
           color: card.curse ? '#c4b5fd' : `#${formColor.toString(16).padStart(6, '0')}`,
         })
-        .setOrigin(0.5);
+        .setOrigin(0.5, 0);
       container.add(formLabel);
 
       // Description fills the remaining bottom band and is clipped to the card
-      const descTop = 58;
-      const descMaxH = CARD_H / 2 - descTop - CARD_PAD;
+      const descTop = formY + formLabel.height + 3;
+      const descMaxH = Math.max(36, CARD_H / 2 - descTop - CARD_PAD);
       const description = getCardDescription(card, combat.talents);
       container.add(
-        fitCardText(this, 0, descTop, description, CARD_W - 16, descMaxH, {
+        fitCardText(this, 0, descTop, description, CARD_W - 18, descMaxH, {
           color: '#cbd5e1',
-          fontSize: 11,
-          minFontSize: 9,
+          fontSize: 12,
+          minFontSize: 10,
           lineSpacing: 2,
         }),
       );

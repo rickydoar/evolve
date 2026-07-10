@@ -257,10 +257,10 @@ export class RewardScene extends Phaser.Scene {
     this.contentRoot.removeAll(true);
     const run = GameRegistry.run!;
     const width = GAME_W;
-    const spacing = 220;
+    const spacing = 240;
     const startX = width / 2 - spacing;
-    const REWARD_W = 180;
-    const REWARD_H = 260;
+    const REWARD_W = 204;
+    const REWARD_H = 296;
     const rerollCost = shopRerollCost(run.shopRerollCount);
     const canReroll = run.gold >= rerollCost;
 
@@ -284,50 +284,50 @@ export class RewardScene extends Phaser.Scene {
 
       if (this.textures.exists(card.art)) {
         container.add(
-          this.add.image(0, -52, card.art).setDisplaySize(140, 110).setAlpha(taken ? 0.4 : 1),
+          this.add.image(0, -58, card.art).setDisplaySize(156, 122).setAlpha(taken ? 0.4 : 1),
         );
       }
 
       // Energy cost gem
-      container.add(this.add.circle(-REWARD_W / 2 + 16, -REWARD_H / 2 + 16, 14, 0x1d4ed8));
+      container.add(this.add.circle(-REWARD_W / 2 + 18, -REWARD_H / 2 + 18, 15, 0x1d4ed8));
       container.add(
         this.add
-          .text(-REWARD_W / 2 + 16, -REWARD_H / 2 + 16, String(card.cost), {
+          .text(-REWARD_W / 2 + 18, -REWARD_H / 2 + 18, String(card.cost), {
             fontFamily: 'Georgia, serif',
-            fontSize: '16px',
+            fontSize: '17px',
             color: '#fff',
             fontStyle: 'bold',
           })
           .setOrigin(0.5),
       );
 
-      container.add(
-        fitCardText(this, 0, 22, card.name, REWARD_W - 20, 28, {
-          color: taken ? '#64748b' : '#e8f5e9',
-          fontSize: 18,
-          minFontSize: 13,
-          fontStyle: 'bold',
-          lineSpacing: 0,
-        }),
-      );
+      const nameTop = 16;
+      const nameText = fitCardText(this, 0, nameTop, card.name, REWARD_W - 22, 40, {
+        color: taken ? '#64748b' : '#e8f5e9',
+        fontSize: 17,
+        minFontSize: 12,
+        fontStyle: 'bold',
+        lineSpacing: 1,
+      });
+      container.add(nameText);
 
-      container.add(
-        this.add
-          .text(0, 54, `${FORM_LABELS[card.form]} · ${RARITY_LABELS[card.rarity]}`, {
-            fontFamily: 'Georgia, serif',
-            fontSize: '11px',
-            color: taken ? '#64748b' : RARITY_COLORS[card.rarity],
-          })
-          .setOrigin(0.5),
-      );
+      const metaY = nameTop + nameText.height + 3;
+      const meta = this.add
+        .text(0, metaY, `${FORM_LABELS[card.form]} · ${RARITY_LABELS[card.rarity]}`, {
+          fontFamily: 'Georgia, serif',
+          fontSize: '12px',
+          color: taken ? '#64748b' : RARITY_COLORS[card.rarity],
+        })
+        .setOrigin(0.5, 0);
+      container.add(meta);
 
-      const descTop = 72;
-      const descMaxH = REWARD_H / 2 - descTop - 8;
+      const descTop = metaY + meta.height + 3;
+      const descMaxH = Math.max(48, REWARD_H / 2 - descTop - 8);
       container.add(
-        fitCardText(this, 0, descTop, description, REWARD_W - 20, descMaxH, {
+        fitCardText(this, 0, descTop, description, REWARD_W - 22, descMaxH, {
           color: taken ? '#64748b' : '#cbd5e1',
           fontSize: 13,
-          minFontSize: 10,
+          minFontSize: 11,
           lineSpacing: 2,
         }),
       );
