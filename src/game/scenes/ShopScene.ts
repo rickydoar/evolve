@@ -20,6 +20,8 @@ import { openDeckView } from './DeckViewScene';
 export class ShopScene extends Phaser.Scene {
   private stock: string[] = [];
   private purchased = new Set<number>();
+  /** Balance parity with the playthrough sim: one upgrade purchase per shop visit. */
+  private upgradedThisVisit = false;
   private goldText!: Phaser.GameObjects.Text;
   private contentRoot!: Phaser.GameObjects.Container;
   private itemsBar: Phaser.GameObjects.Container | null = null;
@@ -38,6 +40,7 @@ export class ShopScene extends Phaser.Scene {
     // Phaser reuses the scene instance — clear purchase state each visit
     this.stock = [];
     this.purchased = new Set();
+    this.upgradedThisVisit = false;
 
     setupHiDpiCamera(this);
     const width = GAME_W;
@@ -300,10 +303,14 @@ export class ShopScene extends Phaser.Scene {
 
     const upgradeCost = cardUpgradeShopCost(run);
     const canUpgrade =
+      !this.upgradedThisVisit &&
       run.gold >= upgradeCost &&
       run.deck.some((c) => c.upgrade < 2);
-    const upgradeLabel =
-      upgradeCost === 0 ? 'Upgrade — FREE' : `Upgrade — ${upgradeCost}g`;
+    const upgradeLabel = this.upgradedThisVisit
+      ? 'Upgrade — done'
+      : upgradeCost === 0
+        ? 'Upgrade — FREE'
+        : `Upgrade — ${upgradeCost}g`;
     const upgradeBtn = this.add
       .text(width / 2 + 200, 480, upgradeLabel, {
         fontFamily: 'Georgia, serif',
@@ -324,6 +331,10 @@ export class ShopScene extends Phaser.Scene {
     this.clearContent();
     const run = GameRegistry.run!;
     const width = GAME_W;
+    if (this.upgradedThisVisit) {
+      this.renderBrowse();
+      return;
+    }
     const upgradeCost = cardUpgradeShopCost(run);
     const candidates = pickUpgradeCandidates(run, 3);
     if (!candidates.length || run.gold < upgradeCost) {
@@ -333,7 +344,7 @@ export class ShopScene extends Phaser.Scene {
 
     const costLabel = upgradeCost === 0 ? 'FREE' : `${upgradeCost}g`;
     const title = this.add
-      .text(width / 2, 128, `Choose a card to upgrade (${costLabel})`, {
+      .text(width / 2, 128, `Choose a card to upgrade (${costLabel}) · 1 per shop`, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
         color: '#e8f5e9',
@@ -403,8 +414,10 @@ export class ShopScene extends Phaser.Scene {
       );
 
       frame.on('pointerdown', () => {
+        if (this.upgradedThisVisit) return;
         if (!payForCardUpgrade(run)) return;
         run.deck[deckIndex] = upgradeCard(inst);
+        this.upgradedThisVisit = true;
         this.refreshGold();
         this.renderBrowse();
       });

@@ -249,7 +249,12 @@ export function getEnemy(id: string) {
   return ENEMIES[id];
 }
 
-function rewardFloor(run?: RunState | null): number {
+/**
+ * Continuous progression index across acts.
+ * Act 2 map floors reset to 0, but power/rewards must keep climbing —
+ * otherwise Barrens fights (and shops) play like early Grove.
+ */
+export function progressionFloor(run?: RunState | null): number {
   if (!run) return 0;
   let floor = 0;
   if (run.currentNodeId) {
@@ -259,8 +264,11 @@ function rewardFloor(run?: RunState | null): number {
   } else {
     floor = Math.max(run.floor, run.victories);
   }
-  // Act 2 rewards use late-game rarity weights
   return run.act === 2 ? floor + 10 : floor;
+}
+
+function rewardFloor(run?: RunState | null): number {
+  return progressionFloor(run);
 }
 
 function pickWeightedRarity(

@@ -61,7 +61,7 @@ export const CURSE_CARDS: Record<string, CardDef> = {
     name: 'Nightmare',
     form: 'shadow',
     cost: 0,
-    description: 'Unplayable. When drawn, take 10 damage. Removed after combat.',
+    description: 'Unplayable. When drawn, take 5 damage. Removed after combat.',
     target: 'none',
     effects: [],
     art: 'card-shadow-word-pain',

@@ -131,6 +131,10 @@ const ENRAGE_HP_RATIO = 0.4;
 const CURSE_DRAW_DAMAGE = 5;
 const WEAK_MULTIPLIER = 0.75;
 const MAX_EFFECT_DEPTH = 6;
+/** HP + intent scaling per map floor within an act. */
+export const ENEMY_SCALE_PER_FLOOR = 0.05;
+/** Flat power added in Act 2 (Barrens templates are already a harder tier). */
+export const ENEMY_ACT2_FLAT_SCALE = 0;
 
 /** Prevent echo / retrieve recursion from looping forever. */
 let effectDepth = 0;
@@ -166,7 +170,11 @@ export function cardHasType(card: CardDef | undefined, type: CardTypeTag): boole
 
 function scaleIntent(intent: EnemyIntent, mult: number): EnemyIntent {
   if (intent.type === 'summon') return { ...intent };
-  return { ...intent, value: Math.max(1, Math.floor(intent.value * mult)) };
+  if (mult === 1) return { ...intent };
+  const value = Math.max(1, Math.floor(intent.value * mult));
+  // Keep UI labels honest — raw defs embed unscaled numbers like "Bite 10".
+  const label = intent.label.replace(/\d+/g, String(value));
+  return { ...intent, value, label };
 }
 
 function pickIntent(enemyId: string, combatant?: Combatant, scale = 1): EnemyIntent {
@@ -196,8 +204,19 @@ function createEnemyCombatant(enemyDefId: string, scale = 1): Combatant {
   };
 }
 
+/** Floor power multiplier used by combat.
+ * Uses map floor (resets each act) plus a modest Act 2 flat bump —
+ * Barrens templates are already a harder tier, so we do NOT reuse the
+ * reward `progressionFloor` (+10) or Act 2 becomes wildly overtuned.
+ */
+export function enemyScaleForRun(run: RunState): number {
+  const floorScale = 1 + run.floor * ENEMY_SCALE_PER_FLOOR;
+  const actBump = run.act === 2 ? ENEMY_ACT2_FLAT_SCALE : 0;
+  return floorScale + actBump;
+}
+
 export function startCombat(run: RunState, enemyIds: string[]): CombatState {
-  const enemyScale = 1 + run.floor * 0.05;
+  const enemyScale = enemyScaleForRun(run);
   const enemies: Combatant[] = enemyIds.map((id) => createEnemyCombatant(id, enemyScale));
 
   const cls = getClass(run.classId);
@@ -246,7 +265,7 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
 
   if (enemyScale > 1) {
     state.log.push({
-      text: `Enemy power: +${Math.round((enemyScale - 1) * 100)}% (floor ${run.floor}).`,
+      text: `Enemy power: +${Math.round((enemyScale - 1) * 100)}% (act ${run.act}, floor ${run.floor}).`,
       color: '#fca5a5',
     });
   }
@@ -2327,7 +2346,8 @@ function resolveIntent(
       let spawned = 0;
       for (let i = 0; i < count; i++) {
         if (state.enemies.filter((e) => e.hp > 0).length >= MAX_COMBAT_ENEMIES) break;
-        state.enemies.push(createEnemyCombatant(summonId));
+        // Summons inherit the fight's floor scale (previously spawned at base stats).
+        state.enemies.push(createEnemyCombatant(summonId, state.enemyScale));
         spawned += 1;
       }
       state.log.push({
