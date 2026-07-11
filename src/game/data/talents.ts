@@ -1363,7 +1363,7 @@ function effectDescription(effect: CardEffect, card: CardDef, talents: Record<st
     case 'copyCard':
       return `Copy ${value} random card${value === 1 ? '' : 's'} into your draw pile.`;
     case 'shuffleCurse':
-      return `Shuffle ${value} Nightmare into your deck.`;
+      return `Shuffle ${value} Nightmare into your deck this combat.`;
     case 'doubleBuffs':
       return 'Double your current buffs.';
     case 'echo': {

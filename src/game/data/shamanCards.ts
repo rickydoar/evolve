@@ -197,7 +197,7 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'elemental',
     cost: 2,
     description:
-      'Deal 16 damage. Gain 4 Spell Power. Double your buffs. Shuffle a Nightmare into your deck.',
+      'Deal 16 damage. Gain 4 Spell Power. Double your buffs. Shuffle a Nightmare into your deck this combat.',
     target: 'enemy',
     effects: [
       { kind: 'damage', value: 16 },
@@ -325,7 +325,7 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'enhance',
     cost: 2,
     description:
-      'Gain 4 Strength. Deal 12 damage to ALL enemies. Shuffle a Nightmare into your deck.',
+      'Gain 4 Strength. Deal 12 damage to ALL enemies. Shuffle a Nightmare into your deck this combat.',
     target: 'allEnemies',
     effects: [
       { kind: 'strength', value: 4, duration: 99 },
@@ -466,7 +466,7 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'resto',
     cost: 2,
     description:
-      'Summon Mana Tide Totem (10 HP). While alive: +1 Energy each turn. Heal 12. Shuffle a Nightmare into your deck.',
+      'Summon Mana Tide Totem (10 HP). While alive: +1 Energy each turn. Heal 12. Shuffle a Nightmare into your deck this combat.',
     target: 'self',
     effects: [
       { kind: 'summonTotem', value: 1, totemId: 'mana_tide_totem' },
