@@ -5,6 +5,7 @@ import {
   buildStarterDeck,
   rarityWeightsForFloor,
 } from './cards';
+import { makeDeck, makeCard } from './cardInstance';
 import { getClass } from './classes';
 import {
   ACT_NAMES,
@@ -47,7 +48,7 @@ export function createRun(
     gold: cls.startingGold,
     floor: 0,
     act: 1,
-    deck: buildStarterDeck(classId, spec),
+    deck: makeDeck(buildStarterDeck(classId, spec)),
     discard: [],
     drawPile: [],
     hand: [],
@@ -56,11 +57,10 @@ export function createRun(
     energyMax: 3,
     spellPowerBonus: 0,
     victories: 0,
-    talentPoints: 0,
-    talents: {},
     shopRerollCount: 0,
     potions: 0,
     cardsRemoved: 0,
+    freeUpgradeAvailable: true,
     items: [],
   };
 }
@@ -220,6 +220,31 @@ export function getCard(id: string) {
   return CARDS[id];
 }
 
+export function removeCardAt(run: RunState, index: number): boolean {
+  if (index < 0 || index >= run.deck.length) return false;
+  run.deck.splice(index, 1);
+  return true;
+}
+
+export function addCardToDeck(run: RunState, defId: string, upgrade = 0): void {
+  run.deck.push(makeCard(defId, upgrade));
+}
+
+/** Pick up to `count` distinct upgradable cards from the deck (by index). */
+export function pickUpgradeCandidates(run: RunState, count = 3): number[] {
+  const indices = run.deck
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.upgrade < 2)
+    .map(({ i }) => i);
+  const shuffled = [...indices];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
+
+
 export function getEnemy(id: string) {
   return ENEMIES[id];
 }
@@ -308,13 +333,6 @@ export function randomRewards(
   }
 
   return picked;
-}
-
-/** Remove one copy of a card from the run deck by index. */
-export function removeCardAt(run: RunState, index: number): boolean {
-  if (index < 0 || index >= run.deck.length) return false;
-  run.deck.splice(index, 1);
-  return true;
 }
 
 /** Drink one heal potion from the map. Returns HP actually restored. */

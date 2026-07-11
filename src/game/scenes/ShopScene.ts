@@ -8,8 +8,9 @@ import {
   cardRemoveCost,
   shopRerollCost,
 } from '../data/cards';
-import { getCardDescription } from '../data/talents';
-import { randomRewards, removeCardAt } from '../data/run';
+import { cardUpgradeShopCost, cardDisplayName, makeCard, payForCardUpgrade, upgradeCard } from '../data/cardInstance';
+import { getCardDescription, getCardInstanceDescription } from '../data/cardText';
+import { pickUpgradeCandidates, randomRewards, removeCardAt } from '../data/run';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
 import { fitCardText } from '../ui/fitCardText';
@@ -173,7 +174,7 @@ export class ShopScene extends Phaser.Scene {
       const x = startX + i * spacing;
       const y = 300;
       const formColor = FORM_COLORS[card.form];
-      const description = getCardDescription(card, run.talents);
+      const description = getCardDescription(card, 0);
 
       const container = this.add.container(x, y);
       this.contentRoot.add(container);
@@ -202,7 +203,7 @@ export class ShopScene extends Phaser.Scene {
       );
 
       const nameTop = 14;
-      const nameText = fitCardText(this, 0, nameTop, card.name, CARD_W - 18, 36, {
+      const nameText = fitCardText(this, 0, nameTop, `${card.name} 1`, CARD_W - 18, 36, {
         color: sold ? '#64748b' : '#e8f5e9',
         fontSize: 15,
         minFontSize: 11,
@@ -255,7 +256,7 @@ export class ShopScene extends Phaser.Scene {
         frame.on('pointerdown', () => {
           if (run.gold < cost || this.purchased.has(i)) return;
           run.gold -= cost;
-          run.deck.push(id);
+          run.deck.push(makeCard(id));
           this.purchased.add(i);
           this.refreshGold();
           this.renderBrowse();
@@ -282,12 +283,12 @@ export class ShopScene extends Phaser.Scene {
     const removeCost = cardRemoveCost(run.cardsRemoved);
     const canRemove = run.gold >= removeCost && run.deck.length > 1;
     const removeBtn = this.add
-      .text(width / 2 + 140, 480, `Remove a Card — ${removeCost}g`, {
+      .text(width / 2 + 40, 480, `Remove — ${removeCost}g`, {
         fontFamily: 'Georgia, serif',
-        fontSize: '18px',
+        fontSize: '16px',
         color: canRemove ? '#0b1210' : '#64748b',
         backgroundColor: canRemove ? '#fbbf24' : '#1e293b',
-        padding: { x: 16, y: 10 },
+        padding: { x: 12, y: 10 },
       })
       .setOrigin(0.5);
 
@@ -296,6 +297,118 @@ export class ShopScene extends Phaser.Scene {
       removeBtn.on('pointerdown', () => this.renderRemove());
     }
     this.contentRoot.add(removeBtn);
+
+    const upgradeCost = cardUpgradeShopCost(run);
+    const canUpgrade =
+      run.gold >= upgradeCost &&
+      run.deck.some((c) => c.upgrade < 2);
+    const upgradeLabel =
+      upgradeCost === 0 ? 'Upgrade — FREE' : `Upgrade — ${upgradeCost}g`;
+    const upgradeBtn = this.add
+      .text(width / 2 + 200, 480, upgradeLabel, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '16px',
+        color: canUpgrade ? '#0b1210' : '#64748b',
+        backgroundColor: canUpgrade ? '#67e8f9' : '#1e293b',
+        padding: { x: 12, y: 10 },
+      })
+      .setOrigin(0.5);
+    if (canUpgrade) {
+      upgradeBtn.setInteractive({ useHandCursor: true });
+      upgradeBtn.on('pointerdown', () => this.renderUpgrade());
+    }
+    this.contentRoot.add(upgradeBtn);
+  }
+
+  private renderUpgrade(): void {
+    this.clearContent();
+    const run = GameRegistry.run!;
+    const width = GAME_W;
+    const upgradeCost = cardUpgradeShopCost(run);
+    const candidates = pickUpgradeCandidates(run, 3);
+    if (!candidates.length || run.gold < upgradeCost) {
+      this.renderBrowse();
+      return;
+    }
+
+    const costLabel = upgradeCost === 0 ? 'FREE' : `${upgradeCost}g`;
+    const title = this.add
+      .text(width / 2, 128, `Choose a card to upgrade (${costLabel})`, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '18px',
+        color: '#e8f5e9',
+      })
+      .setOrigin(0.5);
+    this.contentRoot.add(title);
+
+    const back = this.add
+      .text(width / 2, 158, '← Back to shop', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '14px',
+        color: '#94a3b8',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    back.on('pointerdown', () => this.renderBrowse());
+    this.contentRoot.add(back);
+
+    const CARD_W = 172;
+    const CARD_H = 252;
+    const spacing = 196;
+    const startX = width / 2 - ((candidates.length - 1) * spacing) / 2;
+
+    candidates.forEach((deckIndex, i) => {
+      const inst = run.deck[deckIndex]!;
+      const card = CARDS[inst.defId]!;
+      const x = startX + i * spacing;
+      const y = 320;
+      const formColor = FORM_COLORS[card.form];
+      const container = this.add.container(x, y);
+      this.contentRoot.add(container);
+
+      const frame = this.add.rectangle(0, 0, CARD_W, CARD_H, 0x0f1a14, 0.95);
+      frame.setStrokeStyle(2, formColor);
+      frame.setInteractive({ useHandCursor: true });
+      container.add(frame);
+
+      if (this.textures.exists(card.art)) {
+        container.add(this.add.image(0, -54, card.art).setDisplaySize(136, 108));
+      }
+
+      container.add(
+        fitCardText(this, 0, 14, cardDisplayName(inst, card), CARD_W - 18, 36, {
+          color: '#e8f5e9',
+          fontSize: 15,
+          minFontSize: 11,
+          fontStyle: 'bold',
+          lineSpacing: 1,
+        }),
+      );
+      container.add(
+        fitCardText(this, 0, 60, getCardInstanceDescription(inst), CARD_W - 18, 100, {
+          color: '#cbd5e1',
+          fontSize: 12,
+          minFontSize: 10,
+          lineSpacing: 2,
+        }),
+      );
+      container.add(
+        this.add
+          .text(0, CARD_H / 2 + 16, `→ ${inst.upgrade + 2}`, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '14px',
+            color: '#67e8f9',
+          })
+          .setOrigin(0.5),
+      );
+
+      frame.on('pointerdown', () => {
+        if (!payForCardUpgrade(run)) return;
+        run.deck[deckIndex] = upgradeCard(inst);
+        this.refreshGold();
+        this.renderBrowse();
+      });
+    });
   }
 
   private renderRemove(): void {
@@ -334,8 +447,8 @@ export class ShopScene extends Phaser.Scene {
     const startX = width / 2 - totalW / 2 + CARD_W / 2;
     const startY = 250;
 
-    run.deck.forEach((id, index) => {
-      const card = CARDS[id];
+    run.deck.forEach((inst, index) => {
+      const card = CARDS[inst.defId];
       if (!card) return;
       const col = index % cols;
       const row = Math.floor(index / cols);
@@ -353,7 +466,7 @@ export class ShopScene extends Phaser.Scene {
       container.add(frame);
 
       container.add(
-        fitCardText(this, 0, -50, card.name, CARD_W - 12, 36, {
+        fitCardText(this, 0, -50, cardDisplayName(inst, card), CARD_W - 12, 36, {
           color: '#e8f5e9',
           fontSize: 13,
           minFontSize: 10,
@@ -367,7 +480,7 @@ export class ShopScene extends Phaser.Scene {
           this,
           0,
           -8,
-          getCardDescription(card, run.talents),
+          getCardInstanceDescription(inst),
           CARD_W - 12,
           70,
           {

@@ -266,10 +266,10 @@ export const ITEMS: Record<string, ItemDef> = {
   bloodfang_charm: {
     id: 'bloodfang_charm',
     name: 'Bloodfang Charm',
-    description: 'Bleed ticks deal +4 damage.',
+    description: 'Bleed ticks deal +5 damage.',
     spec: 'feral',
     rarity: 'rare',
-    effects: [{ trigger: 'onEnemyDotTick', kind: 'dotBonusPerTick', value: 4 }],
+    effects: [{ trigger: 'onEnemyDotTick', kind: 'dotBonusPerTick', value: 5 }],
   },
   ironpelt_totem: {
     id: 'ironpelt_totem',
@@ -395,18 +395,18 @@ export const ITEMS: Record<string, ItemDef> = {
   verdant_lash: {
     id: 'verdant_lash',
     name: 'Verdant Lash',
-    description: 'Whenever you heal, deal 4 damage to a random enemy.',
+    description: 'Whenever you heal, deal 2 damage to a random enemy.',
     spec: 'tree',
     rarity: 'epic',
-    effects: [{ trigger: 'onHeal', kind: 'damageRandom', value: 4, minHeal: 1 }],
+    effects: [{ trigger: 'onHeal', kind: 'damageRandom', value: 2, minHeal: 1 }],
   },
   lifebloom_crown: {
     id: 'lifebloom_crown',
     name: 'Lifebloom Crown',
-    description: 'Your HoT ticks also grant 2 Block.',
+    description: 'Your HoT ticks also grant 1 Block.',
     spec: 'tree',
     rarity: 'rare',
-    effects: [{ trigger: 'combatStart', kind: 'flag', value: 2 }],
+    effects: [{ trigger: 'combatStart', kind: 'flag', value: 1 }],
   },
   grove_battery: {
     id: 'grove_battery',
@@ -454,14 +454,14 @@ export const ITEMS: Record<string, ItemDef> = {
   radiant_censer: {
     id: 'radiant_censer',
     name: 'Radiant Censer',
-    description: 'Whenever you play a Holy heal, deal 5 damage to the lowest-HP enemy.',
+    description: 'Whenever you play a Holy heal, deal 4 damage to the lowest-HP enemy.',
     spec: 'holy',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'damageLowest',
-        value: 5,
+        value: 4,
         forms: ['holy'],
         cardIds: [
           'flash_heal',
@@ -524,14 +524,14 @@ export const ITEMS: Record<string, ItemDef> = {
   hymn_book: {
     id: 'hymn_book',
     name: 'Hymn Book',
-    description: 'Once per turn, after playing a Holy card, gain 6 Block.',
+    description: 'Once per turn, after playing a Holy card, gain 5 Block.',
     spec: 'holy',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'block',
-        value: 6,
+        value: 5,
         forms: ['holy'],
         oncePerTurn: true,
       },
@@ -599,10 +599,10 @@ export const ITEMS: Record<string, ItemDef> = {
   shield_spike: {
     id: 'shield_spike',
     name: 'Shield Spike',
-    description: 'Whenever you gain Block, deal 3 damage to a random enemy.',
+    description: 'Whenever you gain Block, deal 4 damage to a random enemy.',
     spec: 'discipline',
     rarity: 'epic',
-    effects: [{ trigger: 'onGainBlock', kind: 'damageRandom', value: 3 }],
+    effects: [{ trigger: 'onGainBlock', kind: 'damageRandom', value: 4 }],
   },
   penitent_brand: {
     id: 'penitent_brand',
@@ -671,14 +671,14 @@ export const ITEMS: Record<string, ItemDef> = {
   tidal_charm: {
     id: 'tidal_charm',
     name: 'Tidal Charm',
-    description: 'Whenever you play a Resto heal, deal 5 damage to the lowest-HP enemy.',
+    description: 'Whenever you play a Resto heal, deal 3 damage to the lowest-HP enemy.',
     spec: 'resto',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'damageLowest',
-        value: 5,
+        value: 3,
         forms: ['resto'],
         cardIds: [
           'healing_wave',
@@ -694,22 +694,22 @@ export const ITEMS: Record<string, ItemDef> = {
   stream_crystal: {
     id: 'stream_crystal',
     name: 'Stream Crystal',
-    description: 'Your HoT ticks also grant 2 Block.',
+    description: 'Your HoT ticks also grant 1 Block.',
     spec: 'resto',
     rarity: 'rare',
-    effects: [{ trigger: 'combatStart', kind: 'flag', value: 2 }],
+    effects: [{ trigger: 'combatStart', kind: 'flag', value: 1 }],
   },
   ancestral_coin: {
     id: 'ancestral_coin',
     name: 'Ancestral Coin',
-    description: 'When you heal while at full HP, gain 8 Block.',
+    description: 'When you heal while at full HP, gain 6 Block.',
     spec: 'resto',
     rarity: 'rare',
     effects: [
       {
         trigger: 'onHeal',
         kind: 'block',
-        value: 8,
+        value: 6,
         requireFullHp: true,
       },
     ],
@@ -717,14 +717,14 @@ export const ITEMS: Record<string, ItemDef> = {
   spirit_water: {
     id: 'spirit_water',
     name: 'Spirit Water',
-    description: 'Once per turn, after playing a Resto card, gain 6 Block.',
+    description: 'Once per turn, after playing a Resto card, gain 4 Block.',
     spec: 'resto',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onPlayCard',
         kind: 'block',
-        value: 6,
+        value: 4,
         forms: ['resto'],
         oncePerTurn: true,
       },
@@ -733,10 +733,10 @@ export const ITEMS: Record<string, ItemDef> = {
   grounding_charm: {
     id: 'grounding_charm',
     name: 'Grounding Charm',
-    description: 'At the start of combat, gain 10 Block.',
+    description: 'At the start of combat, gain 8 Block.',
     spec: 'resto',
     rarity: 'rare',
-    effects: [{ trigger: 'combatStart', kind: 'block', value: 10 }],
+    effects: [{ trigger: 'combatStart', kind: 'block', value: 8 }],
   },
 
   // ════════════════════════════════════════════════════════════════

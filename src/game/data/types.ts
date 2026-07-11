@@ -1,6 +1,6 @@
 export type ClassId = 'druid' | 'priest' | 'shaman';
 
-/** Druid forms + Priest schools + Shaman schools (card borders / talent matching). */
+/** Druid forms + Priest schools + Shaman schools (card borders / affinity). */
 export type Form =
   | 'bear'
   | 'cat'
@@ -11,17 +11,6 @@ export type Form =
   | 'discipline'
   | 'resto'
   | 'enhance'
-  | 'elemental';
-
-export type TalentTree =
-  | 'feral'
-  | 'resto'
-  | 'balance'
-  | 'holy'
-  | 'shadow'
-  | 'discipline'
-  | 'restoration'
-  | 'enhancement'
   | 'elemental';
 
 export type TargetType = 'enemy' | 'allEnemies' | 'self' | 'none';
@@ -38,7 +27,25 @@ export type TotemAuraKind =
   | 'regen'
   | 'thorns'
   | 'blockPerTurn'
-  | 'energyOnTurn';
+  | 'energyOnTurn'
+  /** Deal value damage to a random enemy each turn (Searing). */
+  | 'randomDamagePerTurn'
+  /** Enhance attacks have value% chance to trigger twice (Windfury). */
+  | 'windfury'
+  /** Next hit is redirected to this totem and destroys it (Grounding). */
+  | 'grounding'
+  /** +value Energy this turn; grows by +value each turn (Mana Tide). */
+  | 'manaTide'
+  /**
+   * Searing identity: random damage + apply/refresh a small Flame Shock shred.
+   * `value` = damage; shred magnitude is fixed in combat.
+   */
+  | 'searing'
+  /**
+   * Stoneskin identity: block each turn + grant Thorns while alive.
+   * `value` = block/turn; thorns amount is fixed in combat.
+   */
+  | 'stoneskin';
 
 export interface TotemAura {
   kind: TotemAuraKind;
@@ -49,8 +56,13 @@ export interface TotemDef {
   id: string;
   name: string;
   element: TotemElement;
-  /** Totems are fragile — typically 8–18 HP. */
-  maxHp: number;
+  /**
+   * Optional HP. Duration-based totems default to 0 HP and do not block
+   * damage unless they have the grounding aura.
+   */
+  maxHp?: number;
+  /** Turns the totem lasts (default 3). */
+  duration?: number;
   art: string;
   aura: TotemAura;
   description: string;
@@ -63,8 +75,12 @@ export interface TotemCombatant {
   element: TotemElement;
   maxHp: number;
   hp: number;
+  /** Turns remaining; expires at 0. */
+  turnsRemaining: number;
   art: string;
   aura: TotemAura;
+  /** Mana Tide: current energy grant (starts at aura.value, +1 each turn). */
+  manaTideEnergy?: number;
 }
 
 export type EffectKind =
@@ -94,7 +110,56 @@ export type EffectKind =
   | 'randomDamage'
   | 'recoil'
   | 'thorns'
-  | 'summonTotem';
+  | 'summonTotem'
+  /** Mark target: next elemental attack deals value% more damage. */
+  | 'stormstrikeMark'
+  /** Consume Flame Shock bleed on target; deal remaining DoT as instant damage. */
+  | 'consumeFlameShock'
+  /** Remove all buffs from targeted enemy. */
+  | 'stripEnemyBuffs'
+  /** Remove all totems; heal value HP per totem removed. */
+  | 'removeTotemsHeal'
+  /** Target cannot attack for duration turns. */
+  | 'hex'
+  /** Gain value energy next turn whenever attacked (duration turns). */
+  | 'waterShield'
+  /** While active, healing also deals 50% as damage to a random enemy. */
+  | 'spiritWalkersGrace'
+  /** Spell power +value for the rest of combat. */
+  | 'masterElements'
+  /** Repeat elemental attacks played this turn to random enemies. */
+  | 'echoElements'
+  /** Draw value; attacks cost 1 less; exhaust all cards played this turn. */
+  | 'bloodlust'
+  /** Exhaust this card after play (combat-only removal). */
+  | 'exhaust'
+  /** Refund value energy if target has Flame Shock. */
+  | 'refundIfFlameShock'
+  /** Card costs 0 when every card in hand is elemental. */
+  | 'freeIfAllElemental'
+  /** Gain value Astral Power stacks (Boomkin engine). */
+  | 'gainAstral'
+  /**
+   * Spend all Astral Power: +value damage per stack to target (or random),
+   * and refund 1 Energy if spending 2+ stacks.
+   */
+  | 'spendAstral'
+  /** Refund value energy if target has any bleed/DoT. */
+  | 'refundIfBleed'
+  /** Consume all bleeds on target; deal remaining DoT as instant damage. */
+  | 'consumeBleeds'
+  /**
+   * Voidform: enemy DoTs tick twice while active (value = unused; duration turns).
+   */
+  | 'voidform'
+  /** This turn: each elemental attack is echoed once to a random enemy. */
+  | 'elementalEchoTurn'
+  /** While active, healing also draws value cards (once per heal). */
+  | 'healAlsoDraw'
+  /** Windfury 100% for duration turns (Ascendance). */
+  | 'perfectWindfury'
+  /** This turn, enemy DoTs tick an extra time when they would tick. */
+  | 'doubleDotTicks';
 
 export interface CardEffect {
   kind: EffectKind;
@@ -122,6 +187,13 @@ export interface CardEffect {
   totemId?: string;
 }
 
+/** Runtime card in a run/combat deck — upgrade lives on the instance. */
+export interface CardInstance {
+  defId: string;
+  /** 0 = display " 1", 1 = " 2", 2 = " 3". Max 2 upgrades. */
+  upgrade: number;
+}
+
 export interface CardDef {
   id: string;
   name: string;
@@ -136,120 +208,8 @@ export interface CardDef {
   unplayable?: boolean;
   /** Curse card — deals damage when drawn, clogs the hand. Combat-only; never persists in the run deck. */
   curse?: boolean;
-}
-
-/**
- * Transformative combat behaviors. Flat +X is fine early; mid/capstones should
- * change how cards play (new verbs), not just inflate numbers.
- */
-export type TalentSpecial =
-  /** Shred goes to Exhaust and draws this many (replaces the base draw 1). */
-  | { type: 'shredExhaustDraw'; draw: number }
-  /** When you Exhaust a card, gain this much Block (per rank). */
-  | { type: 'exhaustGrantsBlock'; block: number }
-  /** Ferocious Bite costs 0 while any living enemy is bleeding. */
-  | { type: 'bleedBiteFree' }
-  /** Named HoT cards also grant Block each regen tick (per rank). */
-  | { type: 'hotTickBlock'; cardIds: string[]; blockPerTick: number }
-  /** Heal-over-time effects from matching cards last this many extra turns (per rank). */
-  | { type: 'hotExtraDuration'; cardIds: string[]; extra: number }
-  /** Every Nth card of this form costs 0. */
-  | { type: 'nthFormSpellFree'; form: Form; every: number }
-  /** When a form spell costs 0 from nthFormSpellFree, draw this many. */
-  | { type: 'freeSpellDraw'; draw: number }
-  /** Earth and Moon is not consumed by Wrath / Starfire. */
-  | { type: 'earthAndMoonPersistent' }
-  /** This percent of leftover Block carries into your next turn. */
-  | { type: 'blockCarryover'; pct: number }
-  /** Void Eruption detonates enemy DoTs for their remaining damage. */
-  | { type: 'voidDetonateDots' }
-  /** When an enemy DoT ticks, heal the player (per rank). */
-  | { type: 'dotTickHeal'; heal: number }
-  /** When a bleed tick kills an enemy, gain Energy (per rank). */
-  | { type: 'bleedKillEnergy'; energy: number }
-  /** After playing a matching heal card, gain Block (per rank). */
-  | { type: 'healPlayGrantsBlock'; forms?: Form[]; cardIds?: string[]; block: number }
-  /** At turn start, gain Block per active player HoT (per rank). */
-  | { type: 'blockPerHot'; block: number }
-  /** Draw this many cards at combat start (per rank). */
-  | { type: 'combatStartDraw'; draw: number }
-  /** When you kill an enemy, draw this many (per rank). */
-  | { type: 'killDraw'; draw: number }
-  /** When you kill an enemy, heal this much (per rank). */
-  | { type: 'killHeal'; heal: number }
-  /** Draw this many at the start of each of your turns (per rank). */
-  | { type: 'startTurnDraw'; draw: number }
-  /** Gain this much Block at the start of each of your turns (per rank). */
-  | { type: 'startTurnBlock'; block: number }
-  /** Gain this much Energy at the start of each of your turns (per rank). */
-  | { type: 'startTurnEnergy'; energy: number }
-  /** After a matching card deals damage, gain Block (per rank). */
-  | { type: 'damageGrantsBlock'; forms?: Form[]; cardIds?: string[]; block: number }
-  /** After playing a matching card, draw (optionally once per turn). */
-  | {
-      type: 'playDraw';
-      forms?: Form[];
-      cardIds?: string[];
-      draw: number;
-      oncePerTurn?: boolean;
-    }
-  /** Reduce energy cost of matching cards (per rank). */
-  | { type: 'cardCostReduce'; cardIds: string[]; amount: number }
-  /** Playing a matching card also removes your debuffs. */
-  | { type: 'cleanseOnPlay'; forms?: Form[]; cardIds?: string[] }
-  /** Playing a matching card also applies Vulnerable. */
-  | { type: 'alsoVulnerable'; cardIds: string[]; duration: number }
-  /** When you gain Block from a card, also heal (per rank). */
-  | { type: 'blockGainHeal'; heal: number }
-  /** Damage-over-time from matching cards lasts extra turns (per rank). */
-  | { type: 'dotExtraDuration'; cardIds: string[]; extra: number }
-  /** Totems gain this much max/current HP (per rank). */
-  | { type: 'totemHpBonus'; hp: number }
-  /** Living totem auras are this percent stronger (per rank). */
-  | { type: 'totemAuraPct'; pct: number }
-  /** When a totem dies, gain this much Block (per rank). */
-  | { type: 'totemDeathBlock'; block: number }
-  /** At turn start, deal this much damage per living totem (per rank). */
-  | { type: 'totemTurnDamage'; damage: number };
-
-/** Flat bonuses + optional transformative specials applied per talent rank. */
-export interface TalentModifier {
-  /** Card ids this talent affects. Empty / omitted = use forms. */
-  cardIds?: string[];
-  /** Forms this talent affects when cardIds is omitted. */
-  forms?: Form[];
-  /** Effect kinds to boost. Omit to boost all matching kinds below. */
-  effectKinds?: EffectKind[];
-  damageBonus?: number;
-  healBonus?: number;
-  blockBonus?: number;
-  /** Permanent spell power granted at combat start (per rank). Caster spells only. */
-  spellPowerBonus?: number;
-  /** Multiplicative heal bonus as percent (e.g. 20 = +20%). */
-  healPct?: number;
-  /** Multiplicative damage bonus as percent (e.g. 15 = +15%). */
-  damagePct?: number;
-  /** Multiplicative block bonus as percent (e.g. 25 = +25%). */
-  blockPct?: number;
-  /** Transformative combat behaviors (mid/capstone verbs). */
-  specials?: TalentSpecial[];
-}
-
-export interface TalentDef {
-  id: string;
-  name: string;
-  tree: TalentTree;
-  description: string;
-  maxRanks: number;
-  /** Row in the tree (0 = top). Unlocking requires tier * POINTS_PER_TIER points in this tree. */
-  tier: number;
-  /** Column within the tree (0–2) for layout. */
-  column: number;
-  /** Talent that must have ≥1 rank before this can be taken. */
-  requires?: string;
-  /** Short glyph shown in the talent node (1–2 chars). */
-  glyph: string;
-  modifiers: TalentModifier;
+  /** After play, go to exhaust pile instead of discard. */
+  exhaust?: boolean;
 }
 
 export interface StatusEffect {
@@ -266,7 +226,25 @@ export interface StatusEffect {
     | 'strength'
     | 'weak'
     | 'thorns'
-    | 'echo';
+    | 'echo'
+    /** Next elemental attack vs this target deals value% more. */
+    | 'stormstrike'
+    /** Cannot perform attack intents. */
+    | 'hex'
+    /** Player: gain energy when attacked. */
+    | 'waterShield'
+    /** Player: healing also damages a random enemy for 50%. */
+    | 'spiritWalkersGrace'
+    /** Player: enemy DoTs tick twice while active. */
+    | 'voidform'
+    /** Player: healing also draws cards. */
+    | 'healAlsoDraw'
+    /** Player: Windfury always procs (100%). */
+    | 'perfectWindfury'
+    /** Player: enemy DoTs tick twice this turn only. */
+    | 'doubleDotTicks'
+    /** Player: Astral Power stacks (Boomkin). */
+    | 'astralPower';
   value: number;
   duration: number;
   stacks?: boolean;
@@ -351,7 +329,6 @@ export interface ClassDef {
   startingGold: number;
   starterDeck: string[];
   rewardPool: string[];
-  talentTrees: TalentTree[];
   /** Forms/schools offered as opening specializations. */
   openingSpecs: OpeningSpec[];
 }
@@ -369,25 +346,23 @@ export interface RunState {
   floor: number;
   /** Current act/zone (Grove → Barrens). */
   act: ActId;
-  deck: string[];
-  discard: string[];
-  drawPile: string[];
-  hand: string[];
+  deck: CardInstance[];
+  discard: CardInstance[];
+  drawPile: CardInstance[];
+  hand: CardInstance[];
   map: MapNode[];
   currentNodeId: string | null;
   energyMax: number;
   spellPowerBonus: number;
   victories: number;
-  /** Unspent talent points (1 awarded per fight won). */
-  talentPoints: number;
-  /** Talent id → ranks allocated. */
-  talents: Record<string, number>;
   /** Shop rerolls since last fight; cost = 1 + this value. Resets after each combat victory. */
   shopRerollCount: number;
   /** Heal potions held (usable from the map). */
   potions: number;
   /** Cards removed at shops this run (drives escalating remove cost). */
   cardsRemoved: number;
+  /** True until the run's first shop card upgrade is claimed (that upgrade is free). */
+  freeUpgradeAvailable: boolean;
   /** Passive item ids collected this run (elite rewards). */
   items: string[];
 }

@@ -137,7 +137,7 @@ export function itemExtraBlockCarryover(items: string[], block: number): number 
 }
 
 export function itemHotTickBlock(items: string[]): number {
-  return itemLifebloomCrown(items) ? 2 : 0;
+  return itemLifebloomCrown(items) ? 1 : 0;
 }
 
 export function forEachItemEffect(

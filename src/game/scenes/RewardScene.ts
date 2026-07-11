@@ -11,7 +11,8 @@ import {
   cardBuyCost,
   shopRerollCost,
 } from '../data/cards';
-import { getCardDescription } from '../data/talents';
+import { makeCard } from '../data/cardInstance';
+import { getCardDescription } from '../data/cardText';
 import { randomRewards } from '../data/run';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
@@ -76,7 +77,7 @@ export class RewardScene extends Phaser.Scene {
     } else {
       run.gold += 15;
       this.add
-        .text(width / 2, 118, '+15 Gold  ·  +1 Talent Point', {
+        .text(width / 2, 118, '+15 Gold', {
           fontFamily: 'Georgia, serif',
           fontSize: '18px',
           color: '#fbbf24',
@@ -273,7 +274,7 @@ export class RewardScene extends Phaser.Scene {
       const x = startX + i * spacing;
       const y = 340;
       const formColor = FORM_COLORS[card.form];
-      const description = getCardDescription(card, run.talents);
+      const description = getCardDescription(card, 0);
       const taken = this.taken.has(i);
       const cost = cardBuyCost(id);
       const isFree = !this.freePickUsed;
@@ -306,7 +307,7 @@ export class RewardScene extends Phaser.Scene {
       );
 
       const nameTop = 16;
-      const nameText = fitCardText(this, 0, nameTop, card.name, REWARD_W - 22, 40, {
+      const nameText = fitCardText(this, 0, nameTop, `${card.name} 1`, REWARD_W - 22, 40, {
         color: taken ? '#64748b' : '#e8f5e9',
         fontSize: 17,
         minFontSize: 12,
@@ -373,7 +374,7 @@ export class RewardScene extends Phaser.Scene {
             if (run.gold < cost) return;
             run.gold -= cost;
           }
-          run.deck.push(id);
+          run.deck.push(makeCard(id));
           this.taken.add(i);
           this.refreshHud();
           this.refreshDoneLabel();
@@ -404,10 +405,6 @@ export class RewardScene extends Phaser.Scene {
     const node = run.map.find((n) => n.id === GameRegistry.pendingNodeId);
     if (node) node.cleared = true;
     GameRegistry.combat = null;
-    if (run.talentPoints > 0) {
-      this.scene.start('Talent', { returnTo: 'Map' });
-    } else {
-      this.scene.start('Map');
-    }
+    this.scene.start('Map');
   }
 }

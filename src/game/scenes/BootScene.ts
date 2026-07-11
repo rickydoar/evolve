@@ -114,6 +114,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image('card-stoneskin-totem', '/assets/cards/stoneskin-totem.png');
     this.load.image('card-grounding-totem', '/assets/cards/grounding-totem.png');
     this.load.image('card-mana-tide-totem', '/assets/cards/mana-tide-totem.png');
+    this.load.image('card-bloodlust', '/assets/cards/bloodlust.png');
+    this.load.image('card-hex', '/assets/cards/hex.png');
+    this.load.image('card-water-shield', '/assets/cards/water-shield.png');
+    this.load.image('card-spirit-walkers-grace', '/assets/cards/spirit-walkers-grace.png');
+    this.load.image('card-master-of-the-elements', '/assets/cards/master-of-the-elements.png');
+    this.load.image('card-echo-of-the-elements', '/assets/cards/echo-of-the-elements.png');
 
     // Hero & enemies
     this.load.image('hero-druid', '/assets/hero/hero-druid.png');
