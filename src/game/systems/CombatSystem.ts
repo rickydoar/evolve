@@ -1,3 +1,8 @@
+import {
+  cloneCard,
+  makeCard,
+  scaleEffectValue,
+} from '../data/cardInstance';
 import { CARDS, CURSE_CARD_ID } from '../data/cards';
 import { getClass } from '../data/classes';
 import { ENEMIES } from '../data/enemies';
@@ -20,42 +25,10 @@ import {
 } from '../data/itemCombat';
 import { itemBlockCarryoverPct } from '../data/items';
 import { TOTEMS } from '../data/shamanCards';
-import {
-  hasTalentSpecial,
-  modifyEffectValue,
-  talentAlsoVulnerable,
-  talentBleedKillEnergy,
-  talentBlockCarryoverPct,
-  talentBlockGainHeal,
-  talentBlockPerHot,
-  talentCardCostReduce,
-  talentCleanseOnPlay,
-  talentCombatStartDraw,
-  talentDamageGrantsBlock,
-  talentDotExtraDuration,
-  talentDotTickHeal,
-  talentExhaustBlock,
-  talentFreeSpellDraw,
-  talentHealPlayBlock,
-  talentHotExtraDuration,
-  talentHotTickBlock,
-  talentKillDraw,
-  talentKillHeal,
-  talentNthFormSpellFree,
-  talentPlayDrawAmount,
-  talentShredExhaustDraw,
-  talentSpellPowerBonus,
-  talentStartTurnBlock,
-  talentStartTurnDraw,
-  talentStartTurnEnergy,
-  talentTotemAuraPct,
-  talentTotemDeathBlock,
-  talentTotemHpBonus,
-  talentTotemTurnDamage,
-} from '../data/talents';
 import type {
   CardDef,
   CardEffect,
+  CardInstance,
   CardTypeTag,
   Combatant,
   EnemyIntent,
@@ -93,14 +66,14 @@ export interface CombatHitsplat {
 export interface CombatState {
   player: Combatant;
   enemies: Combatant[];
-  /** Living totems — absorb damage before the player and grant auras. */
+  /** Living totems — duration-based auras; grounding can redirect one hit. */
   totems: TotemCombatant[];
   energy: number;
   energyMax: number;
-  drawPile: string[];
-  discardPile: string[];
-  hand: string[];
-  exhaustPile: string[];
+  drawPile: CardInstance[];
+  discardPile: CardInstance[];
+  hand: CardInstance[];
+  exhaustPile: CardInstance[];
   phase: CombatPhase;
   turn: number;
   log: CombatLogEntry[];
@@ -111,20 +84,33 @@ export interface CombatState {
   selectedCardId: string | null;
   awaitingTarget: boolean;
   spellPowerBonus: number;
-  /** Snapshot of run talents for this combat. */
-  talents: Record<string, number>;
-  /** Card ids to merge into the run deck after victory (curses excluded — combat-only). */
-  pendingDeckCards: string[];
-  /** Form spell play counts for nth-free talents (e.g. Shooting Stars). */
+  /** Card instances to merge into the run deck after victory (curses excluded). */
+  pendingDeckCards: CardInstance[];
+  /** Form spell play counts (unused placeholder). */
   formSpellCounts: Partial<Record<Form, number>>;
   /** Energy granted mid-enemy-turn (applied at the start of your next turn). */
   pendingEnergy: number;
-  /** True after a once-per-turn playDraw talent has fired this turn. */
   playDrawUsedThisTurn: boolean;
   /** Passive items snapshot + runtime flags. */
   itemState: ItemCombatState;
   /** Gold granted by items during combat; merged into the run on victory. */
   pendingGold: number;
+  /** Floor multiplier snapshot for this fight. */
+  enemyScale: number;
+  /** Cards played this turn (for Bloodlust exhaust / Echo of the Elements). */
+  cardsPlayedThisTurn: CardInstance[];
+  /** Elemental attack damages dealt this turn (for Echo of the Elements). */
+  elementalAttacksThisTurn: number[];
+  /** Bloodlust: attacks cost this much less. */
+  attackCostReduction: number;
+  /** Bloodlust: exhaust every card played this turn. */
+  exhaustAllPlayedThisTurn: boolean;
+  /** Water Shield: energy to grant at next turn start. */
+  pendingEnergyFromWaterShield: number;
+  /** Boomkin Astral Power stacks (0–5). */
+  astralPower: number;
+  /** Elemental Blast: remaining free echo hits for elemental attacks this turn. */
+  elementalEchoCharges: number;
 }
 
 function uid(prefix: string): string {
@@ -149,6 +135,19 @@ const MAX_EFFECT_DEPTH = 6;
 /** Prevent echo / retrieve recursion from looping forever. */
 let effectDepth = 0;
 
+function cardDef(inst: CardInstance | string | undefined): CardDef | undefined {
+  if (!inst) return undefined;
+  if (typeof inst === 'string') return CARDS[inst];
+  return CARDS[inst.defId];
+}
+
+function hasFlameShock(target: Combatant): boolean {
+  return target.statuses.some(
+    (s) => s.kind === 'bleed' && (s.name === 'Flame Shock' || s.name.startsWith('Flame Shock')),
+  );
+}
+
+
 export function cardHasType(card: CardDef | undefined, type: CardTypeTag): boolean {
   if (!card || card.curse) return false;
   switch (type) {
@@ -165,7 +164,12 @@ export function cardHasType(card: CardDef | undefined, type: CardTypeTag): boole
   }
 }
 
-function pickIntent(enemyId: string, combatant?: Combatant): EnemyIntent {
+function scaleIntent(intent: EnemyIntent, mult: number): EnemyIntent {
+  if (intent.type === 'summon') return { ...intent };
+  return { ...intent, value: Math.max(1, Math.floor(intent.value * mult)) };
+}
+
+function pickIntent(enemyId: string, combatant?: Combatant, scale = 1): EnemyIntent {
   const def = ENEMIES[enemyId]!;
   const enraged =
     !!combatant &&
@@ -173,28 +177,29 @@ function pickIntent(enemyId: string, combatant?: Combatant): EnemyIntent {
     combatant.hp / combatant.maxHp <= ENRAGE_HP_RATIO;
   const pool = enraged ? def.enrageIntents! : def.intents;
   const chosen = pool[Math.floor(Math.random() * pool.length)]!;
-  return { ...chosen };
+  return scaleIntent({ ...chosen }, scale);
 }
 
-function createEnemyCombatant(enemyDefId: string): Combatant {
+function createEnemyCombatant(enemyDefId: string, scale = 1): Combatant {
   const def = ENEMIES[enemyDefId]!;
+  const maxHp = Math.max(1, Math.floor(def.maxHp * scale));
   return {
     id: uid(enemyDefId),
     name: def.name,
-    maxHp: def.maxHp,
-    hp: def.maxHp,
+    maxHp,
+    hp: maxHp,
     block: 0,
     statuses: [],
     art: def.art,
     enemyDefId,
-    intent: pickIntent(enemyDefId),
+    intent: pickIntent(enemyDefId, undefined, scale),
   };
 }
 
 export function startCombat(run: RunState, enemyIds: string[]): CombatState {
-  const enemies: Combatant[] = enemyIds.map((id) => createEnemyCombatant(id));
+  const enemyScale = 1 + run.floor * 0.05;
+  const enemies: Combatant[] = enemyIds.map((id) => createEnemyCombatant(id, enemyScale));
 
-  const talentSp = talentSpellPowerBonus(run.talents);
   const cls = getClass(run.classId);
   const state: CombatState = {
     player: {
@@ -211,7 +216,7 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
     totems: [],
     energy: run.energyMax,
     energyMax: run.energyMax,
-    drawPile: shuffle([...run.deck]),
+    drawPile: shuffle(run.deck.map(cloneCard)),
     discardPile: [],
     hand: [],
     exhaustPile: [],
@@ -222,33 +227,31 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
     pendingHitsplats: [],
     selectedCardId: null,
     awaitingTarget: false,
-    spellPowerBonus: run.spellPowerBonus + talentSp,
-    talents: { ...run.talents },
+    spellPowerBonus: run.spellPowerBonus,
     pendingDeckCards: [],
     formSpellCounts: {},
     pendingEnergy: 0,
     playDrawUsedThisTurn: false,
     itemState: createItemCombatState(run.items ?? []),
     pendingGold: 0,
+    enemyScale,
+    cardsPlayedThisTurn: [],
+    elementalAttacksThisTurn: [],
+    attackCostReduction: 0,
+    exhaustAllPlayedThisTurn: false,
+    pendingEnergyFromWaterShield: 0,
+    astralPower: 0,
+    elementalEchoCharges: 0,
   };
 
-  if (talentSp > 0) {
+  if (enemyScale > 1) {
     state.log.push({
-      text: `Spell Power: +${talentSp}.`,
-      color: '#a78bfa',
+      text: `Enemy power: +${Math.round((enemyScale - 1) * 100)}% (floor ${run.floor}).`,
+      color: '#fca5a5',
     });
   }
 
   drawCards(state, 5);
-  const bonusDraw = talentCombatStartDraw(run.talents);
-  if (bonusDraw > 0) {
-    drawCards(state, bonusDraw);
-    state.log.push({
-      text: `Combat start: drew ${bonusDraw} extra.`,
-      color: '#e2e8f0',
-    });
-  }
-
   // Item combat-start effects (after opening hand)
   forEachItemEffect(state.itemState, 'combatStart', makeItemApi(state), {});
   return state;
@@ -346,8 +349,8 @@ function makeItemApi(state: CombatState): ItemCombatApi {
   };
 }
 
-function onCardDrawn(state: CombatState, cardId: string): void {
-  const def = CARDS[cardId];
+function onCardDrawn(state: CombatState, card: CardInstance): void {
+  const def = cardDef(card);
   if (!def?.curse) return;
   const dealt = applyDamage(state.player, CURSE_DRAW_DAMAGE, state);
   state.log.push({
@@ -389,16 +392,16 @@ function drawTypedCards(state: CombatState, count: number, type: CardTypeTag): n
   for (let i = 0; i < count; i++) {
     if (state.hand.length >= 10) break;
     reshuffleDiscardIfNeeded(state);
-    let idx = state.drawPile.findIndex((id) => cardHasType(CARDS[id], type));
+    let idx = state.drawPile.findIndex((inst) => cardHasType(cardDef(inst), type));
     if (idx < 0 && state.discardPile.length > 0) {
       reshuffleDiscardIfNeeded(state);
-      idx = state.drawPile.findIndex((id) => cardHasType(CARDS[id], type));
+      idx = state.drawPile.findIndex((inst) => cardHasType(cardDef(inst), type));
     }
     if (idx < 0) break;
-    const [cardId] = state.drawPile.splice(idx, 1);
-    if (!cardId) break;
-    state.hand.push(cardId);
-    onCardDrawn(state, cardId);
+    const [cardInst] = state.drawPile.splice(idx, 1);
+    if (!cardInst) break;
+    state.hand.push(cardInst);
+    onCardDrawn(state, cardInst);
     drawn += 1;
     if (state.phase === 'defeat') break;
   }
@@ -472,9 +475,21 @@ export function applyDamage(
   const vuln = getStatus(target, 'vulnerable');
   if (vuln) amount = Math.floor(amount * 1.5);
 
-  // Totems intercept damage aimed at the Shaman before Block / HP.
+  // Grounding Totem: redirect the next hit and destroy the totem.
   if (target.isPlayer && amount > 0) {
-    amount = absorbDamageWithTotems(state, amount);
+    const grounding = state.totems.find((t) => t.aura.kind === 'grounding' && t.turnsRemaining > 0);
+    if (grounding) {
+      state.log.push({
+        text: `${grounding.name} redirects the hit and is destroyed!`,
+        color: '#94a3b8',
+      });
+      state.totems = state.totems.filter((t) => t.id !== grounding.id);
+      const water = getStatus(state.player, 'waterShield');
+      if (water) state.pendingEnergyFromWaterShield += water.value;
+      return amount; // fully redirected
+    }
+    const water = getStatus(state.player, 'waterShield');
+    if (water) state.pendingEnergyFromWaterShield += water.value;
   }
 
   const prevHp = target.hp;
@@ -499,49 +514,15 @@ export function applyDamage(
   return total;
 }
 
-/** Redirect incoming player damage through living totems (front line). */
-function absorbDamageWithTotems(state: CombatState, amount: number): number {
-  let remaining = amount;
-  const living = state.totems.filter((t) => t.hp > 0);
-  for (const totem of living) {
-    if (remaining <= 0) break;
-    const taken = Math.min(totem.hp, remaining);
-    totem.hp -= taken;
-    remaining -= taken;
-    state.log.push({
-      text: `${totem.name} absorbs ${taken} damage.`,
-      color: '#94a3b8',
-    });
-    if (totem.hp <= 0) {
-      onTotemDestroyed(state, totem);
-    }
-  }
-  state.totems = state.totems.filter((t) => t.hp > 0);
-  return remaining;
-}
-
 function onTotemDestroyed(state: CombatState, totem: TotemCombatant): void {
   state.log.push({
-    text: `${totem.name} is destroyed!`,
+    text: `${totem.name} fades!`,
     color: '#f87171',
   });
-  const deathBlock = talentTotemDeathBlock(state.talents);
-  if (deathBlock > 0) {
-    state.player.block += deathBlock;
-    state.log.push({
-      text: `Totemic Focus: +${deathBlock} Block.`,
-      color: '#7dd3fc',
-    });
-  }
-}
-
-function scaleTotemAura(state: CombatState, value: number): number {
-  const pct = talentTotemAuraPct(state.talents);
-  return Math.max(0, Math.floor(value * (1 + pct / 100)));
 }
 
 export function livingTotems(state: CombatState): TotemCombatant[] {
-  return state.totems.filter((t) => t.hp > 0);
+  return state.totems.filter((t) => t.turnsRemaining > 0);
 }
 
 export function totemAuraBonus(
@@ -550,9 +531,7 @@ export function totemAuraBonus(
 ): number {
   let total = 0;
   for (const t of livingTotems(state)) {
-    if (t.aura.kind === kind) {
-      total += scaleTotemAura(state, t.aura.value);
-    }
+    if (t.aura.kind === kind) total += t.aura.value;
   }
   return total;
 }
@@ -563,10 +542,9 @@ function summonTotem(state: CombatState, totemId: string): void {
     state.log.push({ text: `Unknown totem: ${totemId}`, color: '#f87171' });
     return;
   }
-  // One totem per element — replace existing.
   state.totems = state.totems.filter((t) => t.element !== def.element);
-  const hpBonus = talentTotemHpBonus(state.talents);
-  const maxHp = def.maxHp + hpBonus;
+  const duration = def.duration ?? 3;
+  const maxHp = def.maxHp ?? 0;
   const totem: TotemCombatant = {
     id: uid(def.id),
     defId: def.id,
@@ -574,19 +552,21 @@ function summonTotem(state: CombatState, totemId: string): void {
     element: def.element as TotemElement,
     maxHp,
     hp: maxHp,
+    turnsRemaining: duration,
     art: def.art,
     aura: { ...def.aura },
+    manaTideEnergy: def.aura.kind === 'manaTide' ? def.aura.value : undefined,
   };
   state.totems.push(totem);
-  const auraDesc = describeTotemAura(state, totem);
+  const auraDesc = describeTotemAura(totem);
   state.log.push({
-    text: `Summoned ${totem.name} (${totem.hp} HP). ${auraDesc}`,
+    text: `Summoned ${totem.name} for ${duration} turns. ${auraDesc}`,
     color: '#67e8f9',
   });
 }
 
-function describeTotemAura(state: CombatState, totem: TotemCombatant): string {
-  const v = scaleTotemAura(state, totem.aura.value);
+function describeTotemAura(totem: TotemCombatant): string {
+  const v = totem.aura.value;
   switch (totem.aura.kind) {
     case 'strength':
       return `+${v} Strength while alive.`;
@@ -600,61 +580,117 @@ function describeTotemAura(state: CombatState, totem: TotemCombatant): string {
       return `+${v} Block/turn while alive.`;
     case 'energyOnTurn':
       return `+${v} Energy/turn while alive.`;
+    case 'randomDamagePerTurn':
+      return `Deal ${v} to a random enemy each turn.`;
+    case 'searing':
+      return `Deal ${v} to a random enemy and apply/refresh Flame Shock shred each turn.`;
+    case 'stoneskin':
+      return `+${v} Block/turn and Thorns 6 while alive.`;
+    case 'windfury':
+      return `Enhance attacks: ${v}% chance to strike twice.`;
+    case 'grounding':
+      return 'Redirects the next hit, then is destroyed.';
+    case 'manaTide':
+      return `+${v} Energy this turn, increasing each turn.`;
     default:
       return '';
   }
 }
 
-/** Apply passive totem auras at the start of the player's turn. */
+const SEARING_FLAME_SHOCK_TOTAL = 24;
+const SEARING_FLAME_SHOCK_DURATION = 3;
+const STONESKIN_THORNS = 5;
+
+/** Apply passive totem auras at the start of the player's turn, then tick durations. */
 function tickTotemAuras(state: CombatState): void {
   const totems = livingTotems(state);
   if (!totems.length) return;
 
-  const blockGain = totemAuraBonus(state, 'blockPerTurn');
+  const blockGain =
+    totemAuraBonus(state, 'blockPerTurn') + totemAuraBonus(state, 'stoneskin');
   if (blockGain > 0) {
     gainBlock(state, blockGain, false);
+    state.log.push({ text: `Totems: +${blockGain} Block.`, color: '#7dd3fc' });
+  }
+
+  // Stoneskin: maintain Thorns while the totem lives.
+  if (totemAuraBonus(state, 'stoneskin') > 0 || totemAuraBonus(state, 'thorns') > 0) {
+    const thornsVal = Math.max(STONESKIN_THORNS, totemAuraBonus(state, 'thorns'));
+    const existing = getStatus(state.player, 'thorns');
+    if (existing) {
+      existing.value = Math.max(existing.value, thornsVal);
+      existing.duration = Math.max(existing.duration, 1);
+    } else {
+      addStatus(state.player, {
+        id: uid('thorns'),
+        name: 'Stoneskin Thorns',
+        kind: 'thorns',
+        value: thornsVal,
+        duration: 1,
+      });
+    }
     state.log.push({
-      text: `Totems: +${blockGain} Block.`,
-      color: '#7dd3fc',
+      text: `Totems: Thorns ${thornsVal}.`,
+      color: '#86efac',
     });
   }
 
   const regen = totemAuraBonus(state, 'regen');
-  if (regen > 0) {
-    healPlayer(state, regen, false);
-  }
+  if (regen > 0) healPlayer(state, regen, false);
 
   const energy = totemAuraBonus(state, 'energyOnTurn');
   if (energy > 0) {
     state.energy += energy;
-    state.log.push({
-      text: `Totems: +${energy} Energy.`,
-      color: '#fde68a',
-    });
+    state.log.push({ text: `Totems: +${energy} Energy.`, color: '#fde68a' });
   }
 
-  const turnDmg = talentTotemTurnDamage(state.talents);
-  if (turnDmg > 0) {
-    const total = turnDmg * totems.length;
-    if (total > 0) {
-      dealRandomDamage(state, total);
+  for (const t of totems) {
+    if (t.aura.kind === 'randomDamagePerTurn' || t.aura.kind === 'searing') {
+      const hit = dealRandomDamage(state, t.aura.value);
+      state.log.push({ text: `${t.name}: ${t.aura.value} damage.`, color: '#fb923c' });
+      if (t.aura.kind === 'searing' && hit && hit.hp > 0) {
+        // Apply or refresh a Flame Shock shred so Lava Burst / Lava Lash stay relevant.
+        const existing = hit.statuses.find(
+          (s) => s.kind === 'bleed' && s.name.startsWith('Flame Shock'),
+        );
+        if (existing) {
+          existing.duration = Math.max(existing.duration, SEARING_FLAME_SHOCK_DURATION);
+          existing.value = Math.max(
+            existing.value,
+            Math.floor(SEARING_FLAME_SHOCK_TOTAL / SEARING_FLAME_SHOCK_DURATION),
+          );
+          state.log.push({
+            text: `${t.name} refreshes Flame Shock on ${hit.name}.`,
+            color: '#fb923c',
+          });
+        } else {
+          applyBleed(
+            hit,
+            SEARING_FLAME_SHOCK_TOTAL,
+            SEARING_FLAME_SHOCK_DURATION,
+            state,
+            'Flame Shock',
+          );
+        }
+      }
+    }
+    if (t.aura.kind === 'manaTide') {
+      const grant = t.manaTideEnergy ?? t.aura.value;
+      state.energy += grant;
+      state.log.push({ text: `${t.name}: +${grant} Energy.`, color: '#fde68a' });
+      t.manaTideEnergy = grant + t.aura.value;
     }
   }
+
+  // Tick durations after applying auras
+  for (const t of state.totems) {
+    t.turnsRemaining -= 1;
+    if (t.turnsRemaining <= 0) onTotemDestroyed(state, t);
+  }
+  state.totems = state.totems.filter((t) => t.turnsRemaining > 0);
 }
 
 function onEnemyKilledByPlayer(state: CombatState): void {
-  const draw = talentKillDraw(state.talents);
-  if (draw > 0) {
-    drawCards(state, draw);
-    state.log.push({ text: `Kill: drew ${draw}.`, color: '#e2e8f0' });
-  }
-  const healAmt = talentKillHeal(state.talents);
-  if (healAmt > 0) {
-    const healed = heal(state.player, healAmt, state);
-    if (healed > 0) {
-      state.log.push({ text: `Kill: healed ${healed}.`, color: '#86efac' });
-    }
-  }
   forEachItemEffect(state.itemState, 'onKill', makeItemApi(state), {});
 }
 
@@ -718,16 +754,6 @@ function gainBlock(state: CombatState, amount: number, trigger = true): void {
     color: '#7dd3fc',
   });
   if (trigger) triggerEcho(state, 'block');
-  const blockHeal = talentBlockGainHeal(state.talents);
-  if (blockHeal > 0) {
-    const healed = heal(state.player, blockHeal, state);
-    if (healed > 0) {
-      state.log.push({
-        text: `Focused Will healed ${healed}.`,
-        color: '#86efac',
-      });
-    }
-  }
   if (trigger) {
     forEachItemEffect(state.itemState, 'onGainBlock', makeItemApi(state), {
       blockAmount: boosted,
@@ -742,6 +768,19 @@ function healPlayer(state: CombatState, amount: number, trigger = true): number 
   state.log.push({ text: `Healed ${healed} HP.`, color: '#86efac' });
   if (trigger && healed > 0) triggerEcho(state, 'heal');
   if (trigger && healed > 0) {
+    const grace = getStatus(state.player, 'spiritWalkersGrace');
+    if (grace) {
+      const dmg = Math.floor(healed * (grace.value / 100));
+      if (dmg > 0) dealRandomDamage(state, dmg);
+    }
+    const healDraw = getStatus(state.player, 'healAlsoDraw');
+    if (healDraw && healDraw.value > 0) {
+      drawCards(state, healDraw.value);
+      state.log.push({
+        text: `Heal draws ${healDraw.value} card${healDraw.value === 1 ? '' : 's'}.`,
+        color: '#fde68a',
+      });
+    }
     forEachItemEffect(state.itemState, 'onHeal', makeItemApi(state), {
       healAmount: healed,
       wasFullHp: wasFull,
@@ -750,11 +789,35 @@ function healPlayer(state: CombatState, amount: number, trigger = true): number 
   return healed;
 }
 
-function computeCardDamage(
+function getAstralPower(state: CombatState): number {
+  return state.astralPower;
+}
+
+function gainAstralPower(state: CombatState, amount: number): void {
+  if (amount <= 0) return;
+  state.astralPower = Math.min(5, state.astralPower + amount);
+  state.log.push({
+    text: `Astral Power: ${state.astralPower}/5.`,
+    color: '#c4b5fd',
+  });
+}
+
+function totalBleedRemaining(target: Combatant): number {
+  return target.statuses
+    .filter((s) => s.kind === 'bleed' || s.kind === 'poison')
+    .reduce((sum, s) => sum + s.value * Math.max(1, s.duration), 0);
+}
+
+function countDots(target: Combatant): number {
+  return target.statuses.filter((s) => s.kind === 'bleed' || s.kind === 'poison').length;
+}
+
+export function computeCardDamage(
   card: CardDef,
   base: number,
   state: CombatState,
   target?: Combatant,
+  consumeMarks = true,
 ): number {
   let dmg = base;
   if (
@@ -786,10 +849,32 @@ function computeCardDamage(
   ) {
     dmg += 12;
   }
+  if (card.form === 'elemental' && target) {
+    const mark = getStatus(target, 'stormstrike');
+    if (mark) {
+      dmg = Math.floor(dmg * (1 + mark.value / 100));
+      if (consumeMarks) {
+        target.statuses = target.statuses.filter((s) => s.kind !== 'stormstrike');
+      }
+    }
+  }
   const str = getStatus(state.player, 'strength');
   const totemStr = totemAuraBonus(state, 'strength');
   dmg += (str?.value ?? 0) + totemStr;
   return itemModifyOutgoingDamage(state.itemState.items, card, dmg);
+}
+
+/** Preview outgoing card damage after buffs/debuffs/items (does not consume marks). */
+export function previewCardDamage(
+  state: CombatState,
+  card: CardDef,
+  base: number,
+  target?: Combatant,
+): number {
+  let dmg = computeCardDamage(card, base, state, target, false);
+  if (getStatus(state.player, 'weak')) dmg = Math.floor(dmg * WEAK_MULTIPLIER);
+  if (target && getStatus(target, 'vulnerable')) dmg = Math.floor(dmg * 1.5);
+  return dmg;
 }
 
 function applyBleed(
@@ -818,7 +903,6 @@ function applyBleed(
 
 function consumeEarthAndMoon(target: Combatant, card: CardDef, state: CombatState): void {
   if (card.id !== 'starfire' && card.id !== 'wrath') return;
-  if (hasTalentSpecial(state.talents, 'earthAndMoonPersistent')) return;
   const bonus = getStatus(target, 'earthAndMoon');
   if (!bonus) return;
   target.statuses = target.statuses.filter((s) => s.kind !== 'earthAndMoon');
@@ -833,11 +917,38 @@ function dealDamageTo(
   triggerEchoOnHit = true,
 ): number {
   const dmg = computeCardDamage(card, base, state, target);
-  const dealt = applyDamage(target, dmg, state, 'player');
+  let dealt = applyDamage(target, dmg, state, 'player');
   state.log.push({
     text: `${card.name}: ${dealt} damage to ${target.name}.`,
     color: '#ffb347',
   });
+  // Windfury: enhance attacks may strike twice (Ascendance = always)
+  const perfectWf = !!getStatus(state.player, 'perfectWindfury');
+  const wfChance = perfectWf ? 100 : totemAuraBonus(state, 'windfury');
+  if (card.form === 'enhance' && target.hp > 0 && wfChance > 0 && Math.random() * 100 < wfChance) {
+    const again = applyDamage(target, dmg, state, 'player');
+    dealt += again;
+    state.log.push({
+      text: `Windfury! Extra ${again} damage to ${target.name}.`,
+      color: '#67e8f9',
+    });
+  }
+  if (card.form === 'elemental' && dealt > 0) {
+    state.elementalAttacksThisTurn.push(dmg);
+    // Elemental Blast: free single echo of this attack to a random enemy.
+    if (state.elementalEchoCharges > 0 && card.id !== 'echo_hit' && card.id !== 'elemental_blast') {
+      state.elementalEchoCharges -= 1;
+      const living = state.enemies.filter((e) => e.hp > 0);
+      if (living.length) {
+        const t2 = living[Math.floor(Math.random() * living.length)]!;
+        const echoDmg = applyDamage(t2, dmg, state, 'player');
+        state.log.push({
+          text: `Elemental Echo: ${echoDmg} to ${t2.name}.`,
+          color: '#818cf8',
+        });
+      }
+    }
+  }
   consumeEarthAndMoon(target, card, state);
   if (triggerEchoOnHit && dealt > 0) triggerEcho(state, 'attack');
   if (dealt > 0 && card.id !== 'item_hit' && card.id !== 'item_aoe' && card.id !== 'echo_hit') {
@@ -875,18 +986,18 @@ function dealRandomDamage(
   return target;
 }
 
-function discardRandomFromHand(state: CombatState, count: number): string[] {
-  const discarded: string[] = [];
+function discardRandomFromHand(state: CombatState, count: number): CardInstance[] {
+  const discarded: CardInstance[] = [];
   for (let i = 0; i < count; i++) {
     if (state.hand.length === 0) break;
     const idx = Math.floor(Math.random() * state.hand.length);
-    const [id] = state.hand.splice(idx, 1);
-    if (!id) break;
-    state.discardPile.push(id);
-    discarded.push(id);
+    const [inst] = state.hand.splice(idx, 1);
+    if (!inst) break;
+    state.discardPile.push(inst);
+    discarded.push(inst);
   }
   if (discarded.length) {
-    const names = discarded.map((id) => CARDS[id]?.name ?? id).join(', ');
+    const names = discarded.map((c) => cardDef(c)?.name ?? c.defId).join(', ');
     state.log.push({
       text: `Discarded ${discarded.length}: ${names}.`,
       color: '#94a3b8',
@@ -898,21 +1009,21 @@ function discardRandomFromHand(state: CombatState, count: number): string[] {
 function pickFromDiscard(
   state: CombatState,
   preferType?: CardTypeTag,
-): { index: number; id: string } | null {
+): { index: number; card: CardInstance } | null {
   if (!state.discardPile.length) return null;
   const indices = state.discardPile
-    .map((id, index) => ({ id, index }))
-    .filter(({ id }) => {
-      const card = CARDS[id];
-      if (!card || card.curse) return false;
-      if (preferType) return cardHasType(card, preferType);
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => {
+      const def = cardDef(card);
+      if (!def || def.curse) return false;
+      if (preferType) return cardHasType(def, preferType);
       return true;
     });
   const pool = indices.length
     ? indices
     : state.discardPile
-        .map((id, index) => ({ id, index }))
-        .filter(({ id }) => !CARDS[id]?.curse);
+        .map((card, index) => ({ card, index }))
+        .filter(({ card }) => !cardDef(card)?.curse);
   if (!pool.length) return null;
   return pool[Math.floor(Math.random() * pool.length)]!;
 }
@@ -942,18 +1053,18 @@ function retrieveFromDiscard(
     announce(state, emptyText, '#9aa5b1', 'retrieve');
     return;
   }
-  const [id] = state.discardPile.splice(pick.index, 1);
-  if (!id) return;
-  const card = CARDS[id]!;
+  const [inst] = state.discardPile.splice(pick.index, 1);
+  if (!inst) return;
+  const card = cardDef(inst)!;
   if (mode === 'hand') {
     if (state.hand.length >= 10) {
-      state.drawPile.push(id);
+      state.drawPile.push(inst);
       const text = source
         ? `${source}: hand full — ${card.name} goes on top of your draw pile.`
         : `Hand full — ${card.name} goes on top of your draw pile.`;
       announce(state, text, '#e2e8f0', 'retrieve');
     } else {
-      state.hand.push(id);
+      state.hand.push(inst);
       const text = source
         ? `${source} returns ${card.name} from discard to your hand!`
         : `Added ${card.name} from discard to your hand.`;
@@ -962,7 +1073,7 @@ function retrieveFromDiscard(
     return;
   }
   if (mode === 'top') {
-    state.drawPile.push(id);
+    state.drawPile.push(inst);
     const text = source
       ? `${source} puts ${card.name} on top of your draw pile!`
       : `Put ${card.name} on top of your draw pile.`;
@@ -982,7 +1093,7 @@ function retrieveFromDiscard(
   if (effectDepth < MAX_EFFECT_DEPTH) {
     effectDepth += 1;
     try {
-      applyCardEffects(state, card, target);
+      applyCardEffects(state, card, target, inst.upgrade);
     } finally {
       effectDepth -= 1;
     }
@@ -994,186 +1105,81 @@ function retrieveFromDiscard(
       'play',
     );
   }
-  state.discardPile.push(id);
+  state.discardPile.push(inst);
 }
 
-function anyEnemyBleeding(state: CombatState): boolean {
-  return state.enemies.some((e) => e.hp > 0 && !!getStatus(e, 'bleed'));
-}
-
-/** Effective energy cost after transformative talents. */
+/** Effective energy cost after items / Bloodlust / Lightning Bolt free condition. */
 export function getCardPlayCost(
   state: CombatState,
   card: CardDef,
-  target?: Combatant,
+  _target?: Combatant,
 ): number {
   let cost = card.cost;
 
-  if (
-    card.id === 'ferocious_bite' &&
-    hasTalentSpecial(state.talents, 'bleedBiteFree')
-  ) {
-    if (target) {
-      if (getStatus(target, 'bleed')) return 0;
-    } else if (anyEnemyBleeding(state)) {
-      return 0;
-    }
+  if (card.effects.some((e) => e.kind === 'freeIfAllElemental')) {
+    const allElemental = state.hand.every((inst) => cardDef(inst)?.form === 'elemental');
+    if (allElemental && state.hand.length > 0) return 0;
   }
 
-  const every = talentNthFormSpellFree(state.talents, card.form);
-  if (every != null && every > 0) {
-    const played = state.formSpellCounts[card.form] ?? 0;
-    if ((played + 1) % every === 0) return 0;
+  if (cardHasType(card, 'attack') && state.attackCostReduction > 0) {
+    cost -= state.attackCostReduction;
   }
 
-  cost -= talentCardCostReduce(state.talents, card.id);
   cost = itemModifyCardCost(state.itemState.items, card, cost);
   return Math.max(0, cost);
 }
 
-function resolveCardDestination(state: CombatState, cardId: string): void {
-  const shredDraw = talentShredExhaustDraw(state.talents);
-  if (cardId === 'shred' && shredDraw != null) {
-    state.exhaustPile.push(cardId);
-    const block = talentExhaustBlock(state.talents);
-    if (block > 0) {
-      grantBlock(state.player, block, state);
-      state.log.push({ text: `Exhaust: gained ${block} Block.`, color: '#7dd3fc' });
-    }
+function resolveCardDestination(
+  state: CombatState,
+  cardInst: CardInstance,
+  def: CardDef,
+): void {
+  const shouldExhaust =
+    def.exhaust ||
+    def.effects.some((e) => e.kind === 'exhaust') ||
+    state.exhaustAllPlayedThisTurn;
+  if (shouldExhaust) {
+    state.exhaustPile.push(cardInst);
+    state.log.push({ text: `Exhausted ${def.name}.`, color: '#94a3b8' });
     return;
   }
-  state.discardPile.push(cardId);
+  state.discardPile.push(cardInst);
 }
 
 function afterCardPlayed(
   state: CombatState,
   card: CardDef,
-  paidCost: number,
+  _paidCost: number,
   dealtDamage: boolean,
-  target?: Combatant,
+  _target?: Combatant,
 ): void {
-  const every = talentNthFormSpellFree(state.talents, card.form);
-  if (every != null) {
-    state.formSpellCounts[card.form] = (state.formSpellCounts[card.form] ?? 0) + 1;
-    if (paidCost === 0 && (state.formSpellCounts[card.form] ?? 0) % every === 0) {
-      const draw = talentFreeSpellDraw(state.talents);
-      if (draw > 0) {
-        drawCards(state, draw);
-        state.log.push({
-          text: `Shooting Stars: drew ${draw}.`,
-          color: '#c4b5fd',
-        });
-      }
-    }
-  }
-
-  const healBlock = talentHealPlayBlock(state.talents, card);
-  if (healBlock > 0) {
-    grantBlock(state.player, healBlock, state);
-    state.log.push({
-      text: `Gained ${healBlock} Block from healing.`,
-      color: '#7dd3fc',
-    });
-  }
-
-  if (dealtDamage) {
-    const dmgBlock = talentDamageGrantsBlock(state.talents, card);
-    if (dmgBlock > 0) {
-      grantBlock(state.player, dmgBlock, state);
-      state.log.push({
-        text: `Gained ${dmgBlock} Block from damage.`,
-        color: '#7dd3fc',
-      });
-    }
-  }
-
-  if (talentCleanseOnPlay(state.talents, card)) {
-    const debuffs: StatusEffect['kind'][] = ['poison', 'bleed', 'weak', 'vulnerable'];
-    const before = state.player.statuses.length;
-    state.player.statuses = state.player.statuses.filter(
-      (s) => !debuffs.includes(s.kind),
-    );
-    const removed = before - state.player.statuses.length;
-    if (removed > 0) {
-      state.log.push({
-        text: `${card.name} cleansed ${removed} debuff(s).`,
-        color: '#fde68a',
-      });
-    }
-  }
-
-  const vulnDur = talentAlsoVulnerable(state.talents, card.id);
-  if (vulnDur != null) {
-    const vulnTargets =
-      card.target === 'allEnemies'
-        ? state.enemies.filter((e) => e.hp > 0)
-        : target
-          ? [target]
-          : [];
-    for (const t of vulnTargets) {
-      addStatus(t, {
-        id: uid('vuln'),
-        name: 'Vulnerable',
-        kind: 'vulnerable',
-        value: 1,
-        duration: vulnDur,
-      });
-      state.log.push({
-        text: `${t.name} is Vulnerable for ${vulnDur} turns.`,
-        color: '#fb923c',
-      });
-    }
-  }
-
-  const playDraw = talentPlayDrawAmount(
-    state.talents,
-    card,
-    state.playDrawUsedThisTurn,
-  );
-  if (playDraw > 0) {
-    drawCards(state, playDraw);
-    state.playDrawUsedThisTurn = true;
-    state.log.push({
-      text: `Drew ${playDraw} from ${card.name}.`,
-      color: '#e2e8f0',
-    });
-  }
-
-  // Redesigned shred draws via discardDraw effects; only talent exhaust-draw
-  // should add an extra afterCardPlayed draw (avoids double-drawing).
-  if (card.id === 'shred') {
-    const shredDraw = talentShredExhaustDraw(state.talents);
-    if (shredDraw != null) {
-      drawCards(state, shredDraw);
-    }
-  }
-
-  if (card.id === 'void_eruption' && hasTalentSpecial(state.talents, 'voidDetonateDots')) {
-    detonateEnemyDots(state);
-  }
-
   if (card.form === 'tree') {
     state.itemState.treePlaysThisTurn += 1;
+  }
+  // Boomkin: one Astral from damage cards that don't already grant/spend it.
+  if (
+    card.form === 'boomkin' &&
+    dealtDamage &&
+    !card.effects.some((e) => e.kind === 'gainAstral' || e.kind === 'spendAstral') &&
+    card.id !== 'starsurge' &&
+    card.id !== 'incarnation'
+  ) {
+    gainAstralPower(state, 1);
+  }
+  // Mind Blast: multi-DoT void builder refund.
+  if (card.id === 'mind_blast') {
+    const multiDot = state.enemies.some((e) => e.hp > 0 && countDots(e) >= 2);
+    if (multiDot) {
+      state.energy += 1;
+      state.log.push({
+        text: 'Mind Blast: multi-DoT refund +1 Energy.',
+        color: '#a78bfa',
+      });
+    }
   }
   forEachItemEffect(state.itemState, 'onPlayCard', makeItemApi(state), { card });
 }
 
-function detonateEnemyDots(state: CombatState): void {
-  for (const enemy of state.enemies.filter((e) => e.hp > 0)) {
-    const dots = enemy.statuses.filter((s) => s.kind === 'bleed' || s.kind === 'poison');
-    if (!dots.length) continue;
-    let total = 0;
-    for (const d of dots) total += d.value * Math.max(1, d.duration);
-    enemy.statuses = enemy.statuses.filter(
-      (s) => s.kind !== 'bleed' && s.kind !== 'poison',
-    );
-    const dealt = applyDamage(enemy, total, state, 'player');
-    state.log.push({
-      text: `Void Eruption detonates DoTs for ${dealt} on ${enemy.name}.`,
-      color: '#a78bfa',
-    });
-  }
-}
 
 export function canPlayCard(
   state: CombatState,
@@ -1181,18 +1187,18 @@ export function canPlayCard(
   target?: Combatant,
 ): boolean {
   if (state.phase !== 'player') return false;
-  const id = state.hand[handIndex];
-  if (!id) return false;
-  const card = CARDS[id];
+  const inst = state.hand[handIndex];
+  if (!inst) return false;
+  const card = cardDef(inst);
   if (!card || card.unplayable || card.curse) return false;
   return state.energy >= getCardPlayCost(state, card, target);
 }
 
 export function selectCard(state: CombatState, handIndex: number): string | null {
   if (!canPlayCard(state, handIndex)) return null;
-  const id = state.hand[handIndex]!;
-  const card = CARDS[id]!;
-  state.selectedCardId = id;
+  const inst = state.hand[handIndex]!;
+  const card = cardDef(inst)!;
+  state.selectedCardId = inst.defId;
 
   if (card.target === 'enemy') {
     state.awaitingTarget = true;
@@ -1208,9 +1214,9 @@ export function playCardOnEnemy(
   handIndex: number,
   enemyId: string,
 ): boolean {
-  const id = state.hand[handIndex];
-  if (!id) return false;
-  const card = CARDS[id]!;
+  const inst = state.hand[handIndex];
+  if (!inst) return false;
+  const card = cardDef(inst)!;
   if (card.target !== 'enemy') return false;
   const enemy = state.enemies.find((e) => e.id === enemyId && e.hp > 0);
   if (!enemy) return false;
@@ -1219,8 +1225,9 @@ export function playCardOnEnemy(
   const cost = getCardPlayCost(state, card, enemy);
   state.energy -= cost;
   state.hand.splice(handIndex, 1);
-  const dealt = applyCardEffects(state, card, enemy);
-  resolveCardDestination(state, id);
+  state.cardsPlayedThisTurn.push(cloneCard(inst));
+  const dealt = applyCardEffects(state, card, enemy, inst.upgrade);
+  resolveCardDestination(state, inst, card);
   state.selectedCardId = null;
   state.awaitingTarget = false;
 
@@ -1230,17 +1237,18 @@ export function playCardOnEnemy(
 }
 
 export function playCard(state: CombatState, handIndex: number): boolean {
-  const id = state.hand[handIndex];
-  if (!id || !canPlayCard(state, handIndex)) return false;
-  const card = CARDS[id]!;
+  const inst = state.hand[handIndex];
+  if (!inst || !canPlayCard(state, handIndex)) return false;
+  const card = cardDef(inst)!;
 
   if (card.target === 'enemy') return false;
 
   const cost = getCardPlayCost(state, card);
   state.energy -= cost;
   state.hand.splice(handIndex, 1);
-  const dealt = applyCardEffects(state, card, undefined);
-  resolveCardDestination(state, id);
+  state.cardsPlayedThisTurn.push(cloneCard(inst));
+  const dealt = applyCardEffects(state, card, undefined, inst.upgrade);
+  resolveCardDestination(state, inst, card);
   state.selectedCardId = null;
   state.awaitingTarget = false;
 
@@ -1258,10 +1266,9 @@ function applyDiscardFor(
   const discardCount = effect.discardCount ?? 1;
   const discarded = discardRandomFromHand(state, discardCount);
   const bonus = (effect.bonusPerDiscard ?? 0) * discarded.length;
-  const total = modifyEffectValue(
+  const total = scaleEffectValue(
     { ...effect, value: effect.value + bonus },
-    card,
-    state.talents,
+    0,
   );
   const kind = effect.payoffKind ?? 'block';
   if (kind === 'block') {
@@ -1291,6 +1298,7 @@ function applyCardEffects(
   state: CombatState,
   card: CardDef,
   target?: Combatant,
+  upgrade = 0,
 ): boolean {
   let dealtDamage = false;
 
@@ -1300,27 +1308,19 @@ function applyCardEffects(
     const dmgEffect = card.effects.find((e) => e.kind === 'damage');
     const healEffect = card.effects.find((e) => e.kind === 'heal');
     if (dmgEffect && target) {
-      const base = modifyEffectValue(
-        { ...dmgEffect, value: halfBlock },
-        card,
-        state.talents,
-      );
+      const base = scaleEffectValue({ ...dmgEffect, value: halfBlock }, upgrade);
       dealDamageTo(state, card, target, base);
       dealtDamage = true;
     }
     if (healEffect) {
-      const healAmt = modifyEffectValue(
-        { ...healEffect, value: halfBlock },
-        card,
-        state.talents,
-      );
+      const healAmt = scaleEffectValue({ ...healEffect, value: halfBlock }, upgrade);
       healPlayer(state, healAmt);
     }
     return dealtDamage;
   }
 
   for (const effect of card.effects) {
-    const value = modifyEffectValue(effect, card, state.talents);
+    const value = scaleEffectValue(effect, upgrade);
     switch (effect.kind) {
       case 'damage': {
         if (!target) break;
@@ -1388,9 +1388,7 @@ function applyCardEffects(
       }
       case 'healOverTime': {
         const baseDuration = effect.duration ?? 1;
-        const duration =
-          baseDuration + talentHotExtraDuration(state.talents, card.id);
-        // Keep tick strength from the base duration; extra turns are bonus healing.
+        const duration = baseDuration;
         const perTick = Math.floor(value / Math.max(1, baseDuration));
         addStatus(state.player, {
           id: uid('regen'),
@@ -1406,14 +1404,14 @@ function applyCardEffects(
         break;
       }
       case 'damageOverTime': {
-        const duration =
-          (effect.duration ?? 1) + talentDotExtraDuration(state.talents, card.id);
+        const duration = effect.duration ?? 1;
+        const dotName = card.id === 'flame_shock' ? 'Flame Shock' : card.name;
         if (card.target === 'allEnemies') {
           for (const e of state.enemies.filter((en) => en.hp > 0)) {
-            applyBleed(e, value, duration, state, card.name);
+            applyBleed(e, value, duration, state, dotName);
           }
         } else if (target) {
-          applyBleed(target, value, duration, state, card.name);
+          applyBleed(target, value, duration, state, dotName);
         }
         break;
       }
@@ -1542,18 +1540,19 @@ function applyCardEffects(
       }
       case 'copyCard': {
         const pool = [...state.hand, ...state.discardPile].filter(
-          (id) => id !== card.id && !CARDS[id]?.curse,
+          (inst) => inst.defId !== card.id && !cardDef(inst)?.curse,
         );
         for (let i = 0; i < value; i++) {
           if (!pool.length) {
             state.log.push({ text: 'Nothing to copy.', color: '#9aa5b1' });
             break;
           }
-          const copyId = pool[Math.floor(Math.random() * pool.length)]!;
+          const src = pool[Math.floor(Math.random() * pool.length)]!;
+          const copy = cloneCard(src);
           const insertAt = Math.floor(Math.random() * (state.drawPile.length + 1));
-          state.drawPile.splice(insertAt, 0, copyId);
+          state.drawPile.splice(insertAt, 0, copy);
           state.log.push({
-            text: `Copied ${CARDS[copyId]?.name ?? copyId} into your draw pile.`,
+            text: `Copied ${cardDef(copy)?.name ?? copy.defId} into your draw pile.`,
             color: '#e2e8f0',
           });
         }
@@ -1562,7 +1561,7 @@ function applyCardEffects(
       case 'shuffleCurse': {
         for (let i = 0; i < value; i++) {
           const insertAt = Math.floor(Math.random() * (state.drawPile.length + 1));
-          state.drawPile.splice(insertAt, 0, CURSE_CARD_ID);
+          state.drawPile.splice(insertAt, 0, makeCard(CURSE_CARD_ID));
         }
         state.log.push({
           text: `Shuffled ${value} Nightmare into your deck this combat.`,
@@ -1667,6 +1666,334 @@ function applyCardEffects(
         }
         break;
       }
+      case 'stormstrikeMark': {
+        if (!target) break;
+        addStatus(target, {
+          id: uid('stormstrike'),
+          name: 'Stormstrike',
+          kind: 'stormstrike',
+          value,
+          duration: 99,
+        });
+        state.log.push({
+          text: `Next elemental attack on ${target.name} deals +${value}% damage.`,
+          color: '#818cf8',
+        });
+        break;
+      }
+      case 'consumeFlameShock': {
+        if (!target) break;
+        const shocks = target.statuses.filter(
+          (s) => s.kind === 'bleed' && s.name.startsWith('Flame Shock'),
+        );
+        if (!shocks.length) {
+          state.log.push({ text: 'No Flame Shock to consume.', color: '#9aa5b1' });
+          break;
+        }
+        let total = 0;
+        for (const s of shocks) total += s.value * Math.max(1, s.duration);
+        target.statuses = target.statuses.filter(
+          (s) => !(s.kind === 'bleed' && s.name.startsWith('Flame Shock')),
+        );
+        const dealt = applyDamage(target, total, state, 'player');
+        dealtDamage = true;
+        state.log.push({
+          text: `Consumed Flame Shock for ${dealt} damage!`,
+          color: '#fb923c',
+        });
+        break;
+      }
+      case 'stripEnemyBuffs': {
+        if (!target) break;
+        const buffs: StatusEffect['kind'][] = [
+          'strength',
+          'spellPower',
+          'thorns',
+          'regen',
+          'echo',
+          'block',
+        ];
+        const before = target.statuses.length;
+        target.statuses = target.statuses.filter((s) => !buffs.includes(s.kind));
+        const removed = before - target.statuses.length;
+        state.log.push({
+          text: `Purged ${removed} buff(s) from ${target.name}.`,
+          color: '#fde68a',
+        });
+        break;
+      }
+      case 'removeTotemsHeal': {
+        const count = state.totems.length;
+        state.totems = [];
+        if (count > 0) {
+          const healed = healPlayer(state, value * count);
+          state.log.push({
+            text: `Spirit Link: removed ${count} totem(s), healed ${healed}.`,
+            color: '#86efac',
+          });
+        } else {
+          state.log.push({ text: 'No totems to remove.', color: '#9aa5b1' });
+        }
+        break;
+      }
+      case 'hex': {
+        if (!target) break;
+        const duration = effect.duration ?? 2;
+        addStatus(target, {
+          id: uid('hex'),
+          name: 'Hex',
+          kind: 'hex',
+          value: 1,
+          duration,
+        });
+        state.log.push({
+          text: `${target.name} is Hexed and cannot attack for ${duration} turns.`,
+          color: '#a78bfa',
+        });
+        break;
+      }
+      case 'waterShield': {
+        const duration = effect.duration ?? 3;
+        addStatus(state.player, {
+          id: uid('waterShield'),
+          name: 'Water Shield',
+          kind: 'waterShield',
+          value,
+          duration,
+        });
+        state.log.push({
+          text: `Water Shield (${duration} turns): +${value} Energy next turn when attacked.`,
+          color: '#38bdf8',
+        });
+        break;
+      }
+      case 'spiritWalkersGrace': {
+        const duration = effect.duration ?? 3;
+        addStatus(state.player, {
+          id: uid('spiritGrace'),
+          name: "Spirit Walker's Grace",
+          kind: 'spiritWalkersGrace',
+          value,
+          duration,
+        });
+        state.log.push({
+          text: `Spirit Walker's Grace (${duration} turns): healing damages enemies.`,
+          color: '#86efac',
+        });
+        break;
+      }
+      case 'masterElements': {
+        state.spellPowerBonus += value;
+        state.log.push({
+          text: `Spell Power +${value} for the rest of combat.`,
+          color: '#a78bfa',
+        });
+        break;
+      }
+      case 'echoElements': {
+        const hits = [...state.elementalAttacksThisTurn];
+        if (!hits.length) {
+          state.log.push({ text: 'No elemental attacks to echo.', color: '#9aa5b1' });
+          break;
+        }
+        for (const dmg of hits) {
+          dealRandomDamage(state, dmg, card);
+          dealtDamage = true;
+        }
+        if (hits.length >= 2) {
+          state.energy += 1;
+          state.log.push({
+            text: `Echo of the Elements repeats ${hits.length} attack(s)! +1 Energy.`,
+            color: '#818cf8',
+          });
+        } else {
+          state.log.push({
+            text: `Echo of the Elements repeats ${hits.length} attack(s)!`,
+            color: '#818cf8',
+          });
+        }
+        break;
+      }
+      case 'bloodlust': {
+        drawCards(state, value);
+        state.attackCostReduction += 1;
+        state.exhaustAllPlayedThisTurn = true;
+        // Exhaust cards already played this turn (still in discard).
+        for (const played of state.cardsPlayedThisTurn) {
+          const idx = state.discardPile.findIndex(
+            (c) => c.defId === played.defId && c.upgrade === played.upgrade,
+          );
+          if (idx >= 0) {
+            const [moved] = state.discardPile.splice(idx, 1);
+            if (moved) state.exhaustPile.push(moved);
+          }
+        }
+        state.log.push({
+          text: `Bloodlust: drew ${value}. Attacks cost 1 less. Cards played this turn Exhaust.`,
+          color: '#f97316',
+        });
+        break;
+      }
+      case 'exhaust':
+        break;
+      case 'refundIfFlameShock': {
+        if (target && hasFlameShock(target)) {
+          state.energy += value;
+          state.log.push({
+            text: `Flame Shock! Refunded ${value} Energy.`,
+            color: '#fde68a',
+          });
+        }
+        break;
+      }
+      case 'freeIfAllElemental':
+        break;
+      case 'gainAstral': {
+        gainAstralPower(state, value);
+        break;
+      }
+      case 'spendAstral': {
+        const stacks = getAstralPower(state);
+        if (stacks <= 0) {
+          state.log.push({ text: 'No Astral Power to spend.', color: '#9aa5b1' });
+          break;
+        }
+        const bonus = value * stacks;
+        if (target) {
+          dealDamageTo(state, card, target, bonus);
+          dealtDamage = true;
+        } else {
+          dealRandomDamage(state, bonus, card);
+          dealtDamage = true;
+        }
+        if (stacks >= 2) {
+          state.energy += 1;
+          state.log.push({
+            text: `Spent ${stacks} Astral Power: +${bonus} damage, +1 Energy.`,
+            color: '#c4b5fd',
+          });
+        } else {
+          state.log.push({
+            text: `Spent ${stacks} Astral Power: +${bonus} damage.`,
+            color: '#c4b5fd',
+          });
+        }
+        state.astralPower = 0;
+        break;
+      }
+      case 'refundIfBleed': {
+        if (target && totalBleedRemaining(target) > 0) {
+          state.energy += value;
+          state.log.push({
+            text: `Bleed payoff: refunded ${value} Energy.`,
+            color: '#fde68a',
+          });
+        }
+        break;
+      }
+      case 'consumeBleeds': {
+        if (!target) break;
+        const total = totalBleedRemaining(target);
+        if (total <= 0) {
+          state.log.push({ text: 'No bleeds to consume.', color: '#9aa5b1' });
+          break;
+        }
+        target.statuses = target.statuses.filter(
+          (s) => s.kind !== 'bleed' && s.kind !== 'poison',
+        );
+        const dealt = applyDamage(target, total, state, 'player');
+        dealtDamage = true;
+        state.log.push({
+          text: `Consumed bleeds for ${dealt} damage!`,
+          color: '#fb923c',
+        });
+        break;
+      }
+      case 'voidform': {
+        const duration = effect.duration ?? 2;
+        addStatus(state.player, {
+          id: uid('voidform'),
+          name: 'Voidform',
+          kind: 'voidform',
+          value: 1,
+          duration,
+        });
+        state.log.push({
+          text: `Voidform (${duration} turns): enemy DoTs tick twice.`,
+          color: '#a78bfa',
+        });
+        break;
+      }
+      case 'elementalEchoTurn': {
+        // Charge count = number of free elemental echoes this turn.
+        state.elementalEchoCharges += Math.max(1, value);
+        state.log.push({
+          text: `Elemental Echo: next ${state.elementalEchoCharges} elemental attack(s) echo once.`,
+          color: '#818cf8',
+        });
+        break;
+      }
+      case 'healAlsoDraw': {
+        const duration = effect.duration ?? 99;
+        addStatus(state.player, {
+          id: uid('healDraw'),
+          name: 'Ancestral Guidance',
+          kind: 'healAlsoDraw',
+          value: Math.max(1, value),
+          duration,
+        });
+        state.log.push({
+          text: `Healing also draws ${Math.max(1, value)} card(s).`,
+          color: '#86efac',
+        });
+        break;
+      }
+      case 'perfectWindfury': {
+        const duration = effect.duration ?? 2;
+        addStatus(state.player, {
+          id: uid('perfectWf'),
+          name: 'Ascendance',
+          kind: 'perfectWindfury',
+          value: 100,
+          duration,
+        });
+        state.attackCostReduction += 1;
+        state.log.push({
+          text: `Ascendance (${duration} turns): Windfury always triggers; attacks cost 1 less this turn.`,
+          color: '#67e8f9',
+        });
+        break;
+      }
+      case 'doubleDotTicks': {
+        const duration = effect.duration ?? 1;
+        addStatus(state.player, {
+          id: uid('doubleDot'),
+          name: 'Eclipse',
+          kind: 'doubleDotTicks',
+          value: 1,
+          duration,
+        });
+        state.log.push({
+          text: `DoTs tick twice for ${duration} turn${duration === 1 ? '' : 's'}.`,
+          color: '#c4b5fd',
+        });
+        break;
+      }
+    }
+  }
+
+  // Void Eruption payoff: bonus damage per active DoT on each enemy.
+  if (card.id === 'void_eruption') {
+    for (const e of state.enemies.filter((en) => en.hp > 0)) {
+      const dots = countDots(e);
+      if (dots <= 0) continue;
+      const bonus = 12 * dots;
+      const dealt = applyDamage(e, bonus, state, 'player');
+      dealtDamage = true;
+      state.log.push({
+        text: `Void Eruption: +${dealt} from ${dots} DoT(s) on ${e.name}.`,
+        color: '#a78bfa',
+      });
     }
   }
 
@@ -1681,14 +2008,6 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
       if (isPlayer) {
         state.log.push({ text: `Regen healed ${healed}.`, color: '#86efac' });
         if (healed > 0) triggerEcho(state, 'heal');
-        const tickBlock = talentHotTickBlock(state.talents, s.name);
-        if (tickBlock > 0) {
-          grantBlock(state.player, tickBlock, state);
-          state.log.push({
-            text: `${s.name}: +${tickBlock} Block.`,
-            color: '#7dd3fc',
-          });
-        }
         const itemHot = itemHotTickBlock(state.itemState.items);
         if (itemHot > 0) {
           grantBlock(state.player, itemHot, state);
@@ -1707,32 +2026,21 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
     }
     if (s.kind === 'bleed' || s.kind === 'poison') {
       const bonus = !isPlayer ? itemDotTickBonus(state.itemState.items) : 0;
-      const tickDmg = s.value + bonus;
-      c.hp = Math.max(0, c.hp - tickDmg);
-      queueHitsplat(state, c.id, 'damage', tickDmg);
-      state.log.push({
-        text: `${c.name} takes ${tickDmg} from ${s.name}.`,
-        color: '#f87171',
-      });
-      if (!isPlayer) {
-        const leech = talentDotTickHeal(state.talents);
-        if (leech > 0) {
-          const healed = heal(state.player, leech, state);
-          state.log.push({
-            text: `Vampiric Embrace healed ${healed}.`,
-            color: '#86efac',
-          });
-        }
-        forEachItemEffect(state.itemState, 'onEnemyDotTick', makeItemApi(state), {});
-        if (c.hp <= 0) {
-          const energy = talentBleedKillEnergy(state.talents);
-          if (energy > 0 && s.kind === 'bleed') {
-            state.pendingEnergy += energy;
-            state.log.push({
-              text: `Blood in the Water: +${energy} Energy next turn.`,
-              color: '#fde68a',
-            });
-          }
+      const ticks =
+        !isPlayer &&
+        (getStatus(state.player, 'voidform') || getStatus(state.player, 'doubleDotTicks'))
+          ? 2
+          : 1;
+      for (let tick = 0; tick < ticks; tick++) {
+        const tickDmg = s.value + bonus;
+        c.hp = Math.max(0, c.hp - tickDmg);
+        queueHitsplat(state, c.id, 'damage', tickDmg);
+        state.log.push({
+          text: `${c.name} takes ${tickDmg} from ${s.name}${ticks > 1 && tick === 1 ? ' (extra tick)' : ''}.`,
+          color: '#f87171',
+        });
+        if (!isPlayer) {
+          forEachItemEffect(state.itemState, 'onEnemyDotTick', makeItemApi(state), {});
         }
       }
     }
@@ -1760,6 +2068,11 @@ export function endPlayerTurn(state: CombatState): EnemyTurnStep[] {
 
   state.discardPile.push(...state.hand);
   state.hand = [];
+  state.cardsPlayedThisTurn = [];
+  state.elementalAttacksThisTurn = [];
+  state.attackCostReduction = 0;
+  state.exhaustAllPlayedThisTurn = false;
+  state.elementalEchoCharges = 0;
 
   state.phase = 'enemy';
   state.log.push({ text: '— Enemy Turn —', color: '#fca5a5' });
@@ -1771,7 +2084,7 @@ function buildEnemyTurnSteps(state: CombatState): EnemyTurnStep[] {
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
     steps.push({ kind: 'statusTick', enemyId: enemy.id });
-    const intent = enemy.intent ?? pickIntent(enemy.enemyDefId!);
+    const intent = enemy.intent ?? pickIntent(enemy.enemyDefId!, undefined, state.enemyScale);
     steps.push({ kind: 'intent', enemyId: enemy.id, intent: { ...intent } });
   }
   return steps;
@@ -1796,7 +2109,7 @@ export function applyEnemyTurnStep(state: CombatState, step: EnemyTurnStep): boo
     resolveIntent(state, enemy, step.intent);
     if (enemy.hp > 0 && enemy.enemyDefId) {
       maybeTriggerEnrage(enemy, state);
-      enemy.intent = pickIntent(enemy.enemyDefId, enemy);
+      enemy.intent = pickIntent(enemy.enemyDefId, enemy, state.enemyScale);
     }
   }
 
@@ -1812,15 +2125,16 @@ function isCombatOver(state: CombatState): boolean {
 export function beginPlayerTurn(state: CombatState): void {
   if (state.phase === 'victory' || state.phase === 'defeat') return;
 
-  // Block clears at start of YOUR turn, unless talents carry some over.
   state.turn += 1;
   state.phase = 'player';
   state.playDrawUsedThisTurn = false;
+  state.cardsPlayedThisTurn = [];
+  state.elementalAttacksThisTurn = [];
+  state.attackCostReduction = 0;
+  state.exhaustAllPlayedThisTurn = false;
   itemBeginTurn(state.itemState);
-  const talentPct = talentBlockCarryoverPct(state.talents);
   const itemPct = itemBlockCarryoverPct(state.itemState.items);
-  // Talents and items stack additively (e.g. 50% + 25% = 75%), capped at 100%.
-  const totalPct = Math.min(100, talentPct + itemPct);
+  const totalPct = Math.min(100, itemPct);
   const finalCarried =
     totalPct > 0 ? Math.floor(state.player.block * (totalPct / 100)) : 0;
   state.player.block = finalCarried;
@@ -1838,53 +2152,25 @@ export function beginPlayerTurn(state: CombatState): void {
     return;
   }
 
-  const perHot = talentBlockPerHot(state.talents);
-  if (perHot > 0) {
-    const hots = state.player.statuses.filter((s) => s.kind === 'regen').length;
-    if (hots > 0) {
-      const gained = perHot * hots;
-      grantBlock(state.player, gained, state);
-      state.log.push({
-        text: `Tree of Life: +${gained} Block from ${hots} HoT(s).`,
-        color: '#7dd3fc',
-      });
-    }
-  }
-
-  const turnBlock = talentStartTurnBlock(state.talents);
-  if (turnBlock > 0) {
-    grantBlock(state.player, turnBlock, state);
-    state.log.push({
-      text: `Start of turn: +${turnBlock} Block.`,
-      color: '#7dd3fc',
-    });
-  }
-
-  const turnEnergy = talentStartTurnEnergy(state.talents);
-  state.energy = state.energyMax + state.pendingEnergy + turnEnergy;
+  const waterEnergy = state.pendingEnergyFromWaterShield;
+  state.energy =
+    state.energyMax + state.pendingEnergy + waterEnergy;
   if (state.pendingEnergy > 0) {
     state.log.push({
-      text: `Blood in the Water: +${state.pendingEnergy} Energy.`,
+      text: `Pending energy: +${state.pendingEnergy}.`,
       color: '#fde68a',
     });
     state.pendingEnergy = 0;
   }
-  if (turnEnergy > 0) {
+  if (waterEnergy > 0) {
     state.log.push({
-      text: `Start of turn: +${turnEnergy} Energy.`,
-      color: '#fde68a',
+      text: `Water Shield: +${waterEnergy} Energy.`,
+      color: '#38bdf8',
     });
+    state.pendingEnergyFromWaterShield = 0;
   }
 
   drawCards(state, 5);
-  const turnDraw = talentStartTurnDraw(state.talents);
-  if (turnDraw > 0) {
-    drawCards(state, turnDraw);
-    state.log.push({
-      text: `Start of turn: drew ${turnDraw}.`,
-      color: '#e2e8f0',
-    });
-  }
   tickTotemAuras(state);
   forEachItemEffect(state.itemState, 'turnStart', makeItemApi(state), {});
   state.log.push({ text: `— Turn ${state.turn} —`, color: '#e2e8f0' });
@@ -1898,6 +2184,13 @@ function resolveIntent(
   const strength = getStatus(enemy, 'strength');
   switch (intent.type) {
     case 'attack': {
+      if (getStatus(enemy, 'hex')) {
+        state.log.push({
+          text: `${enemy.name} is Hexed and cannot attack!`,
+          color: '#a78bfa',
+        });
+        break;
+      }
       let dmg = intent.value + (strength?.value ?? 0);
       const weak = getStatus(enemy, 'weak');
       if (weak) dmg = Math.floor(dmg * WEAK_MULTIPLIER);
@@ -2068,13 +2361,12 @@ export function cancelTarget(state: CombatState): void {
 
 /** Persist combat-gained deck cards/gold after a win. Curses never leave the fight. */
 export function commitPendingDeckCards(run: RunState, state: CombatState): void {
-  for (const id of state.pendingDeckCards) {
-    if (CARDS[id]?.curse) continue;
-    run.deck.push(id);
+  for (const inst of state.pendingDeckCards) {
+    if (cardDef(inst)?.curse) continue;
+    run.deck.push(cloneCard(inst));
   }
   state.pendingDeckCards = [];
-  // Curses are combat-only — strip any that somehow remain on the run deck.
-  run.deck = run.deck.filter((id) => !CARDS[id]?.curse);
+  run.deck = run.deck.filter((inst) => !cardDef(inst)?.curse);
   if (state.pendingGold > 0) {
     run.gold += state.pendingGold;
     state.pendingGold = 0;

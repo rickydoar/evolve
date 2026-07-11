@@ -18,23 +18,24 @@ import {
   applyItemPickup,
   randomItemOffers,
 } from '../src/game/data/items.ts';
+import { makeCard, cardUpgradeShopCost, payForCardUpgrade, upgradeCard } from '../src/game/data/cardInstance.ts';
 import {
   advanceToBarrens,
   availableNodes,
   createRun,
+  pickUpgradeCandidates,
   randomRewards,
   removeCardAt,
   usePotion,
 } from '../src/game/data/run.ts';
-import { TALENTS, allocateTalent, canAllocateTalent } from '../src/game/data/talents.ts';
 import type {
   CardDef,
+  CardInstance,
   ClassId,
   Form,
   MapNode,
   OpeningSpec,
   RunState,
-  TalentTree,
 } from '../src/game/data/types.ts';
 import {
   applyEnemyTurnStep,
@@ -69,7 +70,6 @@ interface RunResult {
   finalDeck: string[];
   finalItems: string[];
   path: string;
-  talents: Record<string, number>;
   turnsFought: number;
 }
 
@@ -97,17 +97,6 @@ const SPEC_PRIMARY_FORMS: Record<OpeningSpec, Form[]> = {
   elemental: ['elemental'],
 };
 
-const SPEC_TREE: Record<OpeningSpec, TalentTree> = {
-  feral: 'feral',
-  boomkin: 'balance',
-  tree: 'resto',
-  holy: 'holy',
-  shadow: 'shadow',
-  discipline: 'discipline',
-  resto: 'restoration',
-  enhance: 'enhancement',
-  elemental: 'elemental',
-};
 
 const ALL_CONFIGS: Array<{ classId: ClassId; spec: OpeningSpec }> = [
   { classId: 'druid', spec: 'feral' },
@@ -125,8 +114,16 @@ function card(id: string): CardDef | undefined {
   return CARDS[id];
 }
 
-function countInDeck(deck: string[], id: string): number {
-  return deck.filter((c) => c === id).length;
+function cardId(inst: CardInstance | string): string {
+  return typeof inst === 'string' ? inst : inst.defId;
+}
+
+function countInDeck(deck: CardInstance[] | string[], id: string): number {
+  return deck.filter((c) => cardId(c) === id).length;
+}
+
+function deckIds(deck: CardInstance[]): string[] {
+  return deck.map((c) => c.defId);
 }
 
 function incomingDamage(state: CombatState): number {
@@ -204,7 +201,7 @@ function scoreCardForCombat(
     switch (fx.kind) {
       case 'damage':
       case 'randomDamage': {
-        const dmg = fx.value + (cardId === 'ferocious_bite' && hasBleed(state) ? 10 : 0);
+        const dmg = fx.value;
         score += dmg * 1.2;
         if (lethalTarget && dmg >= lethalTarget.hp) score += 40;
         break;
@@ -273,9 +270,101 @@ function scoreCardForCombat(
       case 'discardRandom':
         score -= fx.value * 3;
         break;
+      case 'summonTotem':
+        score += 26; // longer totems with keywords are real turns
+        break;
+      case 'gainAstral':
+        score += 16 + fx.value * 4;
+        break;
+      case 'spendAstral': {
+        const stacks = state.astralPower ?? 0;
+        score += 12 + stacks * fx.value * 1.1;
+        if (stacks >= 2) score += 20;
+        break;
+      }
+      case 'refundIfBleed':
+      case 'refundIfFlameShock':
+        score += hasBleed(state) || enemies.some((e) => e.statuses.some((s) => s.kind === 'bleed'))
+          ? 22
+          : 4;
+        break;
+      case 'consumeBleeds':
+      case 'consumeFlameShock': {
+        const best = enemies.reduce((m, e) => {
+          const rem = e.statuses
+            .filter((s) => s.kind === 'bleed' || s.kind === 'poison')
+            .reduce((s, st) => s + st.value * Math.max(1, st.duration), 0);
+          return Math.max(m, rem);
+        }, 0);
+        score += best > 0 ? 18 + best * 0.8 : 2;
+        break;
+      }
+      case 'voidform':
+      case 'doubleDotTicks':
+        score += 32;
+        break;
+      case 'elementalEchoTurn':
+      case 'echoElements':
+        score += 30;
+        break;
+      case 'perfectWindfury':
+        score += 28;
+        break;
+      case 'healAlsoDraw':
+        score += 24;
+        break;
+      case 'stormstrikeMark':
+        score += 16;
+        break;
+      case 'hex':
+        score += 20;
+        break;
+      case 'waterShield':
+        score += 18;
+        break;
+      case 'spiritWalkersGrace':
+        score += 22;
+        break;
+      case 'masterElements':
+        score += 20;
+        break;
+      case 'bloodlust':
+        score += 26;
+        break;
       default:
         break;
     }
+  }
+
+  // Engine-aware combat biases
+  if (spec === 'boomkin') {
+    if (cardId === 'starsurge' && state.astralPower >= 2) score += 35;
+    if (cardId === 'moonfire' || cardId === 'sunfire' || cardId === 'wrath') score += 8;
+    if (cardId === 'celestial_alignment' || cardId === 'incarnation') score += 12;
+  }
+  if (spec === 'feral') {
+    if ((cardId === 'rake' || cardId === 'rip' || cardId === 'shred') && hasBleed(state)) score += 18;
+    if (cardId === 'ferocious_bite' && hasBleed(state)) score += 30;
+  }
+  if (spec === 'shadow') {
+    const dotsOnBoard = enemies.reduce(
+      (n, e) => n + e.statuses.filter((s) => s.kind === 'bleed' || s.kind === 'poison').length,
+      0,
+    );
+    if (cardId === 'void_eruption') score += 10 + dotsOnBoard * 12;
+    if (cardId === 'mind_flay' || cardId === 'vampiric_touch' || cardId === 'shadow_word_pain')
+      score += 10;
+    if (cardId === 'shadowfiend') score += 18;
+    if (cardId === 'mind_blast' && dotsOnBoard >= 2) score += 16;
+  }
+  if (spec === 'elemental') {
+    if (cardId === 'lava_burst') score += 14;
+    if (cardId === 'echo_of_the_elements' && state.elementalAttacksThisTurn.length >= 2) score += 28;
+    if (cardId === 'searing_totem' || cardId === 'totem_of_wrath') score += 16;
+    if (cardId === 'elemental_blast') score += 18;
+  }
+  if (spec === 'resto' || spec === 'enhance' || spec === 'elemental') {
+    if (def.effects.some((e) => e.kind === 'summonTotem')) score += 6;
   }
 
   // Penance wants block first
@@ -315,7 +404,7 @@ function playSmartTurn(state: CombatState, spec: OpeningSpec): void {
     let bestIdx = -1;
     let bestScore = -Infinity;
     for (let i = 0; i < state.hand.length; i++) {
-      const id = state.hand[i]!;
+      const id = state.hand[i]!.defId;
       const s = scoreCardForCombat(state, id, i, spec);
       if (s > bestScore) {
         bestScore = s;
@@ -323,7 +412,7 @@ function playSmartTurn(state: CombatState, spec: OpeningSpec): void {
       }
     }
     if (bestIdx < 0 || bestScore < -100) break;
-    const def = card(state.hand[bestIdx]!);
+    const def = card(state.hand[bestIdx]!.defId);
     if (!def) break;
     if (def.target === 'enemy') {
       const target = lowestEnemy(state);
@@ -346,7 +435,7 @@ function playRandomTurn(state: CombatState): void {
     // Sometimes end early even with plays available
     if (Math.random() < 0.15) break;
     const idx = playable[Math.floor(Math.random() * playable.length)]!;
-    const def = card(state.hand[idx]!);
+    const def = card(state.hand[idx]!.defId);
     if (!def) break;
     if (def.target === 'enemy') {
       const living = livingEnemies(state);
@@ -397,7 +486,6 @@ function fightCombat(
     run.hp = state.player.hp;
     commitPendingDeckCards(run, state);
     run.victories += 1;
-    run.talentPoints += 1;
     run.shopRerollCount = 0;
     return { won: true, turns };
   }
@@ -434,6 +522,12 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
     score += 18;
   if (def.effects.some((e) => e.kind === 'energy')) score += 16;
   if (def.effects.some((e) => e.kind === 'thorns')) score += 12;
+  if (def.effects.some((e) => e.kind === 'summonTotem')) score += 18;
+  if (def.effects.some((e) => e.kind === 'gainAstral' || e.kind === 'spendAstral')) score += 20;
+  if (def.effects.some((e) => e.kind === 'voidform' || e.kind === 'doubleDotTicks')) score += 18;
+  if (def.effects.some((e) => e.kind === 'consumeBleeds' || e.kind === 'refundIfBleed')) score += 16;
+  if (def.effects.some((e) => e.kind === 'echoElements' || e.kind === 'elementalEchoTurn')) score += 20;
+  if (def.effects.some((e) => e.kind === 'perfectWindfury' || e.kind === 'healAlsoDraw')) score += 16;
   if (def.effects.some((e) => e.kind === 'shuffleCurse')) score -= 12;
 
   // Diminishing returns on duplicates of non-engines
@@ -441,8 +535,33 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
 
   // Spec-specific staples
   const staples: Record<OpeningSpec, string[]> = {
-    feral: ['mangle', 'tigers_fury', 'rake', 'ferocious_bite', 'ironfur', 'barkskin', 'thrash', 'predatory_strike', 'swipe', 'maul'],
-    boomkin: ['moonfire', 'celestial_alignment', 'starsurge', 'starfire', 'sunfire', 'incarnation', 'starfall', 'innervate', 'thorns', 'hurricane'],
+    feral: [
+      'mangle',
+      'tigers_fury',
+      'rake',
+      'ferocious_bite',
+      'rip',
+      'shred',
+      'ironfur',
+      'barkskin',
+      'thrash',
+      'predatory_strike',
+      'swipe',
+      'maul',
+    ],
+    boomkin: [
+      'moonfire',
+      'celestial_alignment',
+      'starsurge',
+      'starfire',
+      'sunfire',
+      'incarnation',
+      'starfall',
+      'innervate',
+      'thorns',
+      'hurricane',
+      'wrath',
+    ],
     tree: [
       'wild_growth',
       'barkskin',
@@ -498,8 +617,50 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
       'power_word_radiance',
       'smite',
     ],
+    resto: [
+      'healing_wave',
+      'riptide',
+      'chain_heal',
+      'healing_stream_totem',
+      'stoneskin_totem',
+      'grounding_totem',
+      'mana_tide_totem',
+      'water_shield',
+      'hex',
+      'spirit_walkers_grace',
+      'lightning_bolt',
+      'flame_shock',
+      'earth_shock',
+      'lava_burst',
+      'searing_totem',
+    ],
+    enhance: [
+      'stormstrike',
+      'lava_lash',
+      'windfury',
+      'frost_shock',
+      'crash_lightning',
+      'strength_of_earth_totem',
+      'windfury_totem',
+      'bloodlust',
+      'feral_spirit',
+      'ascendance',
+    ],
+    elemental: [
+      'lightning_bolt',
+      'flame_shock',
+      'lava_burst',
+      'chain_lightning',
+      'earth_shock',
+      'searing_totem',
+      'totem_of_wrath',
+      'master_of_the_elements',
+      'echo_of_the_elements',
+      'thunderstorm',
+      'elemental_blast',
+    ],
   };
-  if (staples[spec].includes(cardId)) score += 20;
+  if (staples[spec]?.includes(cardId)) score += 20;
 
   // Tree/Holy: heavily value any real damage package
   if (spec === 'tree' || spec === 'holy') {
@@ -513,7 +674,7 @@ function scoreRewardCard(run: RunState, cardId: string, spec: OpeningSpec, polic
       !hasDmg &&
       !def.effects.some((e) => e.kind === 'echo');
     if (healHeavy && countInDeck(run.deck, cardId) + run.deck.filter((c) => {
-      const d = card(c);
+      const d = card(c.defId);
       return !!d?.effects.some((e) => e.kind === 'heal' || e.kind === 'healOverTime');
     }).length > 6) {
       score -= 20;
@@ -564,6 +725,10 @@ const ENGINE_ITEMS = new Set([
   'pain_amplifier',
   'borrowed_timepiece',
   'astral_battery',
+  'lava_core',
+  'elemental_focus_stone',
+  'shock_totem_shard',
+  'lightning_rod',
 ]);
 
 const HIGH_GENERAL_ITEMS = new Set([
@@ -701,49 +866,6 @@ function applyRewardSkip(run: RunState, policy: Policy): void {
   }
 }
 
-function spendTalents(run: RunState, policy: Policy, spec: OpeningSpec): void {
-  const primary = SPEC_TREE[spec];
-  while (run.talentPoints > 0) {
-    const candidates = Object.values(TALENTS).filter((t) =>
-      canAllocateTalent(run.talents, run.talentPoints, t.id),
-    );
-    if (!candidates.length) break;
-
-    let pick: string;
-    if (policy === 'random') {
-      pick = candidates[Math.floor(Math.random() * candidates.length)]!.id;
-    } else {
-      // Prefer primary tree, then center utility columns, then anything
-      candidates.sort((a, b) => {
-        const pa = a.tree === primary ? 0 : policy === 'onspec' ? 2 : 1;
-        const pb = b.tree === primary ? 0 : policy === 'onspec' ? 2 : 1;
-        if (pa !== pb) return pa - pb;
-        const score = (t: typeof a) => {
-          let s = 0;
-          const sp = t.modifiers?.specials ?? [];
-          for (const x of sp) {
-            if (x.type === 'combatStartDraw') s += 50;
-            if (x.type === 'startTurnEnergy') s += 45;
-            if (x.type === 'killDraw' || x.type === 'killHeal') s += 30;
-            if (x.type === 'shredExhaustDraw') s += 35;
-            if (x.type === 'blockCarryover') s += 28;
-          }
-          if (t.modifiers?.damageBonus) s += 20;
-          if (t.modifiers?.damagePct) s += 25;
-          if (t.modifiers?.spellPowerBonus) s += 22;
-          if (t.column === 1) s += 3; // center often utility
-          s += (3 - t.tier) * 2; // fill early tiers
-          return s;
-        };
-        return score(b) - score(a);
-      });
-      pick = candidates[0]!.id;
-    }
-    run.talents = allocateTalent(run.talents, pick);
-    run.talentPoints -= 1;
-  }
-}
-
 function scoreRemoval(run: RunState, cardId: string, spec: OpeningSpec): number {
   if (cardId === CURSE_CARD_ID) return 1000;
   const def = card(cardId);
@@ -767,6 +889,42 @@ function scoreRemoval(run: RunState, cardId: string, spec: OpeningSpec): number 
 }
 
 function visitShop(run: RunState, policy: Policy, spec: OpeningSpec): void {
+  // Prefer the free (or affordable) card upgrade when available
+  const upgradeCost = cardUpgradeShopCost(run);
+  if (
+    policy !== 'random' &&
+    run.gold >= upgradeCost &&
+    run.deck.some((c) => c.upgrade < 2)
+  ) {
+    const candidates = pickUpgradeCandidates(run, 3);
+    if (candidates.length) {
+      let bestIdx = candidates[0]!;
+      let bestScore = -Infinity;
+      for (const idx of candidates) {
+        const id = run.deck[idx]!.defId;
+        const s = scoreRewardCard(run, id, spec, policy);
+        if (s > bestScore) {
+          bestScore = s;
+          bestIdx = idx;
+        }
+      }
+      if (payForCardUpgrade(run)) {
+        run.deck[bestIdx] = upgradeCard(run.deck[bestIdx]!);
+      }
+    }
+  } else if (
+    policy === 'random' &&
+    run.freeUpgradeAvailable &&
+    run.deck.some((c) => c.upgrade < 2) &&
+    Math.random() < 0.85
+  ) {
+    const candidates = pickUpgradeCandidates(run, 3);
+    if (candidates.length && payForCardUpgrade(run)) {
+      const idx = candidates[Math.floor(Math.random() * candidates.length)]!;
+      run.deck[idx] = upgradeCard(run.deck[idx]!);
+    }
+  }
+
   // Remove curses / dead weight first
   let removeBudget = policy === 'random' ? 1 : 3;
   while (removeBudget-- > 0 && run.deck.length > 5) {
@@ -775,7 +933,7 @@ function visitShop(run: RunState, policy: Policy, spec: OpeningSpec): void {
     let bestIdx = -1;
     let bestScore = policy === 'random' ? 0 : 25;
     for (let i = 0; i < run.deck.length; i++) {
-      const id = run.deck[i]!;
+      const id = run.deck[i]!.defId;
       const s =
         policy === 'random'
           ? id === CURSE_CARD_ID
@@ -788,7 +946,7 @@ function visitShop(run: RunState, policy: Policy, spec: OpeningSpec): void {
       }
     }
     if (bestIdx < 0) break;
-    const removed = run.deck[bestIdx]!;
+    const removed = run.deck[bestIdx]!.defId;
     removeCardAt(run, bestIdx);
     run.gold -= cost;
     run.cardsRemoved += 1;
@@ -829,7 +987,7 @@ function visitShop(run: RunState, policy: Policy, spec: OpeningSpec): void {
     }
     const def = card(best)!;
     run.gold -= CARD_BUY_COST[def.rarity];
-    run.deck.push(best);
+    run.deck.push(makeCard(best));
     offers = offers.filter((id) => id !== best);
     buys += 1;
   }
@@ -842,7 +1000,7 @@ function nodePriority(run: RunState, node: MapNode, policy: Policy): number {
     case 'rest':
       return hpRatio < 0.7 ? 100 : 40;
     case 'shop':
-      return run.deck.includes(CURSE_CARD_ID) || run.deck.length > 14 ? 90 : 55;
+      return deckHas(run.deck, CURSE_CARD_ID) || run.deck.length > 14 ? 90 : 55;
     case 'treasure':
       return 70;
     case 'combat':
@@ -868,11 +1026,11 @@ function deathLabel(run: RunState, node: MapNode | null): string {
   return `act${run.act}-f${node.floor}-${node.type}`;
 }
 
-function deckHas(deck: string[], id: string, min = 1): boolean {
+function deckHas(deck: CardInstance[] | string[], id: string, min = 1): boolean {
   return countInDeck(deck, id) >= min;
 }
 
-function deckCountAny(deck: string[], ids: string[]): number {
+function deckCountAny(deck: CardInstance[] | string[], ids: string[]): number {
   return ids.reduce((n, id) => n + countInDeck(deck, id), 0);
 }
 
@@ -890,8 +1048,8 @@ const SPEC_ITEM_PATH: Record<string, string> = {
   thick_hide_wraps: 'bear_wall',
   frenzy_claw: 'tempo',
   alpha_mark: 'tempo',
-  celestial_orb: 'celestial',
-  astral_battery: 'celestial',
+  celestial_orb: 'astral',
+  astral_battery: 'astral',
   thornwoven_cloak: 'thorns',
   hurricane_eye: 'aoe',
   twin_star: 'twin_star',
@@ -905,8 +1063,8 @@ const SPEC_ITEM_PATH: Record<string, string> = {
   serenity_bell: 'serenity',
   hymn_book: 'hymn',
   martyr_rosary: 'hymn',
-  void_leech: 'leech',
-  pain_amplifier: 'pain',
+  void_leech: 'void',
+  pain_amplifier: 'void',
   death_wish: 'recoil',
   shadow_absorb: 'recoil',
   scream_mask: 'scream',
@@ -915,12 +1073,18 @@ const SPEC_ITEM_PATH: Record<string, string> = {
   penitent_brand: 'penance',
   radiance_loop: 'radiance',
   borrowed_timepiece: 'radiance',
+  // Elemental commitment items
+  lava_core: 'lava',
+  lightning_rod: 'echo',
+  elemental_focus_stone: 'echo',
+  stormcaller_eye: 'echo',
+  shock_totem_shard: 'totem',
 };
 
 function detectPath(
   spec: OpeningSpec,
   items: string[],
-  deck: string[],
+  deck: CardInstance[] | string[],
   itemsPicked: string[] = [],
 ): string {
   for (const id of itemsPicked) {
@@ -939,7 +1103,9 @@ function detectPath(
     return 'hybrid';
   }
   if (spec === 'boomkin') {
-    if (deckHas(deck, 'celestial_alignment')) return 'celestial';
+    if (deckHas(deck, 'starsurge') && deckCountAny(deck, ['moonfire', 'sunfire', 'celestial_alignment']) >= 1)
+      return 'astral';
+    if (deckHas(deck, 'celestial_alignment') || deckHas(deck, 'incarnation')) return 'astral';
     if (deckHas(deck, 'thorns')) return 'thorns';
     return 'aoe';
   }
@@ -948,13 +1114,80 @@ function detectPath(
     return 'verdant';
   }
   if (spec === 'holy') return 'radiant';
-  if (spec === 'shadow') return 'pain';
+  if (spec === 'shadow') {
+    if (deckHas(deck, 'shadowfiend') || deckHas(deck, 'void_eruption')) return 'void';
+    if (deckCountAny(deck, ['mind_flay', 'vampiric_touch', 'shadow_word_pain']) >= 2) return 'void';
+    return 'pain';
+  }
   if (spec === 'discipline') return 'spike';
+  if (spec === 'resto') {
+    if (deckHas(deck, 'mana_tide_totem')) return 'tide';
+    if (deckCountAny(deck, ['stoneskin_totem', 'healing_stream_totem', 'grounding_totem']) >= 2)
+      return 'totem';
+    if (deckHas(deck, 'hex') || deckHas(deck, 'water_shield')) return 'hex';
+    if (deckHas(deck, 'riptide') || deckHas(deck, 'chain_heal')) return 'tide';
+    return 'hybrid';
+  }
+  if (spec === 'enhance') {
+    // Starter includes windfury + stormstrike — key on commitment, not presence.
+    const windCommit =
+      deckHas(deck, 'ascendance') ||
+      countInDeck(deck, 'windfury_totem') >= 2 ||
+      (deckHas(deck, 'windfury_totem') && countInDeck(deck, 'windfury') >= 2);
+    const lustCommit =
+      deckHas(deck, 'bloodlust') || countInDeck(deck, 'feral_spirit') >= 2;
+    const stormCommit =
+      deckCountAny(deck, ['crash_lightning', 'lava_lash']) >= 3 ||
+      (countInDeck(deck, 'stormstrike') >= 2 && deckHas(deck, 'crash_lightning'));
+    const scores = {
+      windfury: windCommit ? 4 + (deckHas(deck, 'ascendance') ? 2 : 0) : 0,
+      bloodlust: lustCommit ? 4 + (deckHas(deck, 'bloodlust') ? 2 : 0) : 0,
+      storm: stormCommit ? 3 + deckCountAny(deck, ['crash_lightning', 'lava_lash']) : 0,
+    };
+    const best = (Object.entries(scores) as [string, number][]).sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= 3) return best[0];
+    return 'hybrid';
+  }
+  if (spec === 'elemental') {
+    // Commitment-based — starter always has lava_burst, so do NOT key on mere presence.
+    const lavaCommit =
+      countInDeck(deck, 'lava_burst') >= 2 ||
+      deckHas(deck, 'master_of_the_elements') ||
+      hasItem(items, 'lava_core');
+    const echoCommit =
+      deckHas(deck, 'echo_of_the_elements') ||
+      deckHas(deck, 'elemental_blast') ||
+      hasItem(items, 'elemental_focus_stone') ||
+      hasItem(items, 'lightning_rod') ||
+      hasItem(items, 'stormcaller_eye');
+    const totemCommit =
+      countInDeck(deck, 'searing_totem') + countInDeck(deck, 'totem_of_wrath') >= 2 ||
+      (deckHas(deck, 'totem_of_wrath') && deckHas(deck, 'searing_totem')) ||
+      hasItem(items, 'shock_totem_shard');
+    // Prefer the strongest commitment signal when multiple present
+    const scores = {
+      lava: lavaCommit ? 3 + countInDeck(deck, 'lava_burst') : 0,
+      echo:
+        echoCommit
+          ? 3 +
+            (deckHas(deck, 'echo_of_the_elements') ? 2 : 0) +
+            (deckHas(deck, 'elemental_blast') ? 2 : 0)
+          : 0,
+      totem:
+        totemCommit
+          ? 3 + deckCountAny(deck, ['searing_totem', 'totem_of_wrath'])
+          : deckCountAny(deck, ['searing_totem', 'totem_of_wrath']),
+    };
+    const best = (Object.entries(scores) as [string, number][]).sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= 2) return best[0];
+    if (deckCountAny(deck, ['chain_lightning', 'thunderstorm', 'earth_shock']) >= 2) return 'shock';
+    return 'hybrid';
+  }
   return 'other';
 }
 
 /** Whether a run "attempted" a path (owned key item or enough key cards). */
-function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: string[]): boolean {
+function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: CardInstance[] | string[]): boolean {
   switch (spec) {
     case 'feral':
       if (path === 'bleed')
@@ -970,8 +1203,14 @@ function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: s
       if (path === 'hybrid') return true;
       break;
     case 'boomkin':
-      if (path === 'celestial')
-        return hasItem(items, 'celestial_orb') || deckHas(deck, 'celestial_alignment');
+      if (path === 'astral')
+        return (
+          hasItem(items, 'celestial_orb') ||
+          hasItem(items, 'astral_battery') ||
+          deckHas(deck, 'starsurge') ||
+          deckHas(deck, 'celestial_alignment') ||
+          deckHas(deck, 'incarnation')
+        );
       if (path === 'thorns')
         return hasItem(items, 'thornwoven_cloak') || deckHas(deck, 'thorns');
       if (path === 'aoe')
@@ -994,8 +1233,16 @@ function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: s
         return hasItem(items, 'hymn_book') || hasItem(items, 'martyr_rosary');
       break;
     case 'shadow':
-      if (path === 'leech') return hasItem(items, 'void_leech');
-      if (path === 'pain') return hasItem(items, 'pain_amplifier');
+      if (path === 'void')
+        return (
+          hasItem(items, 'void_leech') ||
+          hasItem(items, 'pain_amplifier') ||
+          deckHas(deck, 'void_eruption') ||
+          deckHas(deck, 'shadowfiend') ||
+          deckCountAny(deck, ['mind_flay', 'vampiric_touch', 'shadow_word_pain']) >= 2
+        );
+      if (path === 'pain')
+        return hasItem(items, 'pain_amplifier') || deckHas(deck, 'shadow_word_pain');
       if (path === 'recoil')
         return hasItem(items, 'death_wish') || hasItem(items, 'shadow_absorb');
       if (path === 'scream') return hasItem(items, 'scream_mask');
@@ -1007,17 +1254,69 @@ function attemptedPath(spec: OpeningSpec, path: string, items: string[], deck: s
       if (path === 'radiance')
         return hasItem(items, 'radiance_loop') || hasItem(items, 'borrowed_timepiece');
       break;
+    case 'resto':
+      if (path === 'tide')
+        return deckHas(deck, 'mana_tide_totem') || deckHas(deck, 'riptide');
+      if (path === 'totem')
+        return deckCountAny(deck, ['stoneskin_totem', 'healing_stream_totem', 'grounding_totem']) >= 2;
+      if (path === 'hex') return deckHas(deck, 'hex') || deckHas(deck, 'water_shield');
+      if (path === 'hybrid') return true;
+      break;
+    case 'enhance':
+      if (path === 'storm')
+        return (
+          deckCountAny(deck, ['crash_lightning', 'lava_lash']) >= 3 ||
+          (countInDeck(deck, 'stormstrike') >= 2 && deckHas(deck, 'crash_lightning'))
+        );
+      if (path === 'windfury')
+        return (
+          deckHas(deck, 'ascendance') ||
+          countInDeck(deck, 'windfury_totem') >= 2 ||
+          (deckHas(deck, 'windfury_totem') && countInDeck(deck, 'windfury') >= 2)
+        );
+      if (path === 'bloodlust')
+        return deckHas(deck, 'bloodlust') || countInDeck(deck, 'feral_spirit') >= 2;
+      if (path === 'hybrid') return true;
+      break;
+    case 'elemental':
+      if (path === 'lava')
+        return (
+          countInDeck(deck, 'lava_burst') >= 2 ||
+          deckHas(deck, 'master_of_the_elements') ||
+          hasItem(items, 'lava_core')
+        );
+      if (path === 'echo')
+        return (
+          deckHas(deck, 'echo_of_the_elements') ||
+          deckHas(deck, 'elemental_blast') ||
+          hasItem(items, 'elemental_focus_stone') ||
+          hasItem(items, 'lightning_rod') ||
+          hasItem(items, 'stormcaller_eye')
+        );
+      if (path === 'totem')
+        return (
+          deckCountAny(deck, ['searing_totem', 'totem_of_wrath']) >= 2 ||
+          (deckHas(deck, 'searing_totem') && deckHas(deck, 'totem_of_wrath')) ||
+          hasItem(items, 'shock_totem_shard')
+        );
+      if (path === 'shock')
+        return deckCountAny(deck, ['flame_shock', 'earth_shock', 'chain_lightning']) >= 2;
+      if (path === 'hybrid') return true;
+      break;
   }
   return false;
 }
 
 const SPEC_PATHS: Record<OpeningSpec, string[]> = {
   feral: ['bleed', 'bear_wall', 'tempo', 'hybrid'],
-  boomkin: ['celestial', 'thorns', 'aoe', 'twin_star'],
+  boomkin: ['astral', 'thorns', 'aoe', 'twin_star'],
   tree: ['verdant', 'fortress', 'barkbreaker', 'swiftroot'],
   holy: ['radiant', 'flame', 'serenity', 'hymn'],
-  shadow: ['leech', 'pain', 'recoil', 'scream'],
+  shadow: ['void', 'pain', 'recoil', 'scream'],
   discipline: ['spike', 'smite_echo', 'penance', 'radiance'],
+  resto: ['tide', 'totem', 'hex', 'hybrid'],
+  enhance: ['storm', 'windfury', 'bloodlust', 'hybrid'],
+  elemental: ['lava', 'echo', 'totem', 'shock'],
 };
 
 function makeResult(
@@ -1049,10 +1348,9 @@ function makeResult(
     cardsPicked: picked,
     cardsRemoved: removed,
     itemsPicked: [...itemsPicked],
-    finalDeck: [...run.deck],
+    finalDeck: deckIds(run.deck),
     finalItems: [...run.items],
     path,
-    talents: { ...run.talents },
     turnsFought,
   };
 }
@@ -1089,7 +1387,7 @@ function simulateRun(
       const offers = randomRewards(3, run.classId, run);
       const choice = pickReward(run, offers, policy, spec);
       if (choice) {
-        run.deck.push(choice);
+        run.deck.push(makeCard(choice));
         picked.push(choice);
         // Maybe buy a second if great and affordable
         if (policy !== 'random') {
@@ -1100,7 +1398,7 @@ function simulateRun(
             const cost = CARD_BUY_COST[def.rarity];
             if (run.gold >= cost && scoreRewardCard(run, id, spec, policy) >= 35) {
               run.gold -= cost;
-              run.deck.push(id);
+              run.deck.push(makeCard(id));
               picked.push(id);
               break;
             }
@@ -1110,7 +1408,6 @@ function simulateRun(
         applyRewardSkip(run, policy);
       }
     }
-    spendTalents(run, policy, spec);
   };
 
   // Main loop across both acts
@@ -1131,8 +1428,7 @@ function simulateRun(
 
       if (node.type === 'rest') {
         run.hp = Math.min(run.maxHp, run.hp + Math.floor(run.maxHp * 0.3));
-        spendTalents(run, policy, spec);
-        node.cleared = true;
+            node.cleared = true;
         continue;
       }
 
@@ -1141,7 +1437,7 @@ function simulateRun(
         const offers = randomRewards(3, run.classId, run);
         const choice = pickReward(run, offers, policy, spec);
         if (choice) {
-          run.deck.push(choice);
+          run.deck.push(makeCard(choice));
           picked.push(choice);
         } else {
           applyRewardSkip(run, policy);
@@ -1178,7 +1474,7 @@ function simulateRun(
 
       node.cleared = true;
       if (node.type === 'boss') {
-        // Bosses: card/talent rewards only — no item offers (elites only).
+        // Bosses: no card/item offers (elites only for items).
         finishFightRewards(true);
         if (run.act === 1) {
           advanceToBarrens(run);
@@ -1361,10 +1657,19 @@ async function main(): Promise<void> {
   const smartRuns = Number(process.env.SMART_RUNS ?? 40);
   const randomRuns = Number(process.env.RANDOM_RUNS ?? 40);
   const onspecRuns = Number(process.env.ONSPEC_RUNS ?? 40);
+  const classFilter = (process.env.CLASS_FILTER ?? '').trim().toLowerCase();
+  const configs = classFilter
+    ? ALL_CONFIGS.filter((c) => c.classId === classFilter)
+    : ALL_CONFIGS;
+  if (classFilter && configs.length === 0) {
+    throw new Error(`CLASS_FILTER=${classFilter} matched no configs`);
+  }
 
   console.log(`=== Evolve Playthrough Sim ===`);
   console.log(
-    `Smart runs/spec: ${smartRuns} | On-spec: ${onspecRuns} | Random: ${randomRuns}\n`,
+    `Smart runs/spec: ${smartRuns} | On-spec: ${onspecRuns} | Random: ${randomRuns}${
+      classFilter ? ` | class: ${classFilter}` : ''
+    }\n`,
   );
 
   const smartAggs = new Map<string, Aggregate>();
@@ -1385,7 +1690,7 @@ async function main(): Promise<void> {
   let winDeckN = 0;
   let lossDeckN = 0;
 
-  for (const { classId, spec } of ALL_CONFIGS) {
+  for (const { classId, spec } of configs) {
     const key = `${classId}/${spec}`;
     const sAgg = emptyAgg();
     const oAgg = emptyAgg();
@@ -1595,7 +1900,7 @@ async function main(): Promise<void> {
     }
   > = {};
 
-  for (const { classId, spec } of ALL_CONFIGS) {
+  for (const { classId, spec } of configs) {
     const key = `${classId}/${spec}`;
     const ps = pathStatsBySpec.get(key)!;
     const evaluated = evaluateViablePaths(spec, ps);
@@ -1661,6 +1966,10 @@ async function main(): Promise<void> {
       { path: 'penance', item: 'penitent_brand' },
       { path: 'radiance', item: 'borrowed_timepiece' },
     ],
+    // Shaman path seeds: no class-specific item seeds wired yet
+    resto: [],
+    enhance: [],
+    elemental: [],
   };
 
   console.log(`\n=== PATH SEED VALIDATION (${seedRuns} onspec runs / seed) ===`);
@@ -1670,11 +1979,11 @@ async function main(): Promise<void> {
   > = {};
   const VIABLE_SEED_WR = 0.45;
 
-  for (const { classId, spec } of ALL_CONFIGS) {
+  for (const { classId, spec } of configs) {
     const key = `${classId}/${spec}`;
     pathSeedResults[key] = [];
     let viableCount = 0;
-    for (const seed of PATH_SEEDS[spec]) {
+    for (const seed of PATH_SEEDS[spec] ?? []) {
       let wins = 0;
       for (let i = 0; i < seedRuns; i++) {
         const r = simulateRun(classId, spec, 'onspec', seed.item);
@@ -1741,8 +2050,11 @@ async function main(): Promise<void> {
   };
 
   const fs = await import('node:fs');
-  fs.writeFileSync('/workspace/scripts/playthrough-results.json', JSON.stringify(summary, null, 2));
-  console.log('\nWrote scripts/playthrough-results.json');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const outPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'playthrough-results.json');
+  fs.writeFileSync(outPath, JSON.stringify(summary, null, 2));
+  console.log(`\nWrote ${outPath}`);
 }
 
 main();

@@ -69,7 +69,7 @@ export class MapScene extends Phaser.Scene {
       .text(
         40,
         70,
-        `Act ${run.act}   ·   HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}   ·   Talents ${run.talentPoints}${potionBit}${itemBit}`,
+        `Act ${run.act}   ·   HP ${run.hp}/${run.maxHp}   ·   Gold ${run.gold}   ·   Deck ${run.deck.length}   ·   ${specLabel}   ·   Wins ${run.victories}${potionBit}${itemBit}`,
         {
           fontFamily: 'Georgia, serif',
           fontSize: '16px',
@@ -77,23 +77,8 @@ export class MapScene extends Phaser.Scene {
         },
       );
 
-    const talentBtn = this.add
-      .text(width - 40, 48, run.talentPoints > 0 ? `Talents (${run.talentPoints})` : 'Talents', {
-        fontFamily: 'Georgia, serif',
-        fontSize: '18px',
-        color: run.talentPoints > 0 ? '#0b1210' : '#a8e6cf',
-        backgroundColor: run.talentPoints > 0 ? '#fbbf24' : '#1a2e24',
-        padding: { x: 14, y: 8 },
-      })
-      .setOrigin(1, 0.5)
-      .setInteractive({ useHandCursor: true });
-
-    talentBtn.on('pointerdown', () => {
-      this.scene.start('Talent', { returnTo: 'Map' });
-    });
-
     const deckBtn = this.add
-      .text(width - 40, 92, 'View Deck', {
+      .text(width - 40, 48, 'View Deck', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         color: '#e8f5e9',

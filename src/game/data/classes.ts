@@ -1,5 +1,5 @@
 import { REWARD_POOLS, STARTER_DECKS } from './cards';
-import type { ClassDef, ClassId, OpeningSpec, TalentTree } from './types';
+import type { ClassDef, ClassId, OpeningSpec } from './types';
 
 export const CLASSES: Record<ClassId, ClassDef> = {
   druid: {
@@ -12,7 +12,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     startingGold: 50,
     starterDeck: STARTER_DECKS.druid,
     rewardPool: REWARD_POOLS.druid,
-    talentTrees: ['feral', 'resto', 'balance'],
     openingSpecs: ['feral', 'boomkin', 'tree'],
   },
   priest: {
@@ -25,7 +24,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     startingGold: 50,
     starterDeck: STARTER_DECKS.priest,
     rewardPool: REWARD_POOLS.priest,
-    talentTrees: ['holy', 'shadow', 'discipline'],
     openingSpecs: ['holy', 'shadow', 'discipline'],
   },
   shaman: {
@@ -38,7 +36,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     startingGold: 50,
     starterDeck: STARTER_DECKS.shaman,
     rewardPool: REWARD_POOLS.shaman,
-    talentTrees: ['restoration', 'enhancement', 'elemental'],
     openingSpecs: ['resto', 'enhance', 'elemental'],
   },
 };
@@ -47,10 +44,6 @@ export const CLASS_ORDER: ClassId[] = ['druid', 'priest', 'shaman'];
 
 export function getClass(id: ClassId): ClassDef {
   return CLASSES[id];
-}
-
-export function talentTreesForClass(id: ClassId): TalentTree[] {
-  return CLASSES[id].talentTrees;
 }
 
 export function openingSpecsForClass(id: ClassId): OpeningSpec[] {

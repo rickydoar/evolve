@@ -63,29 +63,8 @@ export class RestScene extends Phaser.Scene {
       this.finish();
     });
 
-    if (run.talentPoints > 0 || Object.keys(run.talents).length > 0) {
-      const talentLabel =
-        run.talentPoints > 0
-          ? `Talents (${run.talentPoints} unspent)`
-          : 'View Talents';
-      const talentBtn = this.add
-        .text(width / 2, 390, talentLabel, {
-          fontFamily: 'Georgia, serif',
-          fontSize: '20px',
-          color: '#0b1210',
-          backgroundColor: '#fbbf24',
-          padding: { x: 20, y: 12 },
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
-
-      talentBtn.on('pointerdown', () => {
-        this.scene.start('Talent', { returnTo: 'Rest' });
-      });
-    }
-
     const leave = this.add
-      .text(width / 2, 480, 'Leave without resting', {
+      .text(width / 2, 390, 'Leave without resting', {
         fontFamily: 'Georgia, serif',
         fontSize: '16px',
         color: '#94a3b8',

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { CARDS, FORM_COLORS, FORM_LABELS, RARITY_COLORS } from '../data/cards';
 import { getItem } from '../data/items';
-import { getCardDescription } from '../data/talents';
+import { cardDisplayName } from '../data/cardInstance';
+import { getCardInstanceDescription } from '../data/cardText';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
 import { fitCardText } from '../ui/fitCardText';
@@ -126,16 +127,20 @@ export class DeckViewScene extends Phaser.Scene {
     const itemRows = Math.max(1, Math.ceil(Math.max(run.items.length, 1) / 10));
     const deckTop = run.items.length ? 130 + itemRows * 92 + 24 : 160;
 
-    const counts = new Map<string, number>();
-    for (const id of run.deck) {
-      counts.set(id, (counts.get(id) ?? 0) + 1);
+    const counts = new Map<string, { defId: string; upgrade: number; count: number }>();
+    for (const inst of run.deck) {
+      const key = `${inst.defId}#${inst.upgrade}`;
+      const prev = counts.get(key);
+      if (prev) prev.count += 1;
+      else counts.set(key, { defId: inst.defId, upgrade: inst.upgrade, count: 1 });
     }
-    const unique = [...counts.keys()].sort((a, b) => {
-      const ca = CARDS[a];
-      const cb = CARDS[b];
-      if (!ca || !cb) return a.localeCompare(b);
+    const unique = [...counts.values()].sort((a, b) => {
+      const ca = CARDS[a.defId];
+      const cb = CARDS[b.defId];
+      if (!ca || !cb) return a.defId.localeCompare(b.defId);
       if (ca.form !== cb.form) return ca.form.localeCompare(cb.form);
-      return ca.name.localeCompare(cb.name);
+      if (ca.name !== cb.name) return ca.name.localeCompare(cb.name);
+      return a.upgrade - b.upgrade;
     });
 
     this.add.text(40, deckTop, `Deck (${run.deck.length} cards)`, {
@@ -164,10 +169,10 @@ export class DeckViewScene extends Phaser.Scene {
     const tw = cols * cw + (cols - 1) * gx;
     const sx = width / 2 - tw / 2 + cw / 2;
 
-    unique.forEach((id, index) => {
-      const card = CARDS[id];
+    unique.forEach((entry, index) => {
+      const card = CARDS[entry.defId];
       if (!card) return;
-      const count = counts.get(id) ?? 1;
+      const count = entry.count ?? 1;
       const col = index % cols;
       const row = Math.floor(index / cols);
       const x = sx + col * (cw + gx);
@@ -216,7 +221,7 @@ export class DeckViewScene extends Phaser.Scene {
 
       const nameY = scale > 0.7 ? ch * 0.08 : -ch * 0.28;
       container.add(
-        fitCardText(this, 0, nameY, card.name, cw - 12, 32 * scale, {
+        fitCardText(this, 0, nameY, cardDisplayName({ defId: entry.defId, upgrade: entry.upgrade }, card), cw - 12, 32 * scale, {
           color: '#e8f5e9',
           fontSize: Math.round(13 * scale),
           minFontSize: 9,
@@ -240,7 +245,7 @@ export class DeckViewScene extends Phaser.Scene {
           this,
           0,
           nameY + 44 * scale,
-          getCardDescription(card, run.talents),
+          getCardInstanceDescription({ defId: entry.defId, upgrade: entry.upgrade }),
           cw - 14,
           ch * 0.32,
           {

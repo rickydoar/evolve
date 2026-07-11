@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { CARDS, FORM_COLORS, FORM_LABELS } from '../data/cards';
+import { cardDisplayName, scaleEffectValue } from '../data/cardInstance';
+import { formatEnemyIntentLabel, getCardDescription } from '../data/cardText';
 import { getClass } from '../data/classes';
-import { getCardDescription } from '../data/talents';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
 import {
@@ -13,6 +14,7 @@ import {
   endPlayerTurn,
   getCardPlayCost,
   playCardOnEnemy,
+  previewCardDamage,
   selectCard,
   type CombatAnnouncement,
   type CombatHitsplat,
@@ -246,8 +248,8 @@ export class CombatScene extends Phaser.Scene {
     }
     const statuses = p.statuses.map((s) => `${s.name}(${s.duration})`).join(' · ');
     const totemStr = combat.totems
-      .filter((t) => t.hp > 0)
-      .map((t) => `${t.name[0]}:${t.hp}`)
+      .filter((t) => t.turnsRemaining > 0)
+      .map((t) => `${t.name[0]}:${t.turnsRemaining}t`)
       .join(' ');
     this.playerHpLabel.setText(
       `HP ${p.hp}/${p.maxHp}${p.block ? `  🛡${p.block}` : ''}${statuses ? `\n${statuses}` : ''}${totemStr ? `\nTotems ${totemStr}` : ''}`,
@@ -258,7 +260,7 @@ export class CombatScene extends Phaser.Scene {
     for (const c of this.totemContainers) c.destroy();
     this.totemContainers = [];
 
-    const totems = combat.totems.filter((t) => t.hp > 0);
+    const totems = combat.totems.filter((t) => t.turnsRemaining > 0);
     if (!totems.length) return;
 
     const elementColor: Record<string, number> = {
@@ -287,7 +289,7 @@ export class CombatScene extends Phaser.Scene {
 
       container.add(
         this.add
-          .text(0, 28, `${totem.name.split(' ')[0]} ${totem.hp}`, {
+          .text(0, 28, `${totem.name.split(' ')[0]} ${totem.turnsRemaining}t`, {
             fontFamily: 'Georgia, serif',
             fontSize: '10px',
             color: '#e2e8f0',
@@ -355,21 +357,9 @@ export class CombatScene extends Phaser.Scene {
       );
 
       if (!dead && enemy.intent) {
-        const intentIcon =
-          enemy.intent.type === 'summon'
-            ? '✧'
-            : enemy.intent.type === 'heal'
-              ? '✚'
-              : enemy.intent.type === 'buff'
-                ? '▲'
-                : enemy.intent.type === 'defend'
-                  ? '🛡'
-                  : enemy.intent.type === 'debuff'
-                    ? '☠'
-                    : '⚔';
         container.add(
           this.add
-            .text(0, -85, `${intentIcon} ${enemy.intent.label}`, {
+            .text(0, -85, formatEnemyIntentLabel(enemy), {
               fontFamily: 'Georgia, serif',
               fontSize: '13px',
               color: enemy.enraged ? '#fb923c' : '#fca5a5',
@@ -428,8 +418,8 @@ export class CombatScene extends Phaser.Scene {
     const startX = width / 2 - totalW / 2;
     const y = height - CARD_H / 2 - 14;
 
-    combat.hand.forEach((cardId, index) => {
-      const card = CARDS[cardId];
+    combat.hand.forEach((cardInst, index) => {
+      const card = CARDS[cardInst.defId];
       if (!card) return;
       const x = startX + index * spacing;
       const container = this.add.container(x, y);
@@ -467,7 +457,7 @@ export class CombatScene extends Phaser.Scene {
         this,
         0,
         nameTop,
-        card.name,
+        cardDisplayName(cardInst, card),
         CARD_W - 18,
         36,
         {
@@ -493,7 +483,15 @@ export class CombatScene extends Phaser.Scene {
       // Description fills the remaining bottom band and is clipped to the card
       const descTop = formY + formLabel.height + 3;
       const descMaxH = Math.max(36, CARD_H / 2 - descTop - CARD_PAD);
-      const description = getCardDescription(card, combat.talents);
+      let description = getCardDescription(card, cardInst.upgrade);
+      const dmgFx = card.effects.find(
+        (e) => e.kind === 'damage' || e.kind === 'aoeDamage' || e.kind === 'randomDamage',
+      );
+      if (dmgFx) {
+        const base = scaleEffectValue(dmgFx, cardInst.upgrade);
+        const preview = previewCardDamage(combat, card, base);
+        description = description.replace(/Deal \d+ damage/, `Deal ${preview} damage`);
+      }
       container.add(
         fitCardText(this, 0, descTop, description, CARD_W - 18, descMaxH, {
           color: '#cbd5e1',
@@ -945,7 +943,6 @@ export class CombatScene extends Phaser.Scene {
         run.hp = combat.player.hp;
         commitPendingDeckCards(run, combat);
         run.victories += 1;
-        run.talentPoints += 1;
         run.shopRerollCount = 0;
         const node = run.map.find((n) => n.id === GameRegistry.pendingNodeId);
         if (node) node.cleared = true;

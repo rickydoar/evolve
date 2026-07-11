@@ -10,7 +10,6 @@ import { RestScene } from './game/scenes/RestScene';
 import { RewardScene } from './game/scenes/RewardScene';
 import { ShopScene } from './game/scenes/ShopScene';
 import { SpecScene } from './game/scenes/SpecScene';
-import { TalentScene } from './game/scenes/TalentScene';
 import { TitleScene } from './game/scenes/TitleScene';
 import { CANVAS_H, CANVAS_W, DPR } from './game/display';
 import './style.css';
@@ -53,7 +52,6 @@ const config: Phaser.Types.Core.GameConfig = {
     RewardScene,
     RestScene,
     ShopScene,
-    TalentScene,
     DeckViewScene,
     ActTransitionScene,
     GameOverScene,

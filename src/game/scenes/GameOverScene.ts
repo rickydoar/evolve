@@ -36,11 +36,7 @@ export class GameOverScene extends Phaser.Scene {
         280,
         data.victory
           ? 'You slew Mutanus the Devourer and ended the nightmare.'
-          : `Victories: ${run?.victories ?? 0}  ·  Talent points spent: ${
-              run
-                ? Object.values(run.talents).reduce((a, b) => a + b, 0)
-                : 0
-            }`,
+          : `Victories: ${run?.victories ?? 0}`,
         {
           fontFamily: 'Georgia, serif',
           fontSize: '18px',
