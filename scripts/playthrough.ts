@@ -18,7 +18,7 @@ import {
   applyItemPickup,
   randomItemOffers,
 } from '../src/game/data/items.ts';
-import { makeCard, cardUpgradeShopCost, payForCardUpgrade, upgradeCard } from '../src/game/data/cardInstance.ts';
+import { makeCard, cardUpgradeShopCost, payForCardUpgrade, upgradeCard, scaleEffectValue } from '../src/game/data/cardInstance.ts';
 import {
   advanceToBarrens,
   availableNodes,
@@ -185,6 +185,7 @@ function scoreCardForCombat(
   const def = card(cardId);
   if (!def || def.unplayable || !canPlayCard(state, handIndex)) return -Infinity;
 
+  const upgrade = state.hand[handIndex]?.upgrade ?? 0;
   const cost = getCardPlayCost(state, def);
   const incoming = incomingDamage(state);
   const block = state.player.block;
@@ -198,29 +199,30 @@ function scoreCardForCombat(
   score += cost * 0.5;
 
   for (const fx of def.effects) {
+    const scaled = scaleEffectValue(fx, upgrade);
     switch (fx.kind) {
       case 'damage':
       case 'randomDamage': {
-        const dmg = fx.value;
+        const dmg = scaled;
         score += dmg * 1.2;
         if (lethalTarget && dmg >= lethalTarget.hp) score += 40;
         break;
       }
       case 'aoeDamage':
-        score += fx.value * enemies.length * 1.4;
+        score += scaled * enemies.length * 1.4;
         if (multi) score += 12;
         break;
       case 'damageOverTime':
-        score += fx.value * 0.9 + (fx.duration ?? 1) * 2;
+        score += scaled * 0.9 + (fx.duration ?? 1) * 2;
         break;
       case 'block':
-        score += fx.value * (incoming > block ? 1.8 : 0.7);
+        score += scaled * (incoming > block ? 1.8 : 0.7);
         break;
       case 'heal':
-        score += Math.min(fx.value, missing) * (missing > 20 ? 1.6 : 0.5);
+        score += Math.min(scaled, missing) * (missing > 20 ? 1.6 : 0.5);
         break;
       case 'healOverTime':
-        score += Math.min(fx.value, missing) * 0.7;
+        score += Math.min(scaled, missing) * 0.7;
         break;
       case 'echo':
         score += 28; // setup engines are huge
@@ -889,7 +891,7 @@ function scoreRemoval(run: RunState, cardId: string, spec: OpeningSpec): number 
 }
 
 function visitShop(run: RunState, policy: Policy, spec: OpeningSpec): void {
-  // Prefer the free (or affordable) card upgrade when available
+  // One upgrade per shop visit — matches the live shop rule used for balance.
   const upgradeCost = cardUpgradeShopCost(run);
   if (
     policy !== 'random' &&

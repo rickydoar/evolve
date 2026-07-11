@@ -3,7 +3,9 @@ import type { CardDef, CardEffect, CardInstance, EffectKind, RunState } from './
 export const MAX_CARD_UPGRADE = 2;
 export const CARD_UPGRADE_SHOP_COST = 40;
 
-/** First upgrade each run is free; later upgrades cost CARD_UPGRADE_SHOP_COST. */
+/** First upgrade each run is free; later upgrades cost CARD_UPGRADE_SHOP_COST.
+ * Only one upgrade may be purchased per shop visit (live game + balance sim).
+ */
 export function cardUpgradeShopCost(run: Pick<RunState, 'freeUpgradeAvailable'>): number {
   return run.freeUpgradeAvailable ? 0 : CARD_UPGRADE_SHOP_COST;
 }
@@ -42,6 +44,7 @@ export function cardDisplayName(card: CardInstance | string, def?: CardDef): str
 /**
  * Each upgrade multiplies magnitude by 1.3, rounded down, applied sequentially.
  * Does NOT scale duration fields.
+ * Shop visits allow at most one upgrade purchase (see ShopScene / playthrough sim).
  */
 export function scaleByUpgrade(base: number, upgrade: number): number {
   let v = Math.floor(base);

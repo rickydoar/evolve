@@ -4,6 +4,7 @@ import type { EnemyDef } from './types';
  * Enemy definitions.
  * Grove (Act 1) stats are ~25% above the original baseline.
  * Barrens (Act 2) enemies are a harder tier with distinct kits.
+ * Combat also applies per-floor scaling (+ Act 2 flat bump) and scales summons.
  */
 export const ENEMIES: Record<string, EnemyDef> = {
   // ─── Act 1: The Grove ───────────────────────────────────────────────

@@ -28,20 +28,20 @@ export const TOTEMS: Record<string, TotemDef> = {
     id: 'searing_totem',
     name: 'Searing Totem',
     element: 'fire',
-    duration: 5,
+    duration: 4,
     art: 'card-searing-totem',
-    aura: { kind: 'searing', value: 16 },
+    aura: { kind: 'searing', value: 10 },
     description:
-      'While alive: deal 16 damage to a random enemy and apply/refresh Flame Shock shred.',
+      'While alive: deal 10 damage to a random enemy and apply/refresh Flame Shock shred.',
   },
   totem_of_wrath: {
     id: 'totem_of_wrath',
     name: 'Totem of Wrath',
     element: 'fire',
-    duration: 5,
+    duration: 4,
     art: 'card-totem-of-wrath',
-    aura: { kind: 'spellPower', value: 7 },
-    description: 'While alive: +7 Spell Power.',
+    aura: { kind: 'spellPower', value: 5 },
+    description: 'While alive: +5 Spell Power.',
   },
   healing_stream_totem: {
     id: 'healing_stream_totem',
@@ -90,10 +90,11 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     name: 'Lightning Bolt',
     form: 'elemental',
     cost: 1,
-    description: 'Deal 38 damage. Costs zero if all cards in hand are elemental.',
+    description:
+      'Deal 32 damage. Costs zero if your hand has at least 4 cards and all are elemental.',
     target: 'enemy',
     effects: [
-      { kind: 'damage', value: 38 },
+      { kind: 'damage', value: 32 },
       { kind: 'freeIfAllElemental', value: 1 },
     ],
     art: 'card-lightning-bolt',
@@ -118,11 +119,11 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     name: 'Flame Shock',
     form: 'elemental',
     cost: 1,
-    description: 'Deal 16 damage. Deal 90 damage over 3 turns.',
+    description: 'Deal 14 damage. Deal 60 damage over 3 turns.',
     target: 'enemy',
     effects: [
-      { kind: 'damage', value: 16 },
-      { kind: 'damageOverTime', value: 90, duration: 3 },
+      { kind: 'damage', value: 14 },
+      { kind: 'damageOverTime', value: 60, duration: 3 },
     ],
     art: 'card-flame-shock',
     rarity: 'common',
@@ -133,12 +134,12 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'elemental',
     cost: 2,
     description:
-      'Deal 40 damage. Consume a Flame Shock to instantly deal the remaining burn damage. Refund 1 Energy if Flame Shock was present.',
+      'Deal 32 damage. Consume Flame Shock to instantly deal the remaining burn. Refund 1 Energy only if a Flame Shock was consumed.',
     target: 'enemy',
     effects: [
-      { kind: 'damage', value: 40 },
-      { kind: 'refundIfFlameShock', value: 1 },
+      { kind: 'damage', value: 32 },
       { kind: 'consumeFlameShock', value: 1 },
+      { kind: 'refundIfFlameShock', value: 1 },
     ],
     art: 'card-lava-burst',
     rarity: 'rare',
@@ -148,11 +149,11 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     name: 'Chain Lightning',
     form: 'elemental',
     cost: 1,
-    description: 'Deal 22 damage to ALL enemies. Deal 18 damage to a random enemy.',
+    description: 'Deal 16 damage to ALL enemies. Deal 12 damage to a random enemy.',
     target: 'allEnemies',
     effects: [
-      { kind: 'aoeDamage', value: 22 },
-      { kind: 'randomDamage', value: 18 },
+      { kind: 'aoeDamage', value: 16 },
+      { kind: 'randomDamage', value: 12 },
     ],
     art: 'card-chain-lightning',
     rarity: 'rare',
@@ -178,7 +179,7 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'elemental',
     cost: 1,
     description:
-      'Summon Searing Totem for 5 turns. While alive: deal 16 damage to a random enemy and apply/refresh Flame Shock shred. Replaces your Fire totem.',
+      'Summon Searing Totem for 4 turns. While alive: deal 10 damage to a random enemy and apply/refresh Flame Shock shred. Replaces your Fire totem.',
     target: 'self',
     effects: [{ kind: 'summonTotem', value: 1, totemId: 'searing_totem' }],
     art: 'card-searing-totem',
@@ -190,7 +191,7 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'elemental',
     cost: 1,
     description:
-      'Summon Totem of Wrath for 5 turns. While alive: +7 Spell Power. Replaces your Fire totem.',
+      'Summon Totem of Wrath for 4 turns. While alive: +5 Spell Power. Replaces your Fire totem.',
     target: 'self',
     effects: [{ kind: 'summonTotem', value: 1, totemId: 'totem_of_wrath' }],
     art: 'card-totem-of-wrath',
@@ -202,11 +203,11 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'elemental',
     cost: 2,
     description:
-      'Deal 28 damage. This turn, your next 3 elemental attacks each echo once to a random enemy. Shuffle 1 Nightmare into your deck this combat.',
+      'Deal 24 damage. This turn, your next 2 elemental attacks each echo once to a random enemy. Shuffle 1 Nightmare into your deck this combat.',
     target: 'enemy',
     effects: [
-      { kind: 'damage', value: 28 },
-      { kind: 'elementalEchoTurn', value: 3 },
+      { kind: 'damage', value: 24 },
+      { kind: 'elementalEchoTurn', value: 2 },
       { kind: 'shuffleCurse', value: 1 },
     ],
     art: 'card-elemental-blast',
@@ -217,10 +218,10 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     name: 'Master of the Elements',
     form: 'elemental',
     cost: 1,
-    description: 'Spell power +4 for the rest of combat. Draw 1 card.',
+    description: 'Spell power +3 for the rest of combat. Draw 1 card.',
     target: 'self',
     effects: [
-      { kind: 'masterElements', value: 4 },
+      { kind: 'masterElements', value: 3 },
       { kind: 'draw', value: 1 },
     ],
     art: 'card-master-of-the-elements',
@@ -232,7 +233,7 @@ export const SHAMAN_CARDS: Record<string, CardDef> = {
     form: 'elemental',
     cost: 1,
     description:
-      'Repeat all elemental attacks played this turn to random enemies. Gain 1 Energy if you echoed at least 2.',
+      'Repeat all elemental attacks played this turn to random enemies. Gain 1 Energy if you echoed at least 3.',
     target: 'self',
     effects: [{ kind: 'echoElements', value: 1 }],
     art: 'card-echo-of-the-elements',
@@ -560,7 +561,8 @@ export const SHAMAN_STARTER_CORE: string[] = [
 export const SHAMAN_SPEC_PACKAGE: Record<'resto' | 'enhance' | 'elemental', string[]> = {
   resto: ['lightning_bolt', 'lightning_bolt', 'chain_heal', 'healing_surge', 'healing_stream_totem'],
   enhance: ['stormstrike', 'lava_lash', 'windfury', 'frost_shock', 'strength_of_earth_totem'],
-  elemental: ['lightning_bolt', 'flame_shock', 'lava_burst', 'chain_lightning', 'searing_totem'],
+  // No duplicate Flame Shock — double-shock → Lava consume was an Act 1 free win.
+  elemental: ['lightning_bolt', 'earth_shock', 'lava_burst', 'chain_lightning', 'searing_totem'],
 };
 
 export const SHAMAN_SPEC_TRIM: Record<'resto' | 'enhance' | 'elemental', string[]> = {

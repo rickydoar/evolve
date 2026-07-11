@@ -811,30 +811,30 @@ export const ITEMS: Record<string, ItemDef> = {
   lightning_rod: {
     id: 'lightning_rod',
     name: 'Lightning Rod',
-    description: 'At the start of combat, gain 3 Spell Power.',
+    description: 'At the start of combat, gain 2 Spell Power.',
     spec: 'elemental',
     rarity: 'rare',
-    effects: [{ trigger: 'combatStart', kind: 'spellPower', value: 3 }],
+    effects: [{ trigger: 'combatStart', kind: 'spellPower', value: 2 }],
   },
   lava_core: {
     id: 'lava_core',
     name: 'Lava Core',
-    description: 'Flame Shock and Lava Burst deal +4 damage.',
+    description: 'Flame Shock and Lava Burst deal +2 damage.',
     spec: 'elemental',
     rarity: 'rare',
-    effects: [{ trigger: 'onDealDamage', kind: 'flag', value: 4 }],
+    effects: [{ trigger: 'onDealDamage', kind: 'flag', value: 2 }],
   },
   stormcaller_eye: {
     id: 'stormcaller_eye',
     name: 'Stormcaller Eye',
-    description: 'Whenever you deal random damage, also deal 4 to ALL enemies.',
+    description: 'Whenever you deal random damage, also deal 3 to ALL enemies.',
     spec: 'elemental',
     rarity: 'epic',
     effects: [
       {
         trigger: 'onDealDamage',
         kind: 'damageAll',
-        value: 4,
+        value: 3,
         forms: ['elemental'],
       },
     ],
@@ -842,7 +842,7 @@ export const ITEMS: Record<string, ItemDef> = {
   elemental_focus_stone: {
     id: 'elemental_focus_stone',
     name: 'Elemental Focus Stone',
-    description: 'Once per turn, after playing an Elemental card, gain 1 Energy.',
+    description: 'Once per turn, after playing an Elemental attack, gain 1 Energy.',
     spec: 'elemental',
     rarity: 'epic',
     effects: [
@@ -960,7 +960,7 @@ export function itemSacredFlameBonus(items: string[], cardId: string): number {
     if (cardId === 'holy_fire' || cardId === 'holy_nova') return 5;
   }
   if (items.includes('lava_core')) {
-    if (cardId === 'flame_shock' || cardId === 'lava_burst') return 4;
+    if (cardId === 'flame_shock' || cardId === 'lava_burst') return 2;
   }
   return 0;
 }

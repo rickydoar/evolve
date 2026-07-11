@@ -172,16 +172,18 @@ function effectDescription(effect: CardEffect, card: CardDef, upgrade: number): 
       return `Lasts ${dur ?? 3} turns. Gain ${value} energy next turn every time you are attacked.`;
     case 'spiritWalkersGrace':
       return `Lasts ${dur ?? 3} turns. All healing does ${value}% damage to a random enemy.`;
-    case 'echoElements':
-      return 'Repeat all elemental attacks played this turn dealt to random enemies.';
     case 'bloodlust':
       return `Draw ${value} cards. All attacks cost 1 less. Exhaust all cards played this turn.`;
     case 'exhaust':
       return 'Exhaust.';
     case 'refundIfFlameShock':
-      return `Refund ${value} energy if targeting an enemy with Flame Shock.`;
+      return card.id === 'lava_burst'
+        ? `Refund ${value} energy if a Flame Shock was consumed.`
+        : `Refund ${value} energy if targeting an enemy with Flame Shock.`;
     case 'freeIfAllElemental':
-      return 'Costs zero if all cards in hand are elemental.';
+      return 'Costs zero if your hand has at least 4 cards and all are elemental.';
+    case 'echoElements':
+      return 'Repeat all elemental attacks played this turn to random enemies. Gain 1 Energy if you echoed at least 3.';
     case 'gainAstral':
       return `Gain ${value} Astral Power.`;
     case 'spendAstral':

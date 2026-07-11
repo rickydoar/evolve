@@ -131,6 +131,10 @@ const ENRAGE_HP_RATIO = 0.4;
 const CURSE_DRAW_DAMAGE = 5;
 const WEAK_MULTIPLIER = 0.75;
 const MAX_EFFECT_DEPTH = 6;
+/** HP + intent scaling per map floor within an act. */
+export const ENEMY_SCALE_PER_FLOOR = 0.05;
+/** Flat power added in Act 2 (Barrens templates are already a harder tier). */
+export const ENEMY_ACT2_FLAT_SCALE = 0;
 
 /** Prevent echo / retrieve recursion from looping forever. */
 let effectDepth = 0;
@@ -166,7 +170,11 @@ export function cardHasType(card: CardDef | undefined, type: CardTypeTag): boole
 
 function scaleIntent(intent: EnemyIntent, mult: number): EnemyIntent {
   if (intent.type === 'summon') return { ...intent };
-  return { ...intent, value: Math.max(1, Math.floor(intent.value * mult)) };
+  if (mult === 1) return { ...intent };
+  const value = Math.max(1, Math.floor(intent.value * mult));
+  // Keep UI labels honest — raw defs embed unscaled numbers like "Bite 10".
+  const label = intent.label.replace(/\d+/g, String(value));
+  return { ...intent, value, label };
 }
 
 function pickIntent(enemyId: string, combatant?: Combatant, scale = 1): EnemyIntent {
@@ -196,8 +204,19 @@ function createEnemyCombatant(enemyDefId: string, scale = 1): Combatant {
   };
 }
 
+/** Floor power multiplier used by combat.
+ * Uses map floor (resets each act) plus a modest Act 2 flat bump —
+ * Barrens templates are already a harder tier, so we do NOT reuse the
+ * reward `progressionFloor` (+10) or Act 2 becomes wildly overtuned.
+ */
+export function enemyScaleForRun(run: RunState): number {
+  const floorScale = 1 + run.floor * ENEMY_SCALE_PER_FLOOR;
+  const actBump = run.act === 2 ? ENEMY_ACT2_FLAT_SCALE : 0;
+  return floorScale + actBump;
+}
+
 export function startCombat(run: RunState, enemyIds: string[]): CombatState {
-  const enemyScale = 1 + run.floor * 0.05;
+  const enemyScale = enemyScaleForRun(run);
   const enemies: Combatant[] = enemyIds.map((id) => createEnemyCombatant(id, enemyScale));
 
   const cls = getClass(run.classId);
@@ -246,7 +265,7 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
 
   if (enemyScale > 1) {
     state.log.push({
-      text: `Enemy power: +${Math.round((enemyScale - 1) * 100)}% (floor ${run.floor}).`,
+      text: `Enemy power: +${Math.round((enemyScale - 1) * 100)}% (act ${run.act}, floor ${run.floor}).`,
       color: '#fca5a5',
     });
   }
@@ -829,7 +848,10 @@ export function computeCardDamage(
   ) {
     const totemSp = totemAuraBonus(state, 'spellPower');
     const sp = state.spellPowerBonus + totemSp;
-    dmg += sp + Math.floor(sp * 0.5);
+    // Elemental stacks SP heavily via Master / Wrath / items — use 1.25×.
+    // Other caster schools keep the full 1.5× bonus.
+    if (card.form === 'elemental') dmg += sp + Math.floor(sp * 0.25);
+    else dmg += sp + Math.floor(sp * 0.5);
   }
   if (
     (card.id === 'starfire' || card.id === 'wrath') &&
@@ -915,6 +937,7 @@ function dealDamageTo(
   target: Combatant,
   base: number,
   triggerEchoOnHit = true,
+  isRandomDamage = false,
 ): number {
   const dmg = computeCardDamage(card, base, state, target);
   let dealt = applyDamage(target, dmg, state, 'player');
@@ -955,7 +978,7 @@ function dealDamageTo(
     forEachItemEffect(state.itemState, 'onDealDamage', makeItemApi(state), {
       card,
       damageAmount: dealt,
-      isRandomDamage: false,
+      isRandomDamage,
     });
   }
   return dealt;
@@ -982,7 +1005,7 @@ function dealRandomDamage(
       art: '',
       rarity: 'common',
     } satisfies CardDef);
-  dealDamageTo(state, fakeCard, target, base, !!card);
+  dealDamageTo(state, fakeCard, target, base, !!card, true);
   return target;
 }
 
@@ -1117,8 +1140,11 @@ export function getCardPlayCost(
   let cost = card.cost;
 
   if (card.effects.some((e) => e.kind === 'freeIfAllElemental')) {
-    const allElemental = state.hand.every((inst) => cardDef(inst)?.form === 'elemental');
-    if (allElemental && state.hand.length > 0) return 0;
+    // Thin hands made "all elemental → free Lightning Bolt" too automatic.
+    const allElemental =
+      state.hand.length >= 4 &&
+      state.hand.every((inst) => cardDef(inst)?.form === 'elemental');
+    if (allElemental) return 0;
   }
 
   if (cardHasType(card, 'attack') && state.attackCostReduction > 0) {
@@ -1301,6 +1327,8 @@ function applyCardEffects(
   upgrade = 0,
 ): boolean {
   let dealtDamage = false;
+  /** Set when consumeFlameShock actually removes a Flame Shock this card. */
+  let consumedFlameShock = false;
 
   // Penance: damage and heal scale with half current Block (armor).
   if (card.id === 'penance') {
@@ -1343,20 +1371,20 @@ function applyCardEffects(
         const living = state.enemies.filter((e) => e.hp > 0);
         if (!living.length) break;
         const t = living[Math.floor(Math.random() * living.length)]!;
-        const dealt = dealDamageTo(state, card, t, value);
+        const dealt = dealDamageTo(state, card, t, value, true, true);
         dealtDamage = true;
         if (itemHasTwinStar(state.itemState.items) && dealt > 0) {
           const others = state.enemies.filter((e) => e.hp > 0 && e.id !== t.id);
           const half = Math.ceil(dealt / 2);
           if (others.length && half > 0) {
             const t2 = others[Math.floor(Math.random() * others.length)]!;
-            dealDamageTo(state, card, t2, half, false);
+            dealDamageTo(state, card, t2, half, false, true);
             state.log.push({
               text: `Twin Star: ${half} to ${t2.name}.`,
               color: '#c4b5fd',
             });
           } else if (half > 0 && t.hp > 0) {
-            dealDamageTo(state, card, t, half, false);
+            dealDamageTo(state, card, t, half, false, true);
             state.log.push({
               text: `Twin Star: ${half} again.`,
               color: '#c4b5fd',
@@ -1697,6 +1725,7 @@ function applyCardEffects(
         );
         const dealt = applyDamage(target, total, state, 'player');
         dealtDamage = true;
+        consumedFlameShock = true;
         state.log.push({
           text: `Consumed Flame Shock for ${dealt} damage!`,
           color: '#fb923c',
@@ -1800,7 +1829,7 @@ function applyCardEffects(
           dealRandomDamage(state, dmg, card);
           dealtDamage = true;
         }
-        if (hits.length >= 2) {
+        if (hits.length >= 3) {
           state.energy += 1;
           state.log.push({
             text: `Echo of the Elements repeats ${hits.length} attack(s)! +1 Energy.`,
@@ -1837,7 +1866,12 @@ function applyCardEffects(
       case 'exhaust':
         break;
       case 'refundIfFlameShock': {
-        if (target && hasFlameShock(target)) {
+        // Lava Burst: refund only after a successful consume on this card.
+        // Lava Lash: refund while Flame Shock is still present (no consume).
+        const ok =
+          consumedFlameShock ||
+          (card.id !== 'lava_burst' && !!target && hasFlameShock(target));
+        if (ok) {
           state.energy += value;
           state.log.push({
             text: `Flame Shock! Refunded ${value} Energy.`,
@@ -2327,7 +2361,8 @@ function resolveIntent(
       let spawned = 0;
       for (let i = 0; i < count; i++) {
         if (state.enemies.filter((e) => e.hp > 0).length >= MAX_COMBAT_ENEMIES) break;
-        state.enemies.push(createEnemyCombatant(summonId));
+        // Summons inherit the fight's floor scale (previously spawned at base stats).
+        state.enemies.push(createEnemyCombatant(summonId, state.enemyScale));
         spawned += 1;
       }
       state.log.push({
