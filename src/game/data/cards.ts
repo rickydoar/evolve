@@ -61,7 +61,7 @@ export const CURSE_CARDS: Record<string, CardDef> = {
     name: 'Nightmare',
     form: 'shadow',
     cost: 0,
-    description: 'Unplayable. When drawn, take 5 damage.',
+    description: 'Unplayable. When drawn, take 5 damage. Removed after combat.',
     target: 'none',
     effects: [],
     art: 'card-shadow-word-pain',
@@ -171,7 +171,7 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     name: 'Survival Instincts',
     form: 'bear',
     cost: 2,
-    description: 'Gain 22 Block. Heal 14. Shuffle a Nightmare into your deck.',
+    description: 'Gain 22 Block. Heal 14. Shuffle a Nightmare into your deck this combat.',
     target: 'self',
     effects: [
       { kind: 'block', value: 22 },
@@ -273,7 +273,7 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     name: 'Predatory Strike',
     form: 'cat',
     cost: 1,
-    description: 'Deal 16 damage. Draw 1. Gain 1 Energy. Shuffle a Nightmare into your deck.',
+    description: 'Deal 16 damage. Draw 1. Gain 1 Energy. Shuffle a Nightmare into your deck this combat.',
     target: 'enemy',
     effects: [
       { kind: 'damage', value: 16 },
@@ -418,7 +418,7 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     form: 'boomkin',
     cost: 2,
     description:
-      'Gain 6 Spell Power. Deal 14 damage. Draw 2. Shuffle a Nightmare into your deck.',
+      'Gain 6 Spell Power. Deal 14 damage. Draw 2. Shuffle a Nightmare into your deck this combat.',
     target: 'enemy',
     effects: [
       { kind: 'spellPower', value: 6 },
@@ -553,7 +553,7 @@ export const DRUID_CARDS: Record<string, CardDef> = {
     name: 'Tranquility',
     form: 'tree',
     cost: 2,
-    description: 'Heal 24. Gain 10 Block. Remove all debuffs. Shuffle a Nightmare into your deck.',
+    description: 'Heal 24. Gain 10 Block. Remove all debuffs. Shuffle a Nightmare into your deck this combat.',
     target: 'self',
     effects: [
       { kind: 'heal', value: 24 },

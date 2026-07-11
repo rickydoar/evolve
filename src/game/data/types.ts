@@ -134,7 +134,7 @@ export interface CardDef {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   /** Cannot be played from hand (curses). */
   unplayable?: boolean;
-  /** Curse card — deals damage when drawn, clogs the hand. */
+  /** Curse card — deals damage when drawn, clogs the hand. Combat-only; never persists in the run deck. */
   curse?: boolean;
 }
 

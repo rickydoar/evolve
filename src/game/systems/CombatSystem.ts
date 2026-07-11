@@ -102,7 +102,7 @@ export interface CombatState {
   spellPowerBonus: number;
   /** Snapshot of run talents for this combat. */
   talents: Record<string, number>;
-  /** Curse (and similar) ids to merge into the run deck after victory. */
+  /** Card ids to merge into the run deck after victory (curses excluded — combat-only). */
   pendingDeckCards: string[];
   /** Form spell play counts for nth-free talents (e.g. Shooting Stars). */
   formSpellCounts: Partial<Record<Form, number>>;
@@ -1526,10 +1526,9 @@ function applyCardEffects(
         for (let i = 0; i < value; i++) {
           const insertAt = Math.floor(Math.random() * (state.drawPile.length + 1));
           state.drawPile.splice(insertAt, 0, CURSE_CARD_ID);
-          state.pendingDeckCards.push(CURSE_CARD_ID);
         }
         state.log.push({
-          text: `Shuffled ${value} Nightmare into your deck.`,
+          text: `Shuffled ${value} Nightmare into your deck this combat.`,
           color: '#c4b5fd',
         });
         break;
@@ -2032,12 +2031,15 @@ export function cancelTarget(state: CombatState): void {
   state.selectedCardId = null;
 }
 
-/** Persist combat-gained curses (etc.) into the run deck after a win. */
+/** Persist combat-gained deck cards/gold after a win. Curses never leave the fight. */
 export function commitPendingDeckCards(run: RunState, state: CombatState): void {
   for (const id of state.pendingDeckCards) {
+    if (CARDS[id]?.curse) continue;
     run.deck.push(id);
   }
   state.pendingDeckCards = [];
+  // Curses are combat-only — strip any that somehow remain on the run deck.
+  run.deck = run.deck.filter((id) => !CARDS[id]?.curse);
   if (state.pendingGold > 0) {
     run.gold += state.pendingGold;
     state.pendingGold = 0;
