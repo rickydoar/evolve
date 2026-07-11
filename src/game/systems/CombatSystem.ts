@@ -7,7 +7,6 @@ import {
   itemBeginTurn,
   itemDotExtraDuration,
   itemDotTickBonus,
-  itemExtraBlockCarryover,
   itemHasDeathWish,
   itemHasTwinStar,
   itemHotTickBlock,
@@ -19,6 +18,7 @@ import {
   type ItemCombatApi,
   type ItemCombatState,
 } from '../data/itemCombat';
+import { itemBlockCarryoverPct } from '../data/items';
 import { TOTEMS } from '../data/shamanCards';
 import {
   hasTalentSpecial,
@@ -81,6 +81,15 @@ export interface CombatAnnouncement {
   kind?: 'play' | 'retrieve';
 }
 
+export type HitsplatKind = 'damage' | 'block' | 'heal';
+
+/** Floating combat number; cleared after CombatScene shows it. */
+export interface CombatHitsplat {
+  targetId: string;
+  kind: HitsplatKind;
+  amount: number;
+}
+
 export interface CombatState {
   player: Combatant;
   enemies: Combatant[];
@@ -97,6 +106,8 @@ export interface CombatState {
   log: CombatLogEntry[];
   /** UI banners for discard plays / retrieves; cleared after CombatScene shows them. */
   pendingAnnouncements: CombatAnnouncement[];
+  /** Damage / block / heal floating numbers; cleared after CombatScene shows them. */
+  pendingHitsplats: CombatHitsplat[];
   selectedCardId: string | null;
   awaitingTarget: boolean;
   spellPowerBonus: number;
@@ -208,6 +219,7 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
     turn: 1,
     log: [{ text: 'Combat begins. The grove stirs...', color: '#a8e6cf' }],
     pendingAnnouncements: [],
+    pendingHitsplats: [],
     selectedCardId: null,
     awaitingTarget: false,
     spellPowerBonus: run.spellPowerBonus + talentSp,
@@ -425,6 +437,26 @@ function addStatus(c: Combatant, status: StatusEffect): void {
   }
 }
 
+function queueHitsplat(
+  state: CombatState,
+  targetId: string,
+  kind: HitsplatKind,
+  amount: number,
+): void {
+  const n = Math.floor(amount);
+  if (n <= 0) return;
+  state.pendingHitsplats.push({ targetId, kind, amount: n });
+}
+
+/** Grant block/armor and queue a grey hitsplat. */
+function grantBlock(target: Combatant, amount: number, state: CombatState): number {
+  const n = Math.max(0, Math.floor(amount));
+  if (n <= 0) return 0;
+  target.block += n;
+  queueHitsplat(state, target.id, 'block', n);
+  return n;
+}
+
 export function applyDamage(
   target: Combatant,
   raw: number,
@@ -452,6 +484,9 @@ export function applyDamage(
   target.hp = Math.max(0, target.hp - amount);
   maybeTriggerEnrage(target, state);
 
+  const total = amount + blocked;
+  if (total > 0) queueHitsplat(state, target.id, 'damage', total);
+
   if (
     sourceLabel === 'player' &&
     !target.isPlayer &&
@@ -461,7 +496,7 @@ export function applyDamage(
     onEnemyKilledByPlayer(state);
   }
 
-  return amount + blocked;
+  return total;
 }
 
 /** Redirect incoming player damage through living totems (front line). */
@@ -615,7 +650,7 @@ function onEnemyKilledByPlayer(state: CombatState): void {
   }
   const healAmt = talentKillHeal(state.talents);
   if (healAmt > 0) {
-    const healed = heal(state.player, healAmt);
+    const healed = heal(state.player, healAmt, state);
     if (healed > 0) {
       state.log.push({ text: `Kill: healed ${healed}.`, color: '#86efac' });
     }
@@ -636,10 +671,12 @@ function maybeTriggerEnrage(enemy: Combatant, state: CombatState): void {
   }
 }
 
-function heal(target: Combatant, amount: number): number {
+function heal(target: Combatant, amount: number, state: CombatState): number {
   const before = target.hp;
   target.hp = Math.min(target.maxHp, target.hp + Math.floor(amount));
-  return target.hp - before;
+  const healed = target.hp - before;
+  if (healed > 0) queueHitsplat(state, target.id, 'heal', healed);
+  return healed;
 }
 
 function triggerEcho(state: CombatState, from: CardTypeTag): void {
@@ -652,13 +689,13 @@ function triggerEcho(state: CombatState, from: CardTypeTag): void {
     effectDepth += 1;
     try {
       if (to === 'heal') {
-        const healed = heal(state.player, echo.value);
+        const healed = heal(state.player, echo.value, state);
         state.log.push({
           text: `Echo: healed ${healed}.`,
           color: '#86efac',
         });
       } else if (to === 'block') {
-        state.player.block += echo.value;
+        grantBlock(state.player, echo.value, state);
         state.log.push({
           text: `Echo: gained ${echo.value} Block.`,
           color: '#7dd3fc',
@@ -674,7 +711,7 @@ function triggerEcho(state: CombatState, from: CardTypeTag): void {
 
 function gainBlock(state: CombatState, amount: number, trigger = true): void {
   const boosted = itemModifyBlockAmount(state.itemState.items, amount);
-  state.player.block += boosted;
+  grantBlock(state.player, boosted, state);
   state.itemState.flags.blockGainedThisTurn += boosted;
   state.log.push({
     text: `Gained ${boosted} Block.`,
@@ -683,7 +720,7 @@ function gainBlock(state: CombatState, amount: number, trigger = true): void {
   if (trigger) triggerEcho(state, 'block');
   const blockHeal = talentBlockGainHeal(state.talents);
   if (blockHeal > 0) {
-    const healed = heal(state.player, blockHeal);
+    const healed = heal(state.player, blockHeal, state);
     if (healed > 0) {
       state.log.push({
         text: `Focused Will healed ${healed}.`,
@@ -701,7 +738,7 @@ function gainBlock(state: CombatState, amount: number, trigger = true): void {
 function healPlayer(state: CombatState, amount: number, trigger = true): number {
   const wasFull = state.player.hp >= state.player.maxHp;
   const boosted = itemModifyHealAmount(state.itemState.items, amount);
-  const healed = heal(state.player, boosted);
+  const healed = heal(state.player, boosted, state);
   state.log.push({ text: `Healed ${healed} HP.`, color: '#86efac' });
   if (trigger && healed > 0) triggerEcho(state, 'heal');
   if (trigger && healed > 0) {
@@ -1000,7 +1037,7 @@ function resolveCardDestination(state: CombatState, cardId: string): void {
     state.exhaustPile.push(cardId);
     const block = talentExhaustBlock(state.talents);
     if (block > 0) {
-      state.player.block += block;
+      grantBlock(state.player, block, state);
       state.log.push({ text: `Exhaust: gained ${block} Block.`, color: '#7dd3fc' });
     }
     return;
@@ -1032,7 +1069,7 @@ function afterCardPlayed(
 
   const healBlock = talentHealPlayBlock(state.talents, card);
   if (healBlock > 0) {
-    state.player.block += healBlock;
+    grantBlock(state.player, healBlock, state);
     state.log.push({
       text: `Gained ${healBlock} Block from healing.`,
       color: '#7dd3fc',
@@ -1042,7 +1079,7 @@ function afterCardPlayed(
   if (dealtDamage) {
     const dmgBlock = talentDamageGrantsBlock(state.talents, card);
     if (dmgBlock > 0) {
-      state.player.block += dmgBlock;
+      grantBlock(state.player, dmgBlock, state);
       state.log.push({
         text: `Gained ${dmgBlock} Block from damage.`,
         color: '#7dd3fc',
@@ -1640,13 +1677,13 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
   const remaining: StatusEffect[] = [];
   for (const s of c.statuses) {
     if (s.kind === 'regen') {
-      const healed = heal(c, s.value);
+      const healed = heal(c, s.value, state);
       if (isPlayer) {
         state.log.push({ text: `Regen healed ${healed}.`, color: '#86efac' });
         if (healed > 0) triggerEcho(state, 'heal');
         const tickBlock = talentHotTickBlock(state.talents, s.name);
         if (tickBlock > 0) {
-          state.player.block += tickBlock;
+          grantBlock(state.player, tickBlock, state);
           state.log.push({
             text: `${s.name}: +${tickBlock} Block.`,
             color: '#7dd3fc',
@@ -1654,7 +1691,7 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
         }
         const itemHot = itemHotTickBlock(state.itemState.items);
         if (itemHot > 0) {
-          state.player.block += itemHot;
+          grantBlock(state.player, itemHot, state);
           state.log.push({
             text: `Lifebloom Crown: +${itemHot} Block.`,
             color: '#7dd3fc',
@@ -1672,6 +1709,7 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
       const bonus = !isPlayer ? itemDotTickBonus(state.itemState.items) : 0;
       const tickDmg = s.value + bonus;
       c.hp = Math.max(0, c.hp - tickDmg);
+      queueHitsplat(state, c.id, 'damage', tickDmg);
       state.log.push({
         text: `${c.name} takes ${tickDmg} from ${s.name}.`,
         color: '#f87171',
@@ -1679,7 +1717,7 @@ function tickStatuses(c: Combatant, state: CombatState, isPlayer: boolean): void
       if (!isPlayer) {
         const leech = talentDotTickHeal(state.talents);
         if (leech > 0) {
-          const healed = heal(state.player, leech);
+          const healed = heal(state.player, leech, state);
           state.log.push({
             text: `Vampiric Embrace healed ${healed}.`,
             color: '#86efac',
@@ -1779,19 +1817,16 @@ export function beginPlayerTurn(state: CombatState): void {
   state.phase = 'player';
   state.playDrawUsedThisTurn = false;
   itemBeginTurn(state.itemState);
-  const carryPct = talentBlockCarryoverPct(state.talents);
-  const talentCarried =
-    carryPct > 0 ? Math.floor(state.player.block * (carryPct / 100)) : 0;
-  const itemCarry = itemExtraBlockCarryover(
-    state.itemState.items,
-    state.player.block,
-  );
-  // Use the stronger carryover source (talent % or item %)
-  const finalCarried = Math.max(talentCarried, itemCarry);
+  const talentPct = talentBlockCarryoverPct(state.talents);
+  const itemPct = itemBlockCarryoverPct(state.itemState.items);
+  // Talents and items stack additively (e.g. 50% + 25% = 75%), capped at 100%.
+  const totalPct = Math.min(100, talentPct + itemPct);
+  const finalCarried =
+    totalPct > 0 ? Math.floor(state.player.block * (totalPct / 100)) : 0;
   state.player.block = finalCarried;
   if (finalCarried > 0) {
     state.log.push({
-      text: `Block carries over: ${finalCarried}.`,
+      text: `Block carries over: ${finalCarried} (${totalPct}%).`,
       color: '#7dd3fc',
     });
   }
@@ -1808,7 +1843,7 @@ export function beginPlayerTurn(state: CombatState): void {
     const hots = state.player.statuses.filter((s) => s.kind === 'regen').length;
     if (hots > 0) {
       const gained = perHot * hots;
-      state.player.block += gained;
+      grantBlock(state.player, gained, state);
       state.log.push({
         text: `Tree of Life: +${gained} Block from ${hots} HoT(s).`,
         color: '#7dd3fc',
@@ -1818,7 +1853,7 @@ export function beginPlayerTurn(state: CombatState): void {
 
   const turnBlock = talentStartTurnBlock(state.talents);
   if (turnBlock > 0) {
-    state.player.block += turnBlock;
+    grantBlock(state.player, turnBlock, state);
     state.log.push({
       text: `Start of turn: +${turnBlock} Block.`,
       color: '#7dd3fc',
@@ -1884,7 +1919,7 @@ function resolveIntent(
       break;
     }
     case 'defend': {
-      enemy.block += intent.value;
+      grantBlock(enemy, intent.value, state);
       state.log.push({
         text: `${enemy.name} gains ${intent.value} Block.`,
         color: '#7dd3fc',
@@ -1969,7 +2004,7 @@ function resolveIntent(
       break;
     }
     case 'heal': {
-      const healed = heal(enemy, intent.value);
+      const healed = heal(enemy, intent.value, state);
       state.log.push({
         text: `${enemy.name} heals ${healed}.`,
         color: '#86efac',
@@ -1988,7 +2023,7 @@ function resolveIntent(
         break;
       }
       if (living >= MAX_COMBAT_ENEMIES) {
-        const healed = heal(enemy, Math.max(8, intent.value * 8));
+        const healed = heal(enemy, Math.max(8, intent.value * 8), state);
         state.log.push({
           text: `${enemy.name} cannot summon — absorbs ${healed} HP instead.`,
           color: '#86efac',

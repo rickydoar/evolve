@@ -15,10 +15,13 @@ import {
   playCardOnEnemy,
   selectCard,
   type CombatAnnouncement,
+  type CombatHitsplat,
   type CombatState,
   type EnemyTurnStep,
 } from '../systems/CombatSystem';
 import { fitCardText } from '../ui/fitCardText';
+import { drawOwnedItemsBar } from '../ui/ownedItemsBar';
+import { openDeckView } from './DeckViewScene';
 
 const CARD_W = 154;
 const CARD_H = 240;
@@ -38,6 +41,7 @@ export class CombatScene extends Phaser.Scene {
   private playerHpLabel!: Phaser.GameObjects.Text;
   private playerPortrait!: Phaser.GameObjects.Image | Phaser.GameObjects.Arc;
   private endTurnBtn!: Phaser.GameObjects.Text;
+  private itemsBar: Phaser.GameObjects.Container | null = null;
   private selectedHandIndex: number | null = null;
   private animatingEnemyTurn = false;
   private enemyTurnSteps: EnemyTurnStep[] = [];
@@ -130,6 +134,22 @@ export class CombatScene extends Phaser.Scene {
       this.playEnemyTurnSequence(steps);
     });
 
+    const deckBtn = this.add
+      .text(width - 40, 28, 'View Deck', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
+        color: '#e8f5e9',
+        backgroundColor: '#1a2e24',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(40);
+    deckBtn.on('pointerdown', () => {
+      if (this.animatingEnemyTurn) return;
+      openDeckView(this);
+    });
+
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.animatingEnemyTurn) return;
       cancelTarget(combat);
@@ -160,6 +180,7 @@ export class CombatScene extends Phaser.Scene {
 
   private refresh(): void {
     const combat = GameRegistry.combat!;
+    const run = GameRegistry.run;
     this.hudText.setText(
       `Energy ${combat.energy}/${combat.energyMax}   ·   Turn ${combat.turn}   ·   Draw ${combat.drawPile.length} / Discard ${combat.discardPile.length}`,
     );
@@ -179,9 +200,34 @@ export class CombatScene extends Phaser.Scene {
     this.drawTotems(combat);
     this.drawEnemies(combat);
     this.drawHand(combat);
+    this.drawItemsBar(run?.items ?? combat.itemState.items);
 
     const canAct = combat.phase === 'player' && !this.animatingEnemyTurn;
     this.endTurnBtn.setAlpha(canAct ? 1 : 0.4);
+  }
+
+  private drawItemsBar(itemIds: string[]): void {
+    this.itemsBar?.destroy();
+    this.itemsBar = null;
+    if (!itemIds.length) return;
+
+    const bar = drawOwnedItemsBar(this, itemIds, {
+      x: 70,
+      y: 72,
+      iconSize: 40,
+      gap: 6,
+      showEmptyLabel: false,
+      depth: 40,
+    });
+    const label = this.add
+      .text(-46, 0, 'Items', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '12px',
+        color: '#fde68a',
+      })
+      .setOrigin(0, 0.5);
+    bar.add(label);
+    this.itemsBar = bar;
   }
 
   private drawPlayerHp(combat: CombatState): void {
@@ -492,7 +538,10 @@ export class CombatScene extends Phaser.Scene {
       this.selectedHandIndex = null;
     }
     this.refresh();
-    if (result === 'played') this.flushAnnouncements();
+    if (result === 'played') {
+      this.flushHitsplats();
+      this.flushAnnouncements();
+    }
     this.handlePhaseChange();
   }
 
@@ -505,9 +554,83 @@ export class CombatScene extends Phaser.Scene {
     if (ok) {
       this.selectedHandIndex = null;
       this.refresh();
+      this.flushHitsplats();
       this.flushAnnouncements();
       this.handlePhaseChange();
     }
+  }
+
+  /** Show pending damage / block / heal hitsplats, then clear the queue. */
+  private flushHitsplats(): void {
+    const combat = GameRegistry.combat!;
+    if (!combat.pendingHitsplats.length) return;
+    const items = combat.pendingHitsplats.splice(0);
+    const stackIndex = new Map<string, number>();
+
+    for (const hit of items) {
+      const pos = this.getHitsplatPosition(hit.targetId);
+      if (!pos) continue;
+      const i = stackIndex.get(hit.targetId) ?? 0;
+      stackIndex.set(hit.targetId, i + 1);
+      const xOff = ((i % 3) - 1) * 22;
+      const yOff = -Math.floor(i / 3) * 26;
+      this.time.delayedCall(i * 70, () => {
+        this.showHitsplat(pos.x + xOff, pos.y + yOff, hit);
+      });
+    }
+  }
+
+  private getHitsplatPosition(targetId: string): { x: number; y: number } | null {
+    if (targetId === 'player') {
+      return { x: PLAYER_X, y: PLAYER_Y - 40 };
+    }
+    const container = this.enemyContainers.get(targetId);
+    if (!container) return null;
+    return { x: container.x, y: container.y - 70 };
+  }
+
+  private showHitsplat(x: number, y: number, hit: CombatHitsplat): void {
+    const color =
+      hit.kind === 'damage' ? '#ef4444' : hit.kind === 'heal' ? '#4ade80' : '#9ca3af';
+    const text =
+      hit.kind === 'damage'
+        ? `${hit.amount}`
+        : hit.kind === 'heal'
+          ? `+${hit.amount}`
+          : `🛡+${hit.amount}`;
+
+    const label = this.add
+      .text(x, y, text, {
+        fontFamily: 'Georgia, serif',
+        fontSize: hit.kind === 'damage' ? '28px' : '24px',
+        color,
+        fontStyle: 'bold',
+        stroke: '#0b1210',
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5)
+      .setDepth(100)
+      .setScale(0.55)
+      .setAlpha(0);
+
+    this.tweens.add({
+      targets: label,
+      scale: 1.15,
+      alpha: 1,
+      duration: 120,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: label,
+          y: y - 48,
+          alpha: 0,
+          scale: 0.95,
+          duration: 650,
+          ease: 'Cubic.easeOut',
+          onComplete: () => label.destroy(),
+        });
+      },
+    });
   }
 
   /** Show pending discard-play / retrieve banners, then clear the queue. */
@@ -604,6 +727,7 @@ export class CombatScene extends Phaser.Scene {
     if (!container) {
       applyEnemyTurnStep(combat, step);
       this.refresh();
+      this.flushHitsplats();
       this.time.delayedCall(280, () => this.playNextEnemyStep());
       return;
     }
@@ -611,6 +735,7 @@ export class CombatScene extends Phaser.Scene {
     this.animateEnemyStep(step, container, () => {
       applyEnemyTurnStep(combat, step);
       this.refresh();
+      this.flushHitsplats();
 
       if (combat.phase === 'victory' || combat.phase === 'defeat') {
         this.finishEnemyTurn();
@@ -659,7 +784,6 @@ export class CombatScene extends Phaser.Scene {
           hold: 60,
           onYoyo: () => {
             this.shakePlayer();
-            this.flashFloatingText(PLAYER_X, PLAYER_Y - 50, `-${step.intent.value}`, '#fca5a5');
           },
           onComplete: () => {
             container.setPosition(originX, originY);
@@ -676,9 +800,6 @@ export class CombatScene extends Phaser.Scene {
           duration: 180,
           yoyo: true,
           ease: 'Back.easeOut',
-          onYoyo: () => {
-            this.flashFloatingText(originX, originY - 100, `+${step.intent.value} Block`, '#7dd3fc');
-          },
           onComplete: () => {
             container.setScale(1);
             onComplete();
@@ -729,9 +850,6 @@ export class CombatScene extends Phaser.Scene {
           duration: 200,
           yoyo: true,
           ease: 'Sine.easeOut',
-          onYoyo: () => {
-            this.flashFloatingText(originX, originY - 100, `+${step.intent.value} HP`, '#86efac');
-          },
           onComplete: () => {
             container.setScale(1);
             onComplete();
@@ -815,6 +933,7 @@ export class CombatScene extends Phaser.Scene {
 
     beginPlayerTurn(combat);
     this.refresh();
+    this.flushHitsplats();
     this.handlePhaseChange();
   }
 

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { applyItemPickup, getItem, randomItemOffers } from '../data/items';
 import { GAME_H, GAME_W, setupHiDpiCamera } from '../display';
 import { GameRegistry } from '../GameRegistry';
+import { itemArtKey } from '../ui/itemArt';
 
 /**
  * Elite victory: pick 1 of 3 items (general pool + current specialization).
@@ -96,9 +97,14 @@ export class ItemRewardScene extends Phaser.Scene {
           .setOrigin(0.5),
       );
 
+      const artKey = itemArtKey(id);
+      if (this.textures.exists(artKey)) {
+        container.add(this.add.image(0, -72, artKey).setDisplaySize(88, 88));
+      }
+
       container.add(
         this.add
-          .text(0, -100, def.name, {
+          .text(0, -18, def.name, {
             fontFamily: 'Georgia, serif',
             fontSize: '22px',
             color: '#e8f5e9',
@@ -110,7 +116,7 @@ export class ItemRewardScene extends Phaser.Scene {
 
       container.add(
         this.add
-          .text(0, -20, def.description, {
+          .text(0, 40, def.description, {
             fontFamily: 'Georgia, serif',
             fontSize: '15px',
             color: '#cbd5e1',
