@@ -113,7 +113,7 @@ export const PRIEST_CARDS: Record<string, CardDef> = {
     form: 'discipline',
     cost: 2,
     description:
-      'Gain 5 Spell Power. Heal 10. Double your buffs. Shuffle a Nightmare into your deck.',
+      'Gain 5 Spell Power. Heal 10. Double your buffs. Shuffle a Nightmare into your deck this combat.',
     target: 'self',
     effects: [
       { kind: 'spellPower', value: 5 },
@@ -234,7 +234,7 @@ export const PRIEST_CARDS: Record<string, CardDef> = {
     name: 'Shadowfiend',
     form: 'shadow',
     cost: 2,
-    description: 'Deal 14 damage. Draw 1. Gain 1 Energy. Shuffle a Nightmare into your deck.',
+    description: 'Deal 14 damage. Draw 1. Gain 1 Energy. Shuffle a Nightmare into your deck this combat.',
     target: 'enemy',
     effects: [
       { kind: 'damage', value: 14 },
@@ -369,7 +369,7 @@ export const PRIEST_CARDS: Record<string, CardDef> = {
     name: 'Divine Hymn',
     form: 'holy',
     cost: 2,
-    description: 'Heal 22. Gain 10 Block. Remove all debuffs. Shuffle a Nightmare into your deck.',
+    description: 'Heal 22. Gain 10 Block. Remove all debuffs. Shuffle a Nightmare into your deck this combat.',
     target: 'self',
     effects: [
       { kind: 'heal', value: 22 },

@@ -664,6 +664,205 @@ export const ITEMS: Record<string, ItemDef> = {
       },
     ],
   },
+
+  // ════════════════════════════════════════════════════════════════
+  // RESTO SHAMAN (5)
+  // ════════════════════════════════════════════════════════════════
+  tidal_charm: {
+    id: 'tidal_charm',
+    name: 'Tidal Charm',
+    description: 'Whenever you play a Resto heal, deal 5 damage to the lowest-HP enemy.',
+    spec: 'resto',
+    rarity: 'epic',
+    effects: [
+      {
+        trigger: 'onPlayCard',
+        kind: 'damageLowest',
+        value: 5,
+        forms: ['resto'],
+        cardIds: [
+          'healing_wave',
+          'riptide',
+          'healing_surge',
+          'chain_heal',
+          'spirit_link',
+          'mana_tide_totem',
+        ],
+      },
+    ],
+  },
+  stream_crystal: {
+    id: 'stream_crystal',
+    name: 'Stream Crystal',
+    description: 'Your HoT ticks also grant 2 Block.',
+    spec: 'resto',
+    rarity: 'rare',
+    effects: [{ trigger: 'combatStart', kind: 'flag', value: 2 }],
+  },
+  ancestral_coin: {
+    id: 'ancestral_coin',
+    name: 'Ancestral Coin',
+    description: 'When you heal while at full HP, gain 8 Block.',
+    spec: 'resto',
+    rarity: 'rare',
+    effects: [
+      {
+        trigger: 'onHeal',
+        kind: 'block',
+        value: 8,
+        requireFullHp: true,
+      },
+    ],
+  },
+  spirit_water: {
+    id: 'spirit_water',
+    name: 'Spirit Water',
+    description: 'Once per turn, after playing a Resto card, gain 6 Block.',
+    spec: 'resto',
+    rarity: 'epic',
+    effects: [
+      {
+        trigger: 'onPlayCard',
+        kind: 'block',
+        value: 6,
+        forms: ['resto'],
+        oncePerTurn: true,
+      },
+    ],
+  },
+  grounding_charm: {
+    id: 'grounding_charm',
+    name: 'Grounding Charm',
+    description: 'At the start of combat, gain 10 Block.',
+    spec: 'resto',
+    rarity: 'rare',
+    effects: [{ trigger: 'combatStart', kind: 'block', value: 10 }],
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // ENHANCE (5)
+  // ════════════════════════════════════════════════════════════════
+  stormforged_ring: {
+    id: 'stormforged_ring',
+    name: 'Stormforged Ring',
+    description: 'Enhance attacks deal +2 damage (via Strength at combat start).',
+    spec: 'enhance',
+    rarity: 'rare',
+    effects: [{ trigger: 'combatStart', kind: 'strength', value: 2 }],
+  },
+  windfury_idol: {
+    id: 'windfury_idol',
+    name: 'Windfury Idol',
+    description: 'Whenever you deal damage with an Enhance card, deal 3 to a random enemy.',
+    spec: 'enhance',
+    rarity: 'epic',
+    effects: [
+      {
+        trigger: 'onDealDamage',
+        kind: 'damageRandom',
+        value: 3,
+        forms: ['enhance'],
+      },
+    ],
+  },
+  lava_lash_brand: {
+    id: 'lava_lash_brand',
+    name: 'Lava Lash Brand',
+    description: 'Once per turn, after playing an Enhance card, draw 1.',
+    spec: 'enhance',
+    rarity: 'rare',
+    effects: [
+      {
+        trigger: 'onPlayCard',
+        kind: 'draw',
+        value: 1,
+        forms: ['enhance'],
+        oncePerTurn: true,
+      },
+    ],
+  },
+  earthbind_fetish: {
+    id: 'earthbind_fetish',
+    name: 'Earthbind Fetish',
+    description: 'After an Enhance attack, gain 3 Block.',
+    spec: 'enhance',
+    rarity: 'rare',
+    effects: [
+      {
+        trigger: 'onDealDamage',
+        kind: 'block',
+        value: 3,
+        forms: ['enhance'],
+      },
+    ],
+  },
+  wolf_spirit_fang: {
+    id: 'wolf_spirit_fang',
+    name: 'Wolf Spirit Fang',
+    description: 'When you kill an enemy, gain 1 Energy.',
+    spec: 'enhance',
+    rarity: 'epic',
+    effects: [{ trigger: 'onKill', kind: 'energy', value: 1 }],
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // ELEMENTAL (5)
+  // ════════════════════════════════════════════════════════════════
+  lightning_rod: {
+    id: 'lightning_rod',
+    name: 'Lightning Rod',
+    description: 'At the start of combat, gain 3 Spell Power.',
+    spec: 'elemental',
+    rarity: 'rare',
+    effects: [{ trigger: 'combatStart', kind: 'spellPower', value: 3 }],
+  },
+  lava_core: {
+    id: 'lava_core',
+    name: 'Lava Core',
+    description: 'Flame Shock and Lava Burst deal +4 damage.',
+    spec: 'elemental',
+    rarity: 'rare',
+    effects: [{ trigger: 'onDealDamage', kind: 'flag', value: 4 }],
+  },
+  stormcaller_eye: {
+    id: 'stormcaller_eye',
+    name: 'Stormcaller Eye',
+    description: 'Whenever you deal random damage, also deal 4 to ALL enemies.',
+    spec: 'elemental',
+    rarity: 'epic',
+    effects: [
+      {
+        trigger: 'onDealDamage',
+        kind: 'damageAll',
+        value: 4,
+        forms: ['elemental'],
+      },
+    ],
+  },
+  elemental_focus_stone: {
+    id: 'elemental_focus_stone',
+    name: 'Elemental Focus Stone',
+    description: 'Once per turn, after playing an Elemental card, gain 1 Energy.',
+    spec: 'elemental',
+    rarity: 'epic',
+    effects: [
+      {
+        trigger: 'onPlayCard',
+        kind: 'energy',
+        value: 1,
+        forms: ['elemental'],
+        oncePerTurn: true,
+      },
+    ],
+  },
+  shock_totem_shard: {
+    id: 'shock_totem_shard',
+    name: 'Shock Totem Shard',
+    description: 'Damage-over-time effects you apply last 1 extra turn.',
+    spec: 'elemental',
+    rarity: 'rare',
+    effects: [{ trigger: 'onApplyDot', kind: 'dotExtraDuration', value: 1 }],
+  },
 };
 
 export const GENERAL_ITEM_IDS: string[] = Object.values(ITEMS)
@@ -678,6 +877,11 @@ export const SPEC_ITEM_IDS: Record<OpeningSpec, string[]> = {
   shadow: Object.values(ITEMS).filter((i) => i.spec === 'shadow').map((i) => i.id),
   discipline: Object.values(ITEMS)
     .filter((i) => i.spec === 'discipline')
+    .map((i) => i.id),
+  resto: Object.values(ITEMS).filter((i) => i.spec === 'resto').map((i) => i.id),
+  enhance: Object.values(ITEMS).filter((i) => i.spec === 'enhance').map((i) => i.id),
+  elemental: Object.values(ITEMS)
+    .filter((i) => i.spec === 'elemental')
     .map((i) => i.id),
 };
 
@@ -752,8 +956,13 @@ export function itemFlatBlockBonus(items: string[]): number {
 }
 
 export function itemSacredFlameBonus(items: string[], cardId: string): number {
-  if (!items.includes('sacred_flame')) return 0;
-  return cardId === 'holy_fire' || cardId === 'holy_nova' ? 5 : 0;
+  if (items.includes('sacred_flame')) {
+    if (cardId === 'holy_fire' || cardId === 'holy_nova') return 5;
+  }
+  if (items.includes('lava_core')) {
+    if (cardId === 'flame_shock' || cardId === 'lava_burst') return 4;
+  }
+  return 0;
 }
 
 export function itemTreeCostReduce(items: string[]): number {
@@ -769,7 +978,7 @@ export function itemBlockCarryoverPct(items: string[]): number {
 }
 
 export function itemLifebloomCrown(items: string[]): boolean {
-  return items.includes('lifebloom_crown');
+  return items.includes('lifebloom_crown') || items.includes('stream_crystal');
 }
 
 export function itemTwinStar(items: string[]): boolean {

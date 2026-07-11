@@ -19,6 +19,7 @@ import {
   type ItemCombatState,
 } from '../data/itemCombat';
 import { itemBlockCarryoverPct } from '../data/items';
+import { TOTEMS } from '../data/shamanCards';
 import {
   hasTalentSpecial,
   modifyEffectValue,
@@ -47,6 +48,10 @@ import {
   talentStartTurnBlock,
   talentStartTurnDraw,
   talentStartTurnEnergy,
+  talentTotemAuraPct,
+  talentTotemDeathBlock,
+  talentTotemHpBonus,
+  talentTotemTurnDamage,
 } from '../data/talents';
 import type {
   CardDef,
@@ -57,6 +62,8 @@ import type {
   Form,
   RunState,
   StatusEffect,
+  TotemCombatant,
+  TotemElement,
 } from '../data/types';
 
 export type CombatPhase = 'player' | 'enemy' | 'victory' | 'defeat';
@@ -86,6 +93,8 @@ export interface CombatHitsplat {
 export interface CombatState {
   player: Combatant;
   enemies: Combatant[];
+  /** Living totems — absorb damage before the player and grant auras. */
+  totems: TotemCombatant[];
   energy: number;
   energyMax: number;
   drawPile: string[];
@@ -104,7 +113,7 @@ export interface CombatState {
   spellPowerBonus: number;
   /** Snapshot of run talents for this combat. */
   talents: Record<string, number>;
-  /** Curse (and similar) ids to merge into the run deck after victory. */
+  /** Card ids to merge into the run deck after victory (curses excluded — combat-only). */
   pendingDeckCards: string[];
   /** Form spell play counts for nth-free talents (e.g. Shooting Stars). */
   formSpellCounts: Partial<Record<Form, number>>;
@@ -150,7 +159,7 @@ export function cardHasType(card: CardDef | undefined, type: CardTypeTag): boole
     case 'heal':
       return card.effects.some((e) => e.kind === 'heal' || e.kind === 'healOverTime');
     case 'block':
-      return card.effects.some((e) => e.kind === 'block' || e.kind === 'thorns');
+      return card.effects.some((e) => e.kind === 'block' || e.kind === 'thorns' || e.kind === 'summonTotem');
     default:
       return false;
   }
@@ -199,6 +208,7 @@ export function startCombat(run: RunState, enemyIds: string[]): CombatState {
       art: cls.heroArt,
     },
     enemies,
+    totems: [],
     energy: run.energyMax,
     energyMax: run.energyMax,
     drawPile: shuffle([...run.deck]),
@@ -462,6 +472,11 @@ export function applyDamage(
   const vuln = getStatus(target, 'vulnerable');
   if (vuln) amount = Math.floor(amount * 1.5);
 
+  // Totems intercept damage aimed at the Shaman before Block / HP.
+  if (target.isPlayer && amount > 0) {
+    amount = absorbDamageWithTotems(state, amount);
+  }
+
   const prevHp = target.hp;
   const blocked = Math.min(target.block, amount);
   target.block -= blocked;
@@ -482,6 +497,149 @@ export function applyDamage(
   }
 
   return total;
+}
+
+/** Redirect incoming player damage through living totems (front line). */
+function absorbDamageWithTotems(state: CombatState, amount: number): number {
+  let remaining = amount;
+  const living = state.totems.filter((t) => t.hp > 0);
+  for (const totem of living) {
+    if (remaining <= 0) break;
+    const taken = Math.min(totem.hp, remaining);
+    totem.hp -= taken;
+    remaining -= taken;
+    state.log.push({
+      text: `${totem.name} absorbs ${taken} damage.`,
+      color: '#94a3b8',
+    });
+    if (totem.hp <= 0) {
+      onTotemDestroyed(state, totem);
+    }
+  }
+  state.totems = state.totems.filter((t) => t.hp > 0);
+  return remaining;
+}
+
+function onTotemDestroyed(state: CombatState, totem: TotemCombatant): void {
+  state.log.push({
+    text: `${totem.name} is destroyed!`,
+    color: '#f87171',
+  });
+  const deathBlock = talentTotemDeathBlock(state.talents);
+  if (deathBlock > 0) {
+    state.player.block += deathBlock;
+    state.log.push({
+      text: `Totemic Focus: +${deathBlock} Block.`,
+      color: '#7dd3fc',
+    });
+  }
+}
+
+function scaleTotemAura(state: CombatState, value: number): number {
+  const pct = talentTotemAuraPct(state.talents);
+  return Math.max(0, Math.floor(value * (1 + pct / 100)));
+}
+
+export function livingTotems(state: CombatState): TotemCombatant[] {
+  return state.totems.filter((t) => t.hp > 0);
+}
+
+export function totemAuraBonus(
+  state: CombatState,
+  kind: TotemCombatant['aura']['kind'],
+): number {
+  let total = 0;
+  for (const t of livingTotems(state)) {
+    if (t.aura.kind === kind) {
+      total += scaleTotemAura(state, t.aura.value);
+    }
+  }
+  return total;
+}
+
+function summonTotem(state: CombatState, totemId: string): void {
+  const def = TOTEMS[totemId];
+  if (!def) {
+    state.log.push({ text: `Unknown totem: ${totemId}`, color: '#f87171' });
+    return;
+  }
+  // One totem per element — replace existing.
+  state.totems = state.totems.filter((t) => t.element !== def.element);
+  const hpBonus = talentTotemHpBonus(state.talents);
+  const maxHp = def.maxHp + hpBonus;
+  const totem: TotemCombatant = {
+    id: uid(def.id),
+    defId: def.id,
+    name: def.name,
+    element: def.element as TotemElement,
+    maxHp,
+    hp: maxHp,
+    art: def.art,
+    aura: { ...def.aura },
+  };
+  state.totems.push(totem);
+  const auraDesc = describeTotemAura(state, totem);
+  state.log.push({
+    text: `Summoned ${totem.name} (${totem.hp} HP). ${auraDesc}`,
+    color: '#67e8f9',
+  });
+}
+
+function describeTotemAura(state: CombatState, totem: TotemCombatant): string {
+  const v = scaleTotemAura(state, totem.aura.value);
+  switch (totem.aura.kind) {
+    case 'strength':
+      return `+${v} Strength while alive.`;
+    case 'spellPower':
+      return `+${v} Spell Power while alive.`;
+    case 'regen':
+      return `Regen ${v}/turn while alive.`;
+    case 'thorns':
+      return `Thorns ${v} while alive.`;
+    case 'blockPerTurn':
+      return `+${v} Block/turn while alive.`;
+    case 'energyOnTurn':
+      return `+${v} Energy/turn while alive.`;
+    default:
+      return '';
+  }
+}
+
+/** Apply passive totem auras at the start of the player's turn. */
+function tickTotemAuras(state: CombatState): void {
+  const totems = livingTotems(state);
+  if (!totems.length) return;
+
+  const blockGain = totemAuraBonus(state, 'blockPerTurn');
+  if (blockGain > 0) {
+    gainBlock(state, blockGain, false);
+    state.log.push({
+      text: `Totems: +${blockGain} Block.`,
+      color: '#7dd3fc',
+    });
+  }
+
+  const regen = totemAuraBonus(state, 'regen');
+  if (regen > 0) {
+    healPlayer(state, regen, false);
+  }
+
+  const energy = totemAuraBonus(state, 'energyOnTurn');
+  if (energy > 0) {
+    state.energy += energy;
+    state.log.push({
+      text: `Totems: +${energy} Energy.`,
+      color: '#fde68a',
+    });
+  }
+
+  const turnDmg = talentTotemTurnDamage(state.talents);
+  if (turnDmg > 0) {
+    const total = turnDmg * totems.length;
+    if (total > 0) {
+      dealRandomDamage(state, total);
+    }
+  }
 }
 
 function onEnemyKilledByPlayer(state: CombatState): void {
@@ -603,9 +761,12 @@ function computeCardDamage(
     card.form === 'boomkin' ||
     card.form === 'holy' ||
     card.form === 'shadow' ||
-    card.form === 'discipline'
+    card.form === 'discipline' ||
+    card.form === 'elemental'
   ) {
-    dmg += state.spellPowerBonus + Math.floor(state.spellPowerBonus * 0.5);
+    const totemSp = totemAuraBonus(state, 'spellPower');
+    const sp = state.spellPowerBonus + totemSp;
+    dmg += sp + Math.floor(sp * 0.5);
   }
   if (
     (card.id === 'starfire' || card.id === 'wrath') &&
@@ -626,7 +787,8 @@ function computeCardDamage(
     dmg += 12;
   }
   const str = getStatus(state.player, 'strength');
-  if (str) dmg += str.value;
+  const totemStr = totemAuraBonus(state, 'strength');
+  dmg += (str?.value ?? 0) + totemStr;
   return itemModifyOutgoingDamage(state.itemState.items, card, dmg);
 }
 
@@ -1401,10 +1563,9 @@ function applyCardEffects(
         for (let i = 0; i < value; i++) {
           const insertAt = Math.floor(Math.random() * (state.drawPile.length + 1));
           state.drawPile.splice(insertAt, 0, CURSE_CARD_ID);
-          state.pendingDeckCards.push(CURSE_CARD_ID);
         }
         state.log.push({
-          text: `Shuffled ${value} Nightmare into your deck.`,
+          text: `Shuffled ${value} Nightmare into your deck this combat.`,
           color: '#c4b5fd',
         });
         break;
@@ -1498,6 +1659,12 @@ function applyCardEffects(
         forEachItemEffect(state.itemState, 'onGainThorns', makeItemApi(state), {
           card,
         });
+        break;
+      }
+      case 'summonTotem': {
+        if (effect.totemId) {
+          summonTotem(state, effect.totemId);
+        }
         break;
       }
     }
@@ -1718,6 +1885,7 @@ export function beginPlayerTurn(state: CombatState): void {
       color: '#e2e8f0',
     });
   }
+  tickTotemAuras(state);
   forEachItemEffect(state.itemState, 'turnStart', makeItemApi(state), {});
   state.log.push({ text: `— Turn ${state.turn} —`, color: '#e2e8f0' });
 }
@@ -1738,9 +1906,11 @@ function resolveIntent(
         text: `${enemy.name} attacks for ${dealt}!`,
         color: '#fca5a5',
       });
-      const thorns = getStatus(state.player, 'thorns');
-      if (thorns && thorns.value > 0 && enemy.hp > 0) {
-        const reflected = applyDamage(enemy, thorns.value, state, 'player');
+      const thornsStatus = getStatus(state.player, 'thorns');
+      const totemThorns = totemAuraBonus(state, 'thorns');
+      const thornsValue = (thornsStatus?.value ?? 0) + totemThorns;
+      if (thornsValue > 0 && enemy.hp > 0) {
+        const reflected = applyDamage(enemy, thornsValue, state, 'player');
         state.log.push({
           text: `Thorns deal ${reflected} to ${enemy.name}!`,
           color: '#86efac',
@@ -1896,12 +2066,15 @@ export function cancelTarget(state: CombatState): void {
   state.selectedCardId = null;
 }
 
-/** Persist combat-gained curses (etc.) into the run deck after a win. */
+/** Persist combat-gained deck cards/gold after a win. Curses never leave the fight. */
 export function commitPendingDeckCards(run: RunState, state: CombatState): void {
   for (const id of state.pendingDeckCards) {
+    if (CARDS[id]?.curse) continue;
     run.deck.push(id);
   }
   state.pendingDeckCards = [];
+  // Curses are combat-only — strip any that somehow remain on the run deck.
+  run.deck = run.deck.filter((id) => !CARDS[id]?.curse);
   if (state.pendingGold > 0) {
     run.gold += state.pendingGold;
     state.pendingGold = 0;

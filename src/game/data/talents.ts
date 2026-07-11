@@ -1,5 +1,6 @@
 import { talentTreesForClass } from './classes';
 import { PRIEST_TALENTS } from './priestTalents';
+import { SHAMAN_TALENTS } from './shamanTalents';
 import type {
   CardDef,
   CardEffect,
@@ -24,6 +25,9 @@ export const TALENT_TREE_LABELS: Record<TalentTree, string> = {
   holy: 'Holy',
   shadow: 'Shadow',
   discipline: 'Discipline',
+  restoration: 'Restoration',
+  enhancement: 'Enhancement',
+  elemental: 'Elemental',
 };
 
 export const TALENT_TREE_COLORS: Record<TalentTree, number> = {
@@ -33,6 +37,9 @@ export const TALENT_TREE_COLORS: Record<TalentTree, number> = {
   holy: 0xf0c75e,
   shadow: 0x7c3aed,
   discipline: 0xe8e0d0,
+  restoration: 0x38bdf8,
+  enhancement: 0xf97316,
+  elemental: 0x818cf8,
 };
 
 export const TALENT_TREE_BLURBS: Record<TalentTree, string> = {
@@ -42,6 +49,9 @@ export const TALENT_TREE_BLURBS: Record<TalentTree, string> = {
   holy: 'Sustain · Utility · Radiance',
   shadow: 'Leech · Utility · Detonate',
   discipline: 'Shields · Utility · Atonement',
+  restoration: 'Heals · Totems · Tide',
+  enhancement: 'Strikes · Totems · Maelstrom',
+  elemental: 'Shocks · Totems · Overload',
 };
 
 /**
@@ -622,6 +632,7 @@ export const DRUID_TALENTS: Record<string, TalentDef> = {
 export const TALENTS: Record<string, TalentDef> = {
   ...DRUID_TALENTS,
   ...PRIEST_TALENTS,
+  ...SHAMAN_TALENTS,
 };
 
 function talentsForTree(tree: TalentTree): TalentDef[] {
@@ -637,6 +648,9 @@ export const TALENTS_BY_TREE: Record<TalentTree, TalentDef[]> = {
   holy: talentsForTree('holy'),
   shadow: talentsForTree('shadow'),
   discipline: talentsForTree('discipline'),
+  restoration: talentsForTree('restoration'),
+  enhancement: talentsForTree('enhancement'),
+  elemental: talentsForTree('elemental'),
 };
 
 export function talentTreesForRun(classId: ClassId): TalentTree[] {
@@ -777,6 +791,7 @@ const HOT_CARD_NAMES: Record<string, string> = {
   rejuvenation: 'Rejuvenation',
   lifebloom: 'Lifebloom',
   renew: 'Renew',
+  riptide: 'Riptide',
 };
 
 function hotNameMatchesCardId(hotName: string, cardId: string): boolean {
@@ -970,6 +985,38 @@ export function talentDotExtraDuration(
     }
   });
   return extra;
+}
+
+export function talentTotemHpBonus(talents: Record<string, number>): number {
+  let hp = 0;
+  forEachTalentSpecial(talents, (special, ranks) => {
+    if (special.type === 'totemHpBonus') hp += special.hp * ranks;
+  });
+  return hp;
+}
+
+export function talentTotemAuraPct(talents: Record<string, number>): number {
+  let pct = 0;
+  forEachTalentSpecial(talents, (special, ranks) => {
+    if (special.type === 'totemAuraPct') pct += special.pct * ranks;
+  });
+  return pct;
+}
+
+export function talentTotemDeathBlock(talents: Record<string, number>): number {
+  let block = 0;
+  forEachTalentSpecial(talents, (special, ranks) => {
+    if (special.type === 'totemDeathBlock') block += special.block * ranks;
+  });
+  return block;
+}
+
+export function talentTotemTurnDamage(talents: Record<string, number>): number {
+  let dmg = 0;
+  forEachTalentSpecial(talents, (special, ranks) => {
+    if (special.type === 'totemTurnDamage') dmg += special.damage * ranks;
+  });
+  return dmg;
 }
 
 function cardMatchesSpecialFilter(
@@ -1316,7 +1363,7 @@ function effectDescription(effect: CardEffect, card: CardDef, talents: Record<st
     case 'copyCard':
       return `Copy ${value} random card${value === 1 ? '' : 's'} into your draw pile.`;
     case 'shuffleCurse':
-      return `Shuffle ${value} Nightmare into your deck.`;
+      return `Shuffle ${value} Nightmare into your deck this combat.`;
     case 'doubleBuffs':
       return 'Double your current buffs.';
     case 'echo': {
@@ -1369,6 +1416,8 @@ function effectDescription(effect: CardEffect, card: CardDef, talents: Record<st
     }
     case 'thorns':
       return `Gain Thorns ${value} for ${effect.duration ?? 3} turns.`;
+    case 'summonTotem':
+      return card.description;
     default:
       return '';
   }
@@ -1484,6 +1533,10 @@ export function treeForForm(form: Form): TalentTree {
   if (form === 'boomkin') return 'balance';
   if (form === 'holy') return 'holy';
   if (form === 'shadow') return 'shadow';
+  if (form === 'discipline') return 'discipline';
+  if (form === 'resto') return 'restoration';
+  if (form === 'enhance') return 'enhancement';
+  if (form === 'elemental') return 'elemental';
   return 'discipline';
 }
 

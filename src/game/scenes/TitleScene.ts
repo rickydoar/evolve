@@ -50,8 +50,8 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const cardW = 340;
-    const gap = 48;
+    const cardW = 300;
+    const gap = 36;
     const totalW = CLASS_ORDER.length * cardW + (CLASS_ORDER.length - 1) * gap;
     const startX = (width - totalW) / 2;
 
@@ -63,7 +63,8 @@ export class TitleScene extends Phaser.Scene {
   private drawClassCard(classId: ClassId, x: number, y: number, w: number): void {
     const cls = getClass(classId);
     const h = 420;
-    const accent = classId === 'priest' ? 0xf0c75e : 0x4ade80;
+    const accent =
+      classId === 'priest' ? 0xf0c75e : classId === 'shaman' ? 0x38bdf8 : 0x4ade80;
     const accentHex = `#${accent.toString(16).padStart(6, '0')}`;
 
     const g = this.add.graphics();
@@ -109,10 +110,18 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const btnColor = classId === 'priest' ? '#f0c75e' : '#4ade80';
-    const btnHover = classId === 'priest' ? '#f5d98a' : '#86efac';
+    const btnColor =
+      classId === 'priest' ? '#f0c75e' : classId === 'shaman' ? '#38bdf8' : '#4ade80';
+    const btnHover =
+      classId === 'priest' ? '#f5d98a' : classId === 'shaman' ? '#7dd3fc' : '#86efac';
+    const btnLabel =
+      classId === 'priest'
+        ? 'Choose school →'
+        : classId === 'shaman'
+          ? 'Choose path →'
+          : 'Choose form →';
     const btn = this.add
-      .text(x + w / 2, y + 370, classId === 'priest' ? 'Choose school →' : 'Choose form →', {
+      .text(x + w / 2, y + 370, btnLabel, {
         fontFamily: 'Georgia, serif',
         fontSize: '20px',
         color: '#0b1210',
