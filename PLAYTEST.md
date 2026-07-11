@@ -38,8 +38,15 @@ Random remains near zero — skill still required. Seeded path viability varies 
 | Shadow | DoT leech, longer/stronger DoTs, Weak→Vulnerable, half recoil, recoil→energy |
 | Discipline | Block→damage, Penance Vulnerable, block carryover, attack→heal, block-card draw |
 
-## Reproduce
+## Elemental Shaman nerf
 
-```bash
-SMART_RUNS=20 ONSPEC_RUNS=20 RANDOM_RUNS=10 SEED_RUNS=30 npx tsx scripts/playthrough.ts
-```
+Human Elemental runs felt unbeatable (spell-power snowball + free bolts + Flame Shock → Lava Burst + echoes). The harness understated that because it scores cards without live SP / sequencing.
+
+Key changes:
+- Flame Shock DoT 90 → 60; Lava Burst 40 → 32 and refunds only after a successful consume
+- Lightning Bolt free only with **≥4** all-elemental cards in hand; damage 38 → 32
+- No duplicate Flame Shock in starter; Wrath +5 SP / 4 turns; Master +3 SP; Blast 2 echoes; Searing 10×4
+- Elemental spell power is **1.25×** (other casters keep 1.5×); Echo energy needs ≥3 hits
+- Stormcaller Eye fixed to random damage only; Focus Stone attacks-only; Rod/Core tuned down
+
+Harness after nerf (Elemental specifically): smart ~8–16%, on-spec ~13–25% — intentionally below other specs because humans sequence this kit much better than the sim.

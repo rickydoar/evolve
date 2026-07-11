@@ -848,7 +848,10 @@ export function computeCardDamage(
   ) {
     const totemSp = totemAuraBonus(state, 'spellPower');
     const sp = state.spellPowerBonus + totemSp;
-    dmg += sp + Math.floor(sp * 0.5);
+    // Elemental stacks SP heavily via Master / Wrath / items — use 1.25×.
+    // Other caster schools keep the full 1.5× bonus.
+    if (card.form === 'elemental') dmg += sp + Math.floor(sp * 0.25);
+    else dmg += sp + Math.floor(sp * 0.5);
   }
   if (
     (card.id === 'starfire' || card.id === 'wrath') &&
@@ -934,6 +937,7 @@ function dealDamageTo(
   target: Combatant,
   base: number,
   triggerEchoOnHit = true,
+  isRandomDamage = false,
 ): number {
   const dmg = computeCardDamage(card, base, state, target);
   let dealt = applyDamage(target, dmg, state, 'player');
@@ -974,7 +978,7 @@ function dealDamageTo(
     forEachItemEffect(state.itemState, 'onDealDamage', makeItemApi(state), {
       card,
       damageAmount: dealt,
-      isRandomDamage: false,
+      isRandomDamage,
     });
   }
   return dealt;
@@ -1001,7 +1005,7 @@ function dealRandomDamage(
       art: '',
       rarity: 'common',
     } satisfies CardDef);
-  dealDamageTo(state, fakeCard, target, base, !!card);
+  dealDamageTo(state, fakeCard, target, base, !!card, true);
   return target;
 }
 
@@ -1136,8 +1140,11 @@ export function getCardPlayCost(
   let cost = card.cost;
 
   if (card.effects.some((e) => e.kind === 'freeIfAllElemental')) {
-    const allElemental = state.hand.every((inst) => cardDef(inst)?.form === 'elemental');
-    if (allElemental && state.hand.length > 0) return 0;
+    // Thin hands made "all elemental → free Lightning Bolt" too automatic.
+    const allElemental =
+      state.hand.length >= 4 &&
+      state.hand.every((inst) => cardDef(inst)?.form === 'elemental');
+    if (allElemental) return 0;
   }
 
   if (cardHasType(card, 'attack') && state.attackCostReduction > 0) {
@@ -1320,6 +1327,8 @@ function applyCardEffects(
   upgrade = 0,
 ): boolean {
   let dealtDamage = false;
+  /** Set when consumeFlameShock actually removes a Flame Shock this card. */
+  let consumedFlameShock = false;
 
   // Penance: damage and heal scale with half current Block (armor).
   if (card.id === 'penance') {
@@ -1362,20 +1371,20 @@ function applyCardEffects(
         const living = state.enemies.filter((e) => e.hp > 0);
         if (!living.length) break;
         const t = living[Math.floor(Math.random() * living.length)]!;
-        const dealt = dealDamageTo(state, card, t, value);
+        const dealt = dealDamageTo(state, card, t, value, true, true);
         dealtDamage = true;
         if (itemHasTwinStar(state.itemState.items) && dealt > 0) {
           const others = state.enemies.filter((e) => e.hp > 0 && e.id !== t.id);
           const half = Math.ceil(dealt / 2);
           if (others.length && half > 0) {
             const t2 = others[Math.floor(Math.random() * others.length)]!;
-            dealDamageTo(state, card, t2, half, false);
+            dealDamageTo(state, card, t2, half, false, true);
             state.log.push({
               text: `Twin Star: ${half} to ${t2.name}.`,
               color: '#c4b5fd',
             });
           } else if (half > 0 && t.hp > 0) {
-            dealDamageTo(state, card, t, half, false);
+            dealDamageTo(state, card, t, half, false, true);
             state.log.push({
               text: `Twin Star: ${half} again.`,
               color: '#c4b5fd',
@@ -1716,6 +1725,7 @@ function applyCardEffects(
         );
         const dealt = applyDamage(target, total, state, 'player');
         dealtDamage = true;
+        consumedFlameShock = true;
         state.log.push({
           text: `Consumed Flame Shock for ${dealt} damage!`,
           color: '#fb923c',
@@ -1819,7 +1829,7 @@ function applyCardEffects(
           dealRandomDamage(state, dmg, card);
           dealtDamage = true;
         }
-        if (hits.length >= 2) {
+        if (hits.length >= 3) {
           state.energy += 1;
           state.log.push({
             text: `Echo of the Elements repeats ${hits.length} attack(s)! +1 Energy.`,
@@ -1856,7 +1866,12 @@ function applyCardEffects(
       case 'exhaust':
         break;
       case 'refundIfFlameShock': {
-        if (target && hasFlameShock(target)) {
+        // Lava Burst: refund only after a successful consume on this card.
+        // Lava Lash: refund while Flame Shock is still present (no consume).
+        const ok =
+          consumedFlameShock ||
+          (card.id !== 'lava_burst' && !!target && hasFlameShock(target));
+        if (ok) {
           state.energy += value;
           state.log.push({
             text: `Flame Shock! Refunded ${value} Energy.`,

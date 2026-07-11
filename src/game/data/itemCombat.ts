@@ -178,8 +178,21 @@ export function forEachItemEffect(
         if (state.treePlaysThisTurn !== 2) return;
       }
 
-      // Twin Star only on random damage path
+      // Twin Star / Stormcaller Eye only on random damage path
       if (fx.kind === 'doubleRandomHalf' && !ctx.isRandomDamage) return;
+      if (itemId === 'stormcaller_eye' && !ctx.isRandomDamage) return;
+
+      // Elemental Focus Stone: attacks only (not Master / totems / Echo setup)
+      if (itemId === 'elemental_focus_stone' && trigger === 'onPlayCard') {
+        const isAttack = ctx.card?.effects.some(
+          (e) =>
+            e.kind === 'damage' ||
+            e.kind === 'aoeDamage' ||
+            e.kind === 'randomDamage' ||
+            e.kind === 'damageOverTime',
+        );
+        if (!isAttack) return;
+      }
 
       // Barkbreaker: need cumulative block this turn including this gain >= 10,
       // and only once — minBlock checks current gain; use cumulative
